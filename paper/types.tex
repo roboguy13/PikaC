@@ -1,0 +1,236 @@
+\section{Static Semantics}
+
+\subsection{Type System}
+
+$E$ is the global environment. We write:
+
+\begin{itemize}
+  \item $E[\Delta]$ for $E$ extended with the local list of types $\Delta$
+  \item $E[\Delta;C;\Gamma]$ for $E$ extended with the local list of types $\Delta$, the
+    layout constraints $C$ and the typing context $\Gamma$.
+\end{itemize}
+
+\noindent
+In particular, $E$ is a set that includes:
+\begin{itemize}
+  \item $(A : \Type)$ for every user-defined algebraic data type $A$
+  \item $(\alpha \isA \layout{A})$ for every user-defined layout $\alpha$ for a data type $A$
+\end{itemize}
+
+\noindent
+This follows the style of typing rules given in the Coq manual.~\cite{Coq-typing-rules} The use of layout constraints and layout
+polymorphism largely follows the type system used by \Dargent, though there are some differences.~\cite{Dargent} These differences
+are discussed further in Section~\ref{sec:related-work}.
+% \[
+%   \lowerExpr_\ell(e) = \apply_\ell(e)
+% \]
+
+A general type system is given in Fig.~\ref{fig:type-form}, Fig.~\ref{fig:layout-constraints} and Fig.~\ref{fig:typing-judgment}. Type signatures
+in Pika are restricted to only have types of the form
+
+\[
+  \forall \overline{\alpha_i}.\; \overline{\alpha_i \isA \layout{A_i}} \Ra \tau
+\]
+
+\noindent
+where $\tau$ is a quantifier-free type with no layout constraints and the type variables $\overline{\alpha}$ are allowed to occur free.
+
+\begin{figure}
+  \[
+  \begin{array}{c}
+    \fbox{$E[\Delta] \vdash \tau ~\type$}
+    \\\\\\
+    \labinfer{E[\Delta, \tau ~\type] \vdash \tau ~\type}{}
+    \\\\
+    \labinfer{E[\Delta] \vdash A ~\type}{(A : \Type) \in E}
+    \\\\
+    \labinfer{E[\Delta] \vdash \Int ~\type}{}
+    ~~~
+    \labinfer{E[\Delta] \vdash \Bool ~\type}{}
+    \\\\
+    \labinfer{E[\Delta] \vdash \tau_1 \ra \tau_2 ~\type}{E[\Delta] \vdash \tau_1 ~\type & E[\Delta] \vdash \tau_2 ~\type}
+    \\\\
+    \labinfer{E[\Delta] \vdash \forall \alpha.\; \tau ~\type}{E[\Delta, \alpha ~\type] \vdash \tau ~\type}
+    \\\\
+    \highlight{
+    \labinfer{E[\Delta,\alpha ~\type] \vdash (\alpha \isA \layout{A}) \Ra \tau ~\type}{E[\Delta,\alpha ~\type] \vdash \tau ~\type}
+    }
+  \end{array}
+  \]
+  \caption{Type formation rules}
+  \label{fig:type-form}
+\end{figure}
+
+% \begin{figure}
+%   \[
+%   \begin{array}{c}
+%     \labinfer{\Delta \vdash \alpha ~\ctype}{\Delta \vdash \alpha ~\type}
+%     ~~~
+%     \labinfer{\Delta \vdash \forall (\alpha : \layout{A}).\; \beta ~\ctype}{\Delta \vdash A ~\adt & \Delta,\alpha ~\type \vdash C \Ra \beta ~\ctype}
+%   \end{array}
+%   \]
+%   \caption{Constrained type formation rules}
+% \end{figure}
+
+
+% For info on typing rules for pattern matching, see:
+%  - https://coq.inria.fr/distrib/current/refman/language/core/inductive.html#inductive-definitions
+%  - Lecture Notes on Pattern Matching
+%    15-814: Types and Programming Languages
+%    Frank Pfenning
+%    Lecture 12
+%    Thursday, October 8, 2020
+
+\begin{figure}
+  \[
+    \begin{array}{c}
+      \fbox{$E[C] \vdash \alpha \isA \layout{A}$}
+      \\\\\\
+      \labinfer{E[C] \vdash \Int \isA \layout{\Int}}{}
+      ~~~
+      \labinfer{E[C] \vdash \Bool \isA \layout{\Bool}}{}
+      \\\\
+      \labinfer{E[C] \vdash L \isA \layout{A}}{(L \isA \layout{A}) \in E}
+      \\\\
+      \labinfer{E[C, \alpha \isA \layout{A}] \vdash \alpha \isA \layout{A}}{}
+      % TODO: Should the rule below be included?
+      % \\\\
+      % \labinfer{E[\Delta] \vdash (\ell_1 \ra \ell_2) \isA \layout{A \ra B}}{E[\Delta] \vdash \ell_1 \isA \layout{A} & E[\Delta] \vdash \ell_2 \isA \layout{B}}
+    \end{array}
+  \]
+  \caption{Layout constraint relation $\isA$}
+  \label{fig:layout-constraints}
+\end{figure}
+
+\begin{figure}
+  \[
+    \begin{array}{c}
+      \fbox{$E[\Delta;C;\Gamma] \vdash e : \tau$}
+      \\\\\\
+      \labinfer[T-Int]{E[\Delta;C;\Gamma] \vdash i : \Int}{i \in \mathbb{Z}}
+      ~~~
+      \labinfer[T-Bool]{E[\Delta;C;\Gamma] \vdash b : \Bool}{b \in \mathbb{B}}
+      \\\\
+      \labinfer[T-Var]{E[\Delta;C;\Gamma,v : \tau] \vdash v : \tau}{}
+      % % \\\\
+      % % \labinfer[T-Int-Layout]{\Delta;\Gamma \vdash \Int : \layout{\Int}}{}
+      % % ~~~
+      % % \labinfer[T-Bool-Layout]{\Delta;\Gamma \vdash \Bool : \layout{\Bool}}{}
+      % % \\\\
+      % % \labinfer{\Delta;\Gamma \vdash \alpha \ra \beta : \layout{A \ra B}}{\Delta;\Gamma \vdash \alpha : \layout{A} & \Delta;\Gamma \vdash \beta : \layout{B}}
+      \\\\
+      \labinfer[T-Ty-Lambda]{E[\Delta;C;\Gamma] \vdash \Lambda \alpha.\; e : \forall \alpha.\;\tau}{E[\Delta,\alpha ~\type;C;\Gamma] \vdash e : \tau}
+      \\\\
+      \labinfer[T-Ty-App]{E[\Delta;C;\Gamma] \vdash e \tyApply \alpha' : \tau[\alpha\mapsto\alpha']}
+        {E[\Delta] \vdash \alpha' ~\type & E[\Delta;C;\Gamma] \vdash e : \forall \alpha.\; \tau}
+      \\\\
+      \highlight{
+      \labinfer[T-Layout-Lambda]{E[\Delta;C;\Gamma] \vdash \Lambda (\alpha \isA \layout{A}).\; e : (\alpha \isA \layout{A}) \Ra \tau}
+        {E[\Delta] \vdash \alpha ~\type & E[\Delta;C,\alpha \isA \layout{A};\Gamma] \vdash e : \tau}
+      }
+      % % \\\\
+      % % \labinfer[T-Lower]{\Delta;\Gamma \vdash \lowerExpr_\alpha(e) : \forall (\alpha : \layout{A}).\; \alpha}
+      % %   {\Delta, \alpha ~\type;\Gamma, \alpha : \layout{A} \vdash e : A}
+      \\\\
+      \highlight{
+      \labinfer[T-Layout-App]{E[\Delta;C;\Gamma] \vdash \apply_{\alpha'}(e) : \tau[\alpha\mapsto\alpha']}
+        {E[C] \vdash \alpha' \isA \layout{A} & E[\Delta;C;\Gamma] \vdash e : (\alpha \isA \layout{A}) \Ra \tau}
+      }
+      \\\\
+      \highlight{
+      % \textnormal{{\color{red} TODO:} Does this rule make sense?}
+      % \\
+        \labinfer[T-Layout-Lift]{E[\Delta;C;\Gamma] \vdash \liftExpr(e) : A}{E[C] \vdash \alpha \isA \layout{A} & E[\Delta;C;\Gamma] \vdash e : \alpha}
+      }
+      % \labinfer[T-Instantiate]{\Delta;\Gamma \vdash \instantiate_{\alpha,\beta}(e) : A \ra B}
+      %   {\Delta;\Gamma \vdash e : \alpha \ra \beta & \Delta;\Gamma \vdash \alpha : \layout{A} & \Delta;\Gamma \vdash \beta : \layout{B}}
+      % \\\\
+      % \fbox{{\color{red} TODO:} Finish this rule}
+      % \\
+      % \labinfer[T-Match]{\matchWith{e_0} C_1\; \overline{x}_1 \Ra e_1 \mid \cdots \mid C_n\; \overline{x}_n \Ra e_n}{}
+      \\\\
+      % \labinfer[T-Layout-Def]{E[] \vdash f : \layout{A}}{}
+      % \\\\
+      \labinfer[T-Lambda]{E[\Delta;C;\Gamma] \vdash \lambda x.\; e : \tau_1 \ra \tau_2}
+        {E[\Delta;C;\Gamma, x : \tau_1] \vdash e : \tau_2}
+      \\\\
+      \labinfer[T-App]{E[\Delta;C;\Gamma] \vdash e_1\; e_2 : \tau_2}
+        {E[\Delta;C;\Gamma] \vdash e_1 : \tau_1 \ra \tau_2
+        &E[\Delta;C;\Gamma] \vdash e_2 : \tau_1}
+      \\\\
+      \labinfer[T-InL]{E[\Delta;C;\Gamma] \vdash \inL(e) : \tau_1 \Either \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_1}
+      ~~~
+      \labinfer[T-InR]{E[\Delta;C;\Gamma] \vdash \inR(e) : \tau_1 \Either \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_2}
+      \\\\
+      \labinfer[T-Pair]{E[\Delta;C;\Gamma] \vdash (e_1, e_2) : \tau_1 \Pair \tau_2}{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1 & E[\Delta;C;\Gamma] \vdash e_2 : \tau_2}
+      \\\\
+      \labinfer[T-Fst]{E[\Delta;C;\Gamma] \vdash \fst(e) : \tau_1}{E[\Delta;C;\Gamma] \vdash e : \tau_1 \Pair \tau_2}
+      ~~~
+      \labinfer[T-Snd]{E[\Delta;C;\Gamma] \vdash \snd(e) : \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_1 \Pair \tau_2}
+      \\\\
+      \labinfer[T-Match]{E[\Delta;C;\Gamma] \vdash \matchWith{e} \inL(x) \Ra e_1 \mid \inR(y) \Ra e_2 : \tau}
+        {E[\Delta;C;\Gamma] \vdash e : \tau_1 \Either \tau_2
+        &E[\Delta;C;\Gamma, x : \tau_1] \vdash e_1 : \tau
+        &E[\Delta;C;\Gamma, y : \tau_2] \vdash e_2 : \tau}
+      \\\\
+      \labinfer[T-Fold]{E[\Delta;C;\Gamma] \vdash \fold_\tau(e) : \tau}
+        {\tau = \mu\alpha.\tau_1 & E[\Delta;C;\Gamma] \vdash e : \tau_1[\alpha\mapsto\tau]}
+      \\\\
+      \labinfer[T-Unfold]{E[\Delta;C;\Gamma] \vdash \unfold_\tau(e) : \tau_1[\alpha\mapsto\tau]}
+        {\tau = \mu\alpha.\tau_1 & E[\Delta;C;\Gamma] \vdash e : \tau}
+    \end{array}
+  \]
+  \caption{Typing judgment}
+  \label{fig:typing-judgment}
+\end{figure}
+
+\begin{figure}
+  \[
+    \begin{array}{c}
+      \labinfer[T-Def-Eq]{E[\Delta;C;\Gamma] \rhd e_1 \defeq e_2 : \tau}
+        {E[\Delta;C;\Gamma] \vdash e_1 : \tau
+        &E[\Delta;C;\Gamma] \vdash e_2 : \tau}
+    \end{array}
+  \]
+  \caption{Definitional equation typing}
+  \label{fig:def-eq}
+\end{figure}
+
+% \begin{figure}
+%   \[
+%     \begin{array}{c}
+%       % \labinfer[T-Lower]{\Delta;\Gamma \vdash \lowerExpr_\ell'(e) : \tau[\ell\mapsto\ell']}
+%       %   {\vdash \ell' \isA \layout{A} & \Delta;\Gamma \vdash e : \forall (\ell \isA \layout{A}).\; \tau}
+%       % \\\\
+%       \labinfer[T-Instantiate]{\Delta;\Gamma \vdash \instantiate_{\ell_1',\ell_2'}(e) : (\alpha \ra \beta)[\ell_1\mapsto\ell_1'][\ell_2\mapsto\ell_2']}
+%         {\begin{gathered}
+%           \Delta \vdash \ell_1' \isA \layout{A}
+%           ~~~ \Delta \vdash \ell_2' \isA \layout{B}
+%           \\ \Delta;\Gamma \vdash e : \forall (\ell_1 \isA \layout{A}).\; \forall (\ell_2 \isA \layout{B}).\; \alpha \ra \beta
+%         \end{gathered}}
+%     \end{array}
+%   \]
+%   \caption{Derived types for layout constructs}
+% \end{figure}
+
+\subsection{ANF Translation}
+
+[English overview of ANF translation phase]
+
+\subsection{Desugaring}
+
+Well-typed functions written in the surface language
+are desugared into a simplified language with no quantified types or layout polymorphism. Instead of using layout polymorphism, this language explicitly manipulates layouts.
+
+% \begin{figure}
+%   \caption{Additional typing rules for desugared language}
+% \end{figure}
+
+\begin{figure}
+  \[
+    \labinfer{E \vdash \apply_\alpha(e) \desugars e'}{(\alpha = e'') \in E}
+  \]
+  \caption{Desugaring judgment}
+  \label{fig:desugaring}
+\end{figure}
+

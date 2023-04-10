@@ -1,0 +1,81 @@
+% From https://tex.stackexchange.com/questions/235118/making-a-thicker-cdot-for-dot-product-that-is-thinner-than-bullet
+\makeatletter
+\newcommand*\bigcdot{\mathpalette\bigcdot@{.5}}
+\newcommand*\bigcdot@[2]{\mathbin{\vcenter{\hbox{\scalebox{#2}{$\m@th#1\bullet$}}}}}
+\makeatother
+
+\newcommand{\labinfer} [3] [] {\infer[{\textsc{#1}}]{#2}{#3}}
+
+\newcommand {\keyword} [1] {\textsf{#1}}
+
+\newcommand {\Int} {\keyword{Int}}
+\newcommand {\Bool} {\keyword{Bool}}
+\newcommand {\Type} {\keyword{Type}}
+\newcommand {\layout} [1] {\keyword{layout}(#1)}
+
+\newcommand {\inL} {\keyword{inL}}
+\newcommand {\inR} {\keyword{inR}}
+\newcommand {\fold} {\keyword{fold}}
+\newcommand {\unfold} {\keyword{unfold}}
+\newcommand {\fst} {\keyword{fst}}
+\newcommand {\snd} {\keyword{snd}}
+\newcommand {\either} {\keyword{either}}
+
+\newcommand {\Pair} {\otimes}
+\newcommand {\Either} {\oplus}
+\newcommand {\RecTy} {\mu}
+
+\newcommand {\monic} {\rightarrowtail}
+
+\newcommand {\type} {\textsf{type}}
+\newcommand {\ctype} {\textsf{ctype}}
+\newcommand {\adt} {\textsf{adt}}
+
+\newcommand {\LayoutDefs} {\mathcal{L}}
+
+\newcommand {\matchWith} [1] {\keyword{case}\,#1\,\keyword{of}\,}
+\newcommand {\layoutmatch} [1] {\keyword{layoutcase}\,#1\,\keyword{of}\,}
+
+\newcommand {\withIn} [1] {\keyword{with}\,#1\,\keyword{in}\,}
+
+% \newcommand {\lowerExpr} {\keyword{lower}}
+% \newcommand {\liftExpr} {\keyword{lift}}
+\newcommand {\instantiate} {\keyword{instantiate}}
+\newcommand {\apply} {\keyword{lower}}
+
+\newcommand {\liftExpr} {\keyword{lift}}
+
+\newcommand {\tyApply} {\mathbin{@}}
+
+\newcommand {\isA} {\sim}
+
+\newcommand {\ra} {\rightarrow}
+\newcommand {\Ra} {\Rightarrow}
+
+\newcommand {\Dargent} {{\sc Dargent}}
+
+\newcommand {\highlight} [1] {\begin{tcolorbox}[hbox] #1 \end{tcolorbox}}
+
+\newcommand {\sem} [1] {\llbracket #1 \rrbracket}
+
+\newcommand {\steps} {\longrightarrow}
+\newcommand {\desugars} {\steps_d}
+\newcommand {\anfsteps} {\steps_{\textsf{ANF}}}
+
+\newcommand {\ssl} {\keyword{ssl}}
+\newcommand {\SSL} {\keyword{SSL}}
+
+\newcommand {\Heap} {\textsf{Heap}}
+
+\newcommand {\lifted} [1] {#1_{\bot}}
+
+\newcommand {\eq} {\stackrel{\bigcdot}{=}}
+\newcommand {\defeq} {:=}
+\newcommand {\ok} [1] {\;\textsf{ok}_{#1}}
+
+\newcommand {\typesem} [1] {\mathcal{A}_{#1}}
+
+% From https://tex.stackexchange.com/questions/502652/define-tcolorbox-in-math-mode
+\newtcbox{\boxtext}{on line,colback=white,colframe=black,size=fbox,arc=3pt,boxrule=0.8pt}
+\newcommand{\boxmath}[1]{\boxtext{$#1$}}
+

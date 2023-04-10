@@ -1,0 +1,23 @@
+dist-newstyle
+dist
+**/.DS_Store
+.stack-work
+.stack-work/*
+**/*.o
+**/*.hi
+**/*~
+**/*.agdai
+
+
+## Core latex/pdflatex auxiliary files:
+**/*.aux
+**/*.lof
+**/*.log
+**/*.lot
+**/*.fls
+**/*.out
+**/*.toc
+**/*.vtc
+
+**/*.pdf
+

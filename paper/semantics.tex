@@ -1,0 +1,35 @@
+\section{Semantics}
+
+\begin{align*}
+  &\typesem{\Int} = \lifted{\mathbb{Z}}
+  \\
+  &\typesem{\Bool} = \lifted{\mathbb{B}}
+  \\
+  &\typesem{\SSL} = \lifted{\Heap}
+  \\
+  &\typesem{\tau_1 \ra \tau_2} = \typesem{\tau_1} \ra \typesem{\tau_2}
+\end{align*}
+
+\subsection{Equational soundness}
+
+\begin{theorem}[Type denotation]
+  If $\tau$ is a quantifier-free type without layout constraints then
+  \[
+    \sem{E[\Delta;C;\Gamma] \vdash e : \tau} \in \typesem{\tau}
+  \]
+\end{theorem}
+
+\begin{theorem}[Denotation continuity]
+  $\sem{E[\Delta;C;\Gamma] \vdash e : \tau_1 \ra \tau_2}$ is a continuous function from $\typesem{\tau_1}$ to $\typesem{\tau_2}$.
+\end{theorem}
+
+\begin{theorem}[Equational soundness]
+  \[
+      \boxmath{\sem{E[\Delta;C;\Gamma] \rhd e_1 \defeq e_2 : \tau}}
+    \models
+      \boxmath{\sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau}}
+        =
+      \boxmath{\sem{E[\Delta;C;\Gamma] \vdash e_2 : \tau}}
+  \]
+\end{theorem}
+
