@@ -29,11 +29,11 @@ A general type system is given in Fig.~\ref{fig:type-form}, Fig.~\ref{fig:layout
 in Pika are restricted to only have types of the form
 
 \[
-  \forall \overline{\alpha_i}.\; \overline{\alpha_i \isA \layout{A_i}} \Ra \tau
+  \overline{\alpha_i \isA \layout{A_i}} \Ra \tau
 \]
 
 \noindent
-where $\tau$ is a quantifier-free type with no layout constraints and the type variables $\overline{\alpha}$ are allowed to occur free.
+where $\tau$ is a type with no layout constraints and the type variables $\overline{\alpha}$ are allowed to occur free.
 
 \begin{figure}
   \[
@@ -50,10 +50,8 @@ where $\tau$ is a quantifier-free type with no layout constraints and the type v
     \\\\
     \labinfer{E[\Delta] \vdash \tau_1 \ra \tau_2 ~\type}{E[\Delta] \vdash \tau_1 ~\type & E[\Delta] \vdash \tau_2 ~\type}
     \\\\
-    \labinfer{E[\Delta] \vdash \forall \alpha.\; \tau ~\type}{E[\Delta, \alpha ~\type] \vdash \tau ~\type}
-    \\\\
     \highlight{
-    \labinfer{E[\Delta,\alpha ~\type] \vdash (\alpha \isA \layout{A}) \Ra \tau ~\type}{E[\Delta,\alpha ~\type] \vdash \tau ~\type}
+    \labinfer{E[\Delta] \vdash (\alpha \isA \layout{A}) \Ra \tau ~\type}{E[\Delta,\alpha ~\type] \vdash \tau ~\type}
     }
   \end{array}
   \]
@@ -112,18 +110,12 @@ where $\tau$ is a quantifier-free type with no layout constraints and the type v
       \labinfer[T-Bool]{E[\Delta;C;\Gamma] \vdash b : \Bool}{b \in \mathbb{B}}
       \\\\
       \labinfer[T-Var]{E[\Delta;C;\Gamma,v : \tau] \vdash v : \tau}{}
-      % % \\\\
+      \\\\
       % % \labinfer[T-Int-Layout]{\Delta;\Gamma \vdash \Int : \layout{\Int}}{}
       % % ~~~
       % % \labinfer[T-Bool-Layout]{\Delta;\Gamma \vdash \Bool : \layout{\Bool}}{}
       % % \\\\
       % % \labinfer{\Delta;\Gamma \vdash \alpha \ra \beta : \layout{A \ra B}}{\Delta;\Gamma \vdash \alpha : \layout{A} & \Delta;\Gamma \vdash \beta : \layout{B}}
-      \\\\
-      \labinfer[T-Ty-Lambda]{E[\Delta;C;\Gamma] \vdash \Lambda \alpha.\; e : \forall \alpha.\;\tau}{E[\Delta,\alpha ~\type;C;\Gamma] \vdash e : \tau}
-      \\\\
-      \labinfer[T-Ty-App]{E[\Delta;C;\Gamma] \vdash e \tyApply \alpha' : \tau[\alpha\mapsto\alpha']}
-        {E[\Delta] \vdash \alpha' ~\type & E[\Delta;C;\Gamma] \vdash e : \forall \alpha.\; \tau}
-      \\\\
       \highlight{
       \labinfer[T-Layout-Lambda]{E[\Delta;C;\Gamma] \vdash \Lambda (\alpha \isA \layout{A}).\; e : (\alpha \isA \layout{A}) \Ra \tau}
         {E[\Delta] \vdash \alpha ~\type & E[\Delta;C,\alpha \isA \layout{A};\Gamma] \vdash e : \tau}
@@ -220,7 +212,7 @@ where $\tau$ is a quantifier-free type with no layout constraints and the type v
 \subsection{Desugaring}
 
 Well-typed functions written in the surface language
-are desugared into a simplified language with no quantified types or layout polymorphism. Instead of using layout polymorphism, this language explicitly manipulates layouts.
+are desugared into a simplified language with no layout polymorphism. Instead of using layout polymorphism, this language explicitly manipulates layouts.
 
 % \begin{figure}
 %   \caption{Additional typing rules for desugared language}
