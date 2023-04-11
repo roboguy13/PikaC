@@ -38,6 +38,17 @@
 
 \newcommand {\withIn} [1] {\keyword{with}\,#1\,\keyword{in}\,}
 
+% Based on https://tex.stackexchange.com/questions/451786/how-do-i-put-a-circle-around-a-symbol
+\makeatletter
+\newcommand {\osep}{\mathbin{\mathpalette\make@circled\ast}}
+\newcommand{\make@circled}[2]{%
+  \ooalign{$\m@th#1\smallbigcirc{#1}$\cr\hidewidth$\m@th#1#2$\hidewidth\cr}%
+}
+\newcommand{\smallbigcirc}[1]{%
+  \vcenter{\hbox{\scalebox{0.77778}{$\m@th#1\bigcirc$}}}%
+}
+\makeatother
+
 % \newcommand {\lowerExpr} {\keyword{lower}}
 % \newcommand {\liftExpr} {\keyword{lift}}
 \newcommand {\instantiate} {\keyword{instantiate}}
@@ -62,8 +73,10 @@
 \newcommand {\desugars} {\steps_d}
 \newcommand {\anfsteps} {\steps_{\textsf{ANF}}}
 
-\newcommand {\ssl} {\keyword{ssl}}
+\newcommand {\ssl} [2] {\keyword{ssl}(#1) \{ #2 \}}
 \newcommand {\SSL} {\keyword{SSL}}
+
+\newcommand {\Var} {\textsf{Var}}
 
 \newcommand {\Heap} {\textsf{Heap}}
 

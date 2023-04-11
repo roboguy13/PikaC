@@ -170,6 +170,12 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
       \\\\
       \labinfer[T-Unfold]{E[\Delta;C;\Gamma] \vdash \unfold_\tau(e) : \tau_1[\alpha\mapsto\tau]}
         {\tau = \mu\alpha.\tau_1 & E[\Delta;C;\Gamma] \vdash e : \tau}
+
+      \\\\
+      \highlight{
+      \labinfer[T-SSL]{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x}}{\overline{x \mapsto e}} : \SSL({\overline{\langle x, \tau \rangle}})}
+        {E[\Delta;C;\Gamma] \vdash e_i : \tau_i \ensuremath{\textnormal{ for each $x_i$}}}
+      }
     \end{array}
   \]
   \caption{Typing judgment}
@@ -220,7 +226,7 @@ are desugared into a simplified language with no layout polymorphism. Instead of
 
 \begin{figure}
   \[
-    \labinfer{E \vdash \apply_\alpha(e) \desugars e'}{(\alpha = e'') \in E}
+    \labinfer{E \vdash \apply_\alpha(e) \desugars \cdots}{(\alpha = e'') \in E & \textrm{{\color{red}TODO:} finish}}
   \]
   \caption{Desugaring judgment}
   \label{fig:desugaring}

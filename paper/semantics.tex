@@ -1,35 +1,60 @@
 \section{Semantics}
 
+\subsection{Denotational}
 \begin{align*}
-  &\typesem{\Int} = \lifted{\mathbb{Z}}
+  % &\typesem{\Int} = \Var \ra \lifted{\mathbb{Z}}
+  % \\
+  % &\typesem{\Bool} = \Var \ra \lifted{\mathbb{B}}
+  % \\
+  % &\typesem{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = \Var^n \ra \lifted{\Heap}
+  % \\
+  % &\typesem{\tau_1 \ra \tau_2} = \typesem{\tau_1} \ra \typesem{\tau_2}
+  &\typesem{\Int} = \Var \ra \Heap
   \\
-  &\typesem{\Bool} = \lifted{\mathbb{B}}
+  &\typesem{\Bool} = \Var \ra \Heap
   \\
-  &\typesem{\SSL} = \lifted{\Heap}
+  &\typesem{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = \Var^n \ra \Heap
   \\
-  &\typesem{\tau_1 \ra \tau_2} = \typesem{\tau_1} \ra \typesem{\tau_2}
+  &\typesem{\tau_1 \ra \tau_2} = \Var^{|\tau_1|} \ra \typesem{\tau_1} \ra \typesem{\tau_2} \textrm{{\color{red}TODO:} Finish}
 \end{align*}
 
-\subsection{Equational soundness}
+\begin{align*}
+  &\sem{E[\Delta;C;\Gamma] \vdash i : \Int}_r = \{ r \mapsto i \}
+  \\
+  &\sem{E[\Delta;C;\Gamma] \vdash b : \Bool}_r = \{ r \mapsto b \}
+  \\
+  &\sem{E[\Delta;C;\Gamma] \vdash \withIn{a := e_1 : \tau_1} e_2 : \tau_2}_r = \sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1}_a \osep \sem{E[\Delta;C;\Gamma] \vdash e_2 : \tau_2}_r
+  \\
+  &\sem{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x}}{\overline{x_i \mapsto e_i}} : \SSL(\overline{\langle x_i, \tau_i \rangle})}_r =
+    \sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1}_{r_1} \osep \cdots \osep \sem{E[\Delta;C;\Gamma] \vdash e_n : \tau_n}_{r_n}
+  \\
+  &\sem{E[\Delta;C;\Gamma] \vdash e\; v : \tau}_r =
+      \sem{E[\Delta;C;\Gamma] \vdash e : }_r(\sem{E[\Delta;C;\Gamma] \vdash v : })
+  \\
+  &\sem{E[\Delta;C;\Gamma] \vdash \lambda x.\; e : \tau_1 \ra \tau_2}_r(f)
+      = \sem{E[\Delta;C;\Gamma, x : \tau_1] \vdash e : \tau_2}_x \osep f(r)
+\end{align*}
 
-\begin{theorem}[Type denotation]
-  If $\tau$ is a quantifier-free type without layout constraints then
-  \[
-    \sem{E[\Delta;C;\Gamma] \vdash e : \tau} \in \typesem{\tau}
-  \]
-\end{theorem}
-
-\begin{theorem}[Denotation continuity]
-  $\sem{E[\Delta;C;\Gamma] \vdash e : \tau_1 \ra \tau_2}$ is a continuous function from $\typesem{\tau_1}$ to $\typesem{\tau_2}$.
-\end{theorem}
-
-\begin{theorem}[Equational soundness]
-  \[
-      \boxmath{\sem{E[\Delta;C;\Gamma] \rhd e_1 \defeq e_2 : \tau}}
-    \models
-      \boxmath{\sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau}}
-        =
-      \boxmath{\sem{E[\Delta;C;\Gamma] \vdash e_2 : \tau}}
-  \]
-\end{theorem}
-
+% \subsection{Equational soundness}
+%
+% \begin{theorem}[Type denotation]
+%   If $\tau$ is a quantifier-free type without layout constraints then
+%   \[
+%     \sem{E[\Delta;C;\Gamma] \vdash e : \tau} \in \typesem{\tau}
+%   \]
+% \end{theorem}
+%
+% \begin{theorem}[Denotation continuity]
+%   $\sem{E[\Delta;C;\Gamma] \vdash e : \tau_1 \ra \tau_2}$ is a continuous function from $\typesem{\tau_1}$ to $\typesem{\tau_2}$.
+% \end{theorem}
+%
+% \begin{theorem}[Equational soundness]
+%   \[
+%       \boxmath{\sem{E[\Delta;C;\Gamma] \rhd e_1 \defeq e_2 : \tau}}
+%     \models
+%       \boxmath{\sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau}}
+%         =
+%       \boxmath{\sem{E[\Delta;C;\Gamma] \vdash e_2 : \tau}}
+%   \]
+% \end{theorem}
+%
