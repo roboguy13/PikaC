@@ -1,0 +1,34 @@
+\section{Language Overview}
+
+\subsection{Syntax}
+
+\subsubsection{Shared Syntax}
+
+The following syntactic forms are shared between the Pika surface language and PikaCore.
+
+\begin{align*}
+  &i ::= \cdots \mid -2 \mid -1 \mid 0 \mid 1 \mid 2 \mid \cdots
+  \\
+  &b ::= \True{} \mid \False
+  \\
+  &e ::= x \mid i \mid b \mid e\; e \mid \lambda x.\; e
+  \\
+  &\tau ::= \Int \mid \Bool \mid \tau \ra \tau
+\end{align*}
+
+\subsection{Pika Syntax}
+\begin{align*}
+  &e ::= \cdots \mid \apply_{\alpha}(e) \mid \liftExpr_{\alpha}(e) \mid \Lambda (\alpha \isA \layout{A}).\; e
+  \\
+  &\tau ::= \cdots \mid A \mid \alpha \mid (\alpha \isA \layout{A}) \Ra \tau
+\end{align*}
+
+\subsection{PikaCore Syntax}
+\begin{align*}
+  &e ::= \cdots \mid \ssl{\overline{x}}{\overline{P}} \mid \withIn{x := e : \tau} e
+  \\
+  &\tau ::= \cdots \mid \SSL(\overline{\textnormal{ssl-param}})
+  \\
+  &\textnormal{ssl-param} ::= \langle x, \tau \rangle
+\end{align*}
+

@@ -69,6 +69,8 @@
 
 \newcommand {\sem} [1] {\llbracket #1 \rrbracket}
 
+\newcommand {\namesem} [1] {N\sem{#1}}
+
 \newcommand {\steps} {\longrightarrow}
 \newcommand {\desugars} {\steps_d}
 \newcommand {\anfsteps} {\steps_{\textsf{ANF}}}
@@ -88,7 +90,15 @@
 
 \newcommand {\typesem} [1] {\mathcal{A}_{#1}}
 
+\newcommand {\True} {\keyword{True}}
+\newcommand {\False} {\keyword{False}}
+
 % From https://tex.stackexchange.com/questions/502652/define-tcolorbox-in-math-mode
 \newtcbox{\boxtext}{on line,colback=white,colframe=black,size=fbox,arc=3pt,boxrule=0.8pt}
 \newcommand{\boxmath}[1]{\boxtext{$#1$}}
+
+% https://tex.stackexchange.com/questions/24132/overline-outside-of-math-mode
+\makeatletter
+\newcommand*{\textoverline}[1]{$\overline{\hbox{#1}}\m@th$}
+\makeatother
 

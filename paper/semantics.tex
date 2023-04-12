@@ -9,15 +9,31 @@
   % &\typesem{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = \Var^n \ra \lifted{\Heap}
   % \\
   % &\typesem{\tau_1 \ra \tau_2} = \typesem{\tau_1} \ra \typesem{\tau_2}
-  &\typesem{\Int} = \Var \ra \Heap
+  &\typesem{\Int} = \namesem{\Int} \ra \Heap
   \\
-  &\typesem{\Bool} = \Var \ra \Heap
+  &\typesem{\Bool} = \namesem{\Bool} \ra \Heap
   \\
-  &\typesem{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = \Var^n \ra \Heap
+  &\typesem{\SSL(p)} = \namesem{\SSL(p)} \ra \Heap
   \\
-  &\typesem{\tau_1 \ra \tau_2} = \Var^{|\tau_1|} \ra \typesem{\tau_1} \ra \typesem{\tau_2} \textrm{{\color{red}TODO:} Finish}
+  &\typesem{\tau_1 \ra \tau_2} = \namesem{\tau_1 \ra \tau_2} \ra \typesem{\tau_1} \ra \typesem{\tau_2}
 \end{align*}
 
+\begin{align*}
+  &\namesem{\Int} = \Var
+  \\
+  &\namesem{\Bool} = \Var
+  \\
+  &\namesem{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = \Var^n
+  \\
+  &\namesem{\tau_1 \ra \tau_2} = \namesem{\tau_2}
+\end{align*}
+\\
+
+\begin{center}
+  \fbox{
+    $\sem{E[\Delta;C;\Gamma] \vdash e : \tau} : \typesem{\tau}$
+  }
+\end{center}
 \begin{align*}
   &\sem{E[\Delta;C;\Gamma] \vdash i : \Int}_r = \{ r \mapsto i \}
   \\
@@ -28,11 +44,11 @@
   &\sem{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x}}{\overline{x_i \mapsto e_i}} : \SSL(\overline{\langle x_i, \tau_i \rangle})}_r =
     \sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1}_{r_1} \osep \cdots \osep \sem{E[\Delta;C;\Gamma] \vdash e_n : \tau_n}_{r_n}
   \\
-  &\sem{E[\Delta;C;\Gamma] \vdash e\; v : \tau}_r =
-      \sem{E[\Delta;C;\Gamma] \vdash e : }_r(\sem{E[\Delta;C;\Gamma] \vdash v : })
+  &\sem{E[\Delta;C;\Gamma] \vdash e\; v : \tau_2}_r =
+      \sem{E[\Delta;C;\Gamma] \vdash e : \tau_1 \ra \tau_2}_r(\sem{E[\Delta;C;\Gamma] \vdash v : \tau_2})
   \\
   &\sem{E[\Delta;C;\Gamma] \vdash \lambda x.\; e : \tau_1 \ra \tau_2}_r(f)
-      = \sem{E[\Delta;C;\Gamma, x : \tau_1] \vdash e : \tau_2}_x \osep f(r)
+      = \sem{E[\Delta;C;\Gamma, x : \tau_1] \vdash e : \tau_2}_r \osep f(x)
 \end{align*}
 
 % \subsection{Equational soundness}
