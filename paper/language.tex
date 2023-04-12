@@ -1,8 +1,6 @@
-\section{Language Overview}
+\section{Syntax}
 
-\subsection{Syntax}
-
-\subsubsection{Shared Syntax}
+\subsection{Shared Syntax}
 
 The following syntactic forms are shared between the Pika surface language and PikaCore.
 
@@ -18,9 +16,9 @@ The following syntactic forms are shared between the Pika surface language and P
 
 \subsection{Pika Syntax}
 \begin{align*}
-  &e ::= \cdots \mid \apply_{\alpha}(e) \mid \liftExpr_{\alpha}(e) \mid \Lambda (\alpha \isA \layout{A}).\; e
+  &e ::= \cdots \mid \apply_{\alpha}(e) \mid \liftExpr_{\alpha}(e) \mid \Lambda (\alpha \isA \layout{X}).\; e
   \\
-  &\tau ::= \cdots \mid A \mid \alpha \mid (\alpha \isA \layout{A}) \Ra \tau
+  &\tau ::= \cdots \mid X \mid \alpha \mid (\alpha \isA \layout{X}) \Ra \tau
 \end{align*}
 
 \subsection{PikaCore Syntax}

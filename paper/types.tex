@@ -1,5 +1,9 @@
 \section{Static Semantics}
 
+In this section, we discuss two different parts of the Pika compiler: the type system and the translation
+from surface Pika to PikaCore. The translation is accomplished with two stages. First, ANF translation. Then,
+all layout definitions are substituted into their use sites during a desugaring stage.
+
 \subsection{Type System}
 
 $E$ is the global environment. We write:
@@ -14,7 +18,7 @@ $E$ is the global environment. We write:
 In particular, $E$ is a set that includes:
 \begin{itemize}
   \item $(A : \Type)$ for every user-defined algebraic data type $A$
-  \item $(\alpha \isA \layout{A})$ for every user-defined layout $\alpha$ for a data type $A$
+  \item $(\alpha \isA \layout{X})$ for every user-defined layout $\alpha$ for a data type $A$
 \end{itemize}
 
 \noindent
@@ -25,7 +29,8 @@ are discussed further in Section~\ref{sec:related-work}.
 %   \lowerExpr_\ell(e) = \apply_\ell(e)
 % \]
 
-A general type system is given in Fig.~\ref{fig:type-form}, Fig.~\ref{fig:layout-constraints} and Fig.~\ref{fig:typing-judgment}. Type signatures
+A general type system is given in Fig.~\ref{fig:type-form}, Fig.~\ref{fig:layout-constraints} and Fig.~\ref{fig:typing-judgment}. In
+Fig.~\ref{fig:type-form} and Fig.~\ref{fig:typing-judgment}, all rules that deal with layouts are boxed and highlighted. Type signatures
 in Pika are restricted to only have types of the form
 
 \[
@@ -51,7 +56,7 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
     \labinfer{E[\Delta] \vdash \tau_1 \ra \tau_2 ~\type}{E[\Delta] \vdash \tau_1 ~\type & E[\Delta] \vdash \tau_2 ~\type}
     \\\\
     \highlight{
-    \labinfer{E[\Delta] \vdash (\alpha \isA \layout{A}) \Ra \tau ~\type}{E[\Delta,\alpha ~\type] \vdash \tau ~\type}
+      \labinfer{E[\Delta] \vdash (\alpha \isA \layout{X}) \Ra \tau ~\type}{E[\Delta,\alpha ~\type] \vdash \tau ~\type}
     }
   \end{array}
   \]
@@ -82,15 +87,15 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
 \begin{figure}
   \[
     \begin{array}{c}
-      \fbox{$E[C] \vdash \alpha \isA \layout{A}$}
+      \fbox{$E[C] \vdash \alpha \isA \layout{X}$}
       \\\\\\
       \labinfer{E[C] \vdash \Int \isA \layout{\Int}}{}
       ~~~
       \labinfer{E[C] \vdash \Bool \isA \layout{\Bool}}{}
       \\\\
-      \labinfer{E[C] \vdash L \isA \layout{A}}{(L \isA \layout{A}) \in E}
+      \labinfer{E[C] \vdash L \isA \layout{X}}{(L \isA \layout{X}) \in E}
       \\\\
-      \labinfer{E[C, \alpha \isA \layout{A}] \vdash \alpha \isA \layout{A}}{}
+      \labinfer{E[C, \alpha \isA \layout{X}] \vdash \alpha \isA \layout{X}}{}
       % TODO: Should the rule below be included?
       % \\\\
       % \labinfer{E[\Delta] \vdash (\ell_1 \ra \ell_2) \isA \layout{A \ra B}}{E[\Delta] \vdash \ell_1 \isA \layout{A} & E[\Delta] \vdash \ell_2 \isA \layout{B}}
@@ -117,8 +122,8 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
       % % \\\\
       % % \labinfer{\Delta;\Gamma \vdash \alpha \ra \beta : \layout{A \ra B}}{\Delta;\Gamma \vdash \alpha : \layout{A} & \Delta;\Gamma \vdash \beta : \layout{B}}
       \highlight{
-      \labinfer[T-Layout-Lambda]{E[\Delta;C;\Gamma] \vdash \Lambda (\alpha \isA \layout{A}).\; e : (\alpha \isA \layout{A}) \Ra \tau}
-        {E[\Delta] \vdash \alpha ~\type & E[\Delta;C,\alpha \isA \layout{A};\Gamma] \vdash e : \tau}
+        \labinfer[T-Layout-Lambda]{E[\Delta;C;\Gamma] \vdash \Lambda (\alpha \isA \layout{X}).\; e : (\alpha \isA \layout{X}) \Ra \tau}
+        {E[\Delta] \vdash \alpha ~\type & E[\Delta;C,\alpha \isA \layout{X};\Gamma] \vdash e : \tau}
       }
       % % \\\\
       % % \labinfer[T-Lower]{\Delta;\Gamma \vdash \lowerExpr_\alpha(e) : \forall (\alpha : \layout{A}).\; \alpha}
@@ -126,13 +131,13 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
       \\\\
       \highlight{
       \labinfer[T-Layout-App]{E[\Delta;C;\Gamma] \vdash \apply_{\alpha'}(e) : \tau[\alpha\mapsto\alpha']}
-        {E[C] \vdash \alpha' \isA \layout{A} & E[\Delta;C;\Gamma] \vdash e : (\alpha \isA \layout{A}) \Ra \tau}
+        {E[C] \vdash \alpha' \isA \layout{X} & E[\Delta;C;\Gamma] \vdash e : (\alpha \isA \layout{X}) \Ra \tau}
       }
       \\\\
       \highlight{
       % \textnormal{{\color{red} TODO:} Does this rule make sense?}
       % \\
-        \labinfer[T-Layout-Lift]{E[\Delta;C;\Gamma] \vdash \liftExpr(e) : A}{E[C] \vdash \alpha \isA \layout{A} & E[\Delta;C;\Gamma] \vdash e : \alpha}
+        \labinfer[T-Layout-Lift]{E[\Delta;C;\Gamma] \vdash \liftExpr(e) : A}{E[C] \vdash \alpha \isA \layout{X} & E[\Delta;C;\Gamma] \vdash e : \alpha}
       }
       % \labinfer[T-Instantiate]{\Delta;\Gamma \vdash \instantiate_{\alpha,\beta}(e) : A \ra B}
       %   {\Delta;\Gamma \vdash e : \alpha \ra \beta & \Delta;\Gamma \vdash \alpha : \layout{A} & \Delta;\Gamma \vdash \beta : \layout{B}}
@@ -213,7 +218,7 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
 
 \subsection{ANF Translation}
 
-[English overview of ANF translation phase]
+All nested function applications are turned into \verb|with-in| expressions.
 
 \subsection{Desugaring}
 

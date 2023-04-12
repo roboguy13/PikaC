@@ -1,4 +1,4 @@
-\section{Semantics}
+\section{Dynamic Semantics}
 
 \subsection{Denotational}
 \begin{align*}
@@ -29,6 +29,7 @@
 \end{align*}
 \\
 
+\begin{figure}
 \begin{center}
   \fbox{
     $\sem{E[\Delta;C;\Gamma] \vdash e : \tau} : \typesem{\tau}$
@@ -50,6 +51,8 @@
   &\sem{E[\Delta;C;\Gamma] \vdash \lambda x.\; e : \tau_1 \ra \tau_2}_r(f)
       = \sem{E[\Delta;C;\Gamma, x : \tau_1] \vdash e : \tau_2}_r \osep f(x)
 \end{align*}
+  \caption{Semantic function for PikaCore}
+\end{figure}
 
 % \subsection{Equational soundness}
 %
