@@ -10,6 +10,9 @@
 \usepackage{tikz}
 \usepackage{tikz-cd}
 \usepackage{syntax}
+\usepackage{listings}
+
+\lstset{basicstyle=\ttfamily, mathescape=true, literate={~} {$\sim$}{1}}
 
 \input{defs.tex}
 
@@ -22,6 +25,7 @@
 \input{language.tex}
 \input{types.tex}
 \input{semantics.tex}
+\input{codegen.tex}
 \input{related-work.tex}
 
 \bibliographystyle{splncs04}

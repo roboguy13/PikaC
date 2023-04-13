@@ -1,0 +1,51 @@
+\section{C Code Generation}
+
+The translation of PikaCore function into C is divided into the stages.
+
+\begin{enumerate}
+  \item \label{stage:in-out} For each branch, determine the abstract heap for the input and a collection of
+    heaplets for the output.
+  \item Generate the appropriate assignment statements, \verb|malloc| calls, etc from the
+    previous stage
+\end{enumerate}
+
+\subsection{Example}
+First, lets look at a Pika function that takes a tree and gives back a list by traversing the leftmost branches.
+
+\begin{lstlisting}
+%generate leftList[TreeLayout, Sll]
+
+data List := Nil | Cons Int List;
+data Tree := Tip | Bin Int Tree Tree;
+
+Sll : layout(List);
+Sll Nil := emp;
+Sll (Cons h t) := x :-> h, (x+1) :-> t, Sll t;
+
+TreeLayout : layout(Tree);
+TreeLayout Tip := emp;
+TreeLayout (Bin v l r) :=
+  y :-> v, (y+1) :-> l, (y+2) :-> r, TreeLayout l, TreeLayout r;
+
+leftList : (a ~ layout(Tree), b ~ layout(List)) => a -> b
+leftList Tip := Nil;
+leftList [a b] (Bin v l r) := Cons v ($\apply_a$ (leftList ($\liftExpr_b$ l));
+\end{lstlisting}
+
+\noindent
+This is first translated into PikaCore:
+
+\begin{lstlisting}
+leftList' :
+  ($\mu s.$ SSL(x : Int, (x+1) : s, (x+2) : s))
+  -> $\mu t.$ SSL(y : Int, (y+1) : t)
+leftList' {} = ssl {}
+leftList' {x :-> h, (x+1) :-> l, (x+2) :-> r} =
+  with nxt := leftList' l
+  in
+  ssl {y :-> h, (y+1) :-> nxt}
+\end{lstlisting}
+
+\noindent
+In Stage~\ref{stage:in-out}
+

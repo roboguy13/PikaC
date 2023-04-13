@@ -1,6 +1,12 @@
-\section{Dynamic Semantics}
+\section{Denotational Semantics}
 
-\subsection{Denotational}
+We give a denotational semantics for PikaCore. Since Pika is translated to PikaCore, this can
+also be seen as a denotational semantics for Pika.
+
+The function $\argCount{\tau}$ gives the number of fields in abstract
+heap associated to the type $\tau$. In the case of function types, this
+is the number of fields associated to the \textit{result} of the function.
+
 \begin{align*}
   % &\typesem{\Int} = \Var \ra \lifted{\mathbb{Z}}
   % \\
@@ -19,13 +25,13 @@
 \end{align*}
 
 \begin{align*}
-  &\namesem{\Int} = \Var
+  &\argCount{\Int} = 1
   \\
-  &\namesem{\Bool} = \Var
+  &\argCount{\Bool} = 1
   \\
-  &\namesem{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = \Var^n
+  &\argCount{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = n
   \\
-  &\namesem{\tau_1 \ra \tau_2} = \namesem{\tau_2}
+  &\argCount{\tau_1 \ra \tau_2} = \argCount{\tau_2}
 \end{align*}
 \\
 

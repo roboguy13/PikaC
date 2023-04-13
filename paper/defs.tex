@@ -71,7 +71,8 @@
 
 \newcommand {\sem} [1] {\llbracket #1 \rrbracket}
 
-\newcommand {\namesem} [1] {N\sem{#1}}
+\newcommand {\argCount} [1] {N\sem{#1}}
+\newcommand {\namesem} [1] {\Var^{\argCount{#1}}}
 
 \newcommand {\steps} {\longrightarrow}
 \newcommand {\desugars} {\steps_d}
