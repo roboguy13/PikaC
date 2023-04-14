@@ -36,3 +36,24 @@ The following syntactic forms are shared between the \Pika{} surface language an
   &n ::= 0 \mid 1 \mid 2 \mid \cdots
 \end{align*}
 
+The general form of a one-parameter \PikaCore{} function definition is
+\begin{align*}
+  &f : \SSL(m) \ra \SSL(n)\\
+  &f\; \{ \overline{\ell \mapsto y} \} \ra \{ \overline{r} \} := e\\
+  &f\; \{ \overline{\ell' \mapsto y} \} \ra \{ \overline{r} \} := e'\\
+  &\cdots
+\end{align*}
+
+\noindent
+where $\overline{r}$ are the names of the output parameters. These output parameters
+must be the same in each branch and it is also required that the number of output parameters matches the type signature: $|\overline{r}| = n$.
+
+Output parameters are given in \PikaCore{} as part of the \verb|with-in| construct:
+
+\begin{align*}
+  \withIn{\{ a, b \} := f\; \{ x \}} e
+\end{align*}
+
+This applies the function $f$ to the input parameter $x$ and gives $a$ and $b$ as output parameters. These two
+output parameters of the application are brought into scope for the \PikaCore{} expression $e$.
+

@@ -18,15 +18,15 @@ First, lets look at a \Pika{} function that takes a tree and gives back a list b
 data List := Nil | Cons Int List;
 data Tree := Tip | Node Int Tree Tree;
 
-Sll : layout(List);
-Sll {x} Nil := emp;
-Sll {x} (Cons h t) := x :-> h, (x+1) :-> nxt, Sll {nxt} t;
+Sll : List >-> SSL(1);
+Sll Nil {x} := emp;
+Sll (Cons h t) {x} := x :-> h, (x+1) :-> nxt, Sll t {nxt};
 
-TreeLayout : layout(Tree);
-TreeLayout {x} Tip := emp;
-TreeLayout {x} (Node v left right) :=
+TreeLayout : Tree >-> SSL(1);
+TreeLayout Tip {x} := emp;
+TreeLayout (Node v left right) {x} :=
   y :-> v, (y+1) :-> p, (y+2) :-> q,
-  TreeLayout {p} left, TreeLayout {q} right;
+  TreeLayout left {p}, TreeLayout right {q} ;
 
 leftList : (a ~ layout(Tree), b ~ layout(List)) =>
   a -> b
@@ -40,11 +40,11 @@ This is first translated into \PikaCore:
 
 \begin{lstlisting}
 leftList' : SSL(1) -> SSL(1);
-leftList' {} = ssl {};
-leftList' {x :-> h, (x+1) :-> p, (x+2) :-> q} =
+leftList' {} => {r} := {};
+leftList' {x :-> h, (x+1) :-> p, (x+2) :-> q} => {r} :=
   with {t} := leftList' {p}
   in
-  ssl {y :-> h, (y+1) :-> t};
+  {r :-> h, (r+1) :-> t};
 \end{lstlisting}
 
 \noindent
@@ -66,7 +66,7 @@ void leftList(TreeLayout* arg, Sll** r) {
   if (arg == 0) {
       // pattern match {}
 
-      // ssl {}
+      // {}
     *r = 0;
   } else {
       // pattern match {x :-> h, (x+1) :-> p
@@ -79,7 +79,7 @@ void leftList(TreeLayout* arg, Sll** r) {
     Sll* t = 0;
     leftList(p, &t);
 
-      // ssl {y :-> h, (y+1) :-> t}
+      // {y :-> h, (y+1) :-> t}
     *r = malloc(sizeof(Sll));
     *r->x_0 = v;
     *r->x_1 = t;
@@ -96,11 +96,11 @@ void leftList(TreeLayout* arg, Sll** r) {
 %generate convertList[Dll, Sll]
 %generate convertList[Sll, Dll]
 
-Dll : layout(List)
-Dll {x z} Nil := emp;
-Dll {x z} (Cons h t) :=
+Dll : List >-> SSL(2)
+Dll Nil {x z} := emp;
+Dll (Cons h t) {x z} :=
   x :-> h, (x+1) :-> w, (x+2) :-> z,
-  Dll {w x} t;
+  Dll t {w x};
 
 convertList : (a ~ layout(List), b ~ layout(List)) =>
   a -> b;
@@ -112,18 +112,18 @@ Generated \PikaCore:
 
 \begin{lstlisting}
 convertList1 : SSL(2) -> SSL(1);
-convertList1 {} = ssl {};
-convertList1 {x :-> h, (x+1) :-> w, (x+2) :-> z} =
+convertList1 {} -> {r} := {};
+convertList1 {x :-> h, (x+1) :-> w, (x+2) :-> z} -> {r} :=
   with {nxt} := convertList1 {w x}
   in
-  ssl {r :-> h, (r+1) :-> nxt}
+  {r :-> h, (r+1) :-> nxt}
 
 convertList2 : SSL(1) -> SSL(2);
-convertList2 {} = ssl {};
-convertList2 {x :-> h, (x+1) :-> nxt} =
+convertList2 {} -> {r z} := {};
+convertList2 {x :-> h, (x+1) :-> nxt} -> {r z} :=
   with {w r} := convertList2 {nxt}
   in
-  ssl {r :-> h, (r+1) :-> w, (r+2) :-> z}
+  {r :-> h, (r+1) :-> w, (r+2) :-> z}
 \end{lstlisting}
 
 Generated C code:
@@ -139,7 +139,7 @@ void convertList1(Dll* arg, Sll** r) {
   if (arg == 0) {
       // pattern match {}
 
-      // ssl {}
+      // {}
     *r = 0;
   } else {
       // pattern match {x :-> h, (x+1) :-> w, (x+2) :-> z}
@@ -154,7 +154,7 @@ void convertList1(Dll* arg, Sll** r) {
     Sll* nxt = 0;
     convertList1(arg, &nxt);
 
-      // ssl {r :-> h, (r+1) :-> nxt}
+      // {r :-> h, (r+1) :-> nxt}
     (*r)->x_0 = h;
     (*r)->x_1 = nxt;
   }
@@ -164,7 +164,7 @@ void convertList2(Sll* arg, Dll** r, Dll** z) {
   if (arg == 0) {
       // pattern match {}
 
-      // ssl {}
+      // {}
     *r = 0;
   } else {
       // pattern match {x :-> h, (x+1) :-> nxt}
@@ -178,7 +178,7 @@ void convertList2(Sll* arg, Dll** r, Dll** z) {
     Dll* w = 0;
     convertList2(nxt, &w, r);
 
-      // ssl {r :-> h, (r+1) :-> w, (r+2) :-> z}
+      // {r :-> h, (r+1) :-> w, (r+2) :-> z}
     (*r)->x_0 = h;
     (*r)->x_1 = w;
     (*r)->x_2 = *z;
