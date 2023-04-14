@@ -9,9 +9,7 @@ The translation of \PikaCore{} function into C is divided into the stages.
     previous stage
 \end{enumerate}
 
-\subsection{Examples}
-
-\subsubsection{leftList}
+\subsection{Example: leftList}
 First, lets look at a \Pika{} function that takes a tree and gives back a list by traversing the leftmost branches.
 
 \begin{lstlisting}
@@ -21,14 +19,14 @@ data List := Nil | Cons Int List;
 data Tree := Tip | Node Int Tree Tree;
 
 Sll : layout(List);
-Sll Nil := emp;
-Sll (Cons h t) := x :-> h, (x+1) :-> t, Sll t;
+Sll {x} Nil := emp;
+Sll {x} (Cons h t) := x :-> h, (x+1) :-> nxt, Sll {nxt} t;
 
 TreeLayout : layout(Tree);
-TreeLayout Tip := emp;
-TreeLayout (Node v left right) :=
-  y :-> v, (y+1) :-> left, (y+2) :-> right,
-  TreeLayout left, TreeLayout right;
+TreeLayout {x} Tip := emp;
+TreeLayout {x} (Node v left right) :=
+  y :-> v, (y+1) :-> p, (y+2) :-> q,
+  TreeLayout {p} left, TreeLayout {q} right;
 
 leftList : (a ~ layout(Tree), b ~ layout(List)) =>
   a -> b
@@ -41,12 +39,12 @@ leftList [a b] (Node v left right) :=
 This is first translated into \PikaCore:
 
 \begin{lstlisting}
-leftList' : SSL(1) -> SSL(1)
-leftList' {} = ssl {}
-leftList' {x :-> h, (x+1) :-> left, (x+2) :-> right} =
-  with t := leftList' {left}
+leftList' : SSL(1) -> SSL(1);
+leftList' {} = ssl {};
+leftList' {x :-> h, (x+1) :-> p, (x+2) :-> q} =
+  with {t} := leftList' {p}
   in
-  ssl {y :-> h, (y+1) :-> t}
+  ssl {y :-> h, (y+1) :-> t};
 \end{lstlisting}
 
 \noindent
@@ -71,15 +69,15 @@ void leftList(TreeLayout* arg, Sll** r) {
       // ssl {}
     *r = 0;
   } else {
-      // pattern match {x :-> h, (x+1) :-> left
-      //               , (x+2) :-> right}
+      // pattern match {x :-> h, (x+1) :-> p
+      //               , (x+2) :-> q}
     int v = arg->y_0;
-    TreeLayout* left = arg->y_1;
-    TreeLayout* right = arg->y_2;
+    TreeLayout* p = arg->y_1;
+    TreeLayout* q = arg->y_2;
 
-      // with t := leftList' {left} in ...
+      // with {t} := leftList' {p} in ...
     Sll* t = 0;
-    leftList(left, &t);
+    leftList(p, &t);
 
       // ssl {y :-> h, (y+1) :-> t}
     *r = malloc(sizeof(Sll));
@@ -91,4 +89,123 @@ void leftList(TreeLayout* arg, Sll** r) {
 
 % \noindent
 % In Stage~\ref{stage:in-out}
+
+\subsection{Example: convertList}
+
+\begin{lstlisting}
+%generate convertList[Dll, Sll]
+%generate convertList[Sll, Dll]
+
+Dll : layout(List)
+Dll {x z} Nil := emp;
+Dll {x z} (Cons h t) :=
+  x :-> h, (x+1) :-> w, (x+2) :-> z,
+  Dll {w x} t;
+
+convertList : (a ~ layout(List), b ~ layout(List)) =>
+  a -> b;
+convertList Nil := Nil;
+convertList [a b] (Cons h t) := Cons h (convertList$_{\verb|a|,\verb|b|}$ t);
+\end{lstlisting}
+
+Generated \PikaCore:
+
+\begin{lstlisting}
+convertList1 : SSL(2) -> SSL(1);
+convertList1 {} = ssl {};
+convertList1 {x :-> h, (x+1) :-> w, (x+2) :-> z} =
+  with {nxt} := convertList1 {w x}
+  in
+  ssl {y :-> h, (y+1) :-> nxt}
+
+convertList2 : SSL(1) -> SSL(2);
+convertList2 {} = ssl {};
+convertList2 {y :-> h, (y+1) :-> nxt} =
+  with {w x} := convertList2 {nxt}
+  in
+  ssl {x :-> h, (x+1) :-> w, (x+2) :-> z}
+\end{lstlisting}
+
+Generated C code:
+
+\begin{lstlisting}
+typedef struct Dll {
+  int x_0;
+  Dll* x_1;
+  Dll* x_2;
+};
+
+void convertList1(Dll* arg, Sll** r) {
+  if (arg == 0) {
+      // pattern match {}
+
+      // ssl {}
+    *r = 0;
+  } else {
+      // pattern match {x :-> h, (x+1) :-> w, (x+2) :-> z}
+    int h = arg->x_0;
+    Dll* w = arg->x_1;
+    Dll* z = arg->x_2;
+
+      // with {nxt} := convertList1 {w x} in ...
+    Sll* nxt = 0;
+    convertList1(arg, &nxt);
+
+      // ssl {y :-> h, (y+1) :-> nxt}
+    *r = malloc(sizeof(Sll));
+    *r->x_0 = h;
+    *r->x_1 = nxt;
+  }
+}
+
+void convertList2(Sll* arg, Dll** r, Dll** z) {
+  if (arg == 0) {
+      // pattern match {}
+
+      // ssl {}
+    *r = 0;
+    *w = 0;
+  } else {
+      // pattern match {y :-> h, (y+1) :-> nxt}
+    int h = arg->y_0;
+    Sll* nxt = arg->y_1;
+
+      // with {w x} := convertList2 {nxt} in ...
+    Sll* w = 0;
+    convertList2(nxt, &w, &r);
+
+      // ssl {x :-> h, (x+1) :-> w, (x+2) :-> z}
+    *r = malloc(sizeof(Dll));
+    *r->x_0 = h;
+    *r->x_1 = w;
+    *r->x_2 = *z;
+  }
+}
+\end{lstlisting}
+
+% void convertList2(Sll* arg, Dll** r) {
+%   if (arg == 0) {
+%       // pattern match {}
+%
+%       // ssl {}
+%     *r = 0;
+%   } else {
+%       // pattern match {y :-> h, (y+1) :-> nxt}
+%     int h = arg->y_0;
+%     Sll* nxt = arg->y_1;
+%
+%       // with {w z} := convertList2 {nxt} in ...
+%     Sll* part = 0;
+%     Sll* w = 0;
+%     Sll* z = 0;
+%     convertList2(nxt, &part);
+%     w = part->x_1;
+%     z = part->x_2;
+%
+%       // ssl {x :-> h, (x+1) :-> w, (x+2) :-> z}
+%     *r->x_0 = h;
+%     *r->x_1 = w;
+%     *r->x_2 = z;
+%   }
+% }
 

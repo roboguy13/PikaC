@@ -38,7 +38,7 @@ is the number of fields associated to the \textit{result} of the function.
 \begin{figure}
 \begin{center}
   \fbox{
-    $\sem{e} \in \typesem{\tau}$
+    $\sem{e} \in \typesem{\tau}\textrm{ where $E[\bullet] \vdash e : \tau$}$
   }
 \end{center}
 \begin{align*}
@@ -57,7 +57,7 @@ is the number of fields associated to the \textit{result} of the function.
   &\sem{\lambda x.\; e}_r(f)
       = \sem{e}_r \osep f(x)
 \end{align*}
-  \caption{Semantic function for \PikaCore}
+  \caption{Denotation function for \PikaCore ({\color{red}TODO}: Finish)}
 \end{figure}
 
 % \subsection{Equational soundness}
