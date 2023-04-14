@@ -154,7 +154,7 @@ void convertList1(Dll* arg, Sll** r) {
     Sll* nxt = 0;
     convertList1(arg, &nxt);
 
-      // ssl {y :-> h, (y+1) :-> nxt}
+      // ssl {r :-> h, (r+1) :-> nxt}
     (*r)->x_0 = h;
     (*r)->x_1 = nxt;
   }
@@ -167,18 +167,18 @@ void convertList2(Sll* arg, Dll** r, Dll** z) {
       // ssl {}
     *r = 0;
   } else {
-      // pattern match {y :-> h, (y+1) :-> nxt}
+      // pattern match {x :-> h, (x+1) :-> nxt}
     int h = arg->x_0;
     Sll* nxt = arg->x_1;
 
       // allocations for result
     *r = malloc(sizeof(Dll));
 
-      // with {w x} := convertList2 {nxt} in ...
+      // with {w r} := convertList2 {nxt} in ...
     Dll* w = 0;
     convertList2(nxt, &w, r);
 
-      // ssl {x :-> h, (x+1) :-> w, (x+2) :-> z}
+      // ssl {r :-> h, (r+1) :-> w, (r+2) :-> z}
     (*r)->x_0 = h;
     (*r)->x_1 = w;
     (*r)->x_2 = *z;
