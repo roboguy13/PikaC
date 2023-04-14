@@ -116,14 +116,14 @@ convertList1 {} = ssl {};
 convertList1 {x :-> h, (x+1) :-> w, (x+2) :-> z} =
   with {nxt} := convertList1 {w x}
   in
-  ssl {y :-> h, (y+1) :-> nxt}
+  ssl {r :-> h, (r+1) :-> nxt}
 
 convertList2 : SSL(1) -> SSL(2);
 convertList2 {} = ssl {};
-convertList2 {y :-> h, (y+1) :-> nxt} =
-  with {w x} := convertList2 {nxt}
+convertList2 {x :-> h, (x+1) :-> nxt} =
+  with {w r} := convertList2 {nxt}
   in
-  ssl {x :-> h, (x+1) :-> w, (x+2) :-> z}
+  ssl {r :-> h, (r+1) :-> w, (r+2) :-> z}
 \end{lstlisting}
 
 Generated C code:
