@@ -30,10 +30,11 @@ TreeLayout (Node v left right) :=
   y :-> v, (y+1) :-> left, (y+2) :-> right,
   TreeLayout left, TreeLayout right;
 
-leftList : (a ~ layout(Tree), b ~ layout(List)) => a -> b
+leftList : (a ~ layout(Tree), b ~ layout(List)) =>
+  a -> b
 leftList Tip := Nil;
 leftList [a b] (Node v left right) :=
-  Cons v ($\instExpr_{\verb|a|,\verb|b|}$(leftList) left);
+  Cons v (leftList$_{\verb|a|,\verb|b|}$ left);
 \end{lstlisting}
 
 \noindent
@@ -43,11 +44,51 @@ This is first translated into \PikaCore:
 leftList' : SSL(1) -> SSL(1)
 leftList' {} = ssl {}
 leftList' {x :-> h, (x+1) :-> left, (x+2) :-> right} =
-  with nxt := leftList' {left} : SSL(1)
+  with t := leftList' {left}
   in
-  ssl {y :-> h, (y+1) :-> nxt}
+  ssl {y :-> h, (y+1) :-> t}
 \end{lstlisting}
 
 \noindent
-In Stage~\ref{stage:in-out}
+Generated C code:
+
+\begin{lstlisting}
+typedef struct Sll {
+  int x_0;
+  Sll* x_1;
+};
+
+typedef struct TreeLayout {
+  int y_0;
+  TreeLayout* y_1;
+  TreeLayout* y_2;
+};
+
+void leftList(TreeLayout* arg, Sll** r) {
+  if (arg == 0) {
+      // pattern match {}
+
+      // ssl {}
+    *r = 0;
+  } else {
+      // pattern match {x :-> h, (x+1) :-> left
+      //               , (x+2) :-> right}
+    int v = arg->y_0;
+    TreeLayout* left = arg->y_1;
+    TreeLayout* right = arg->y_2;
+
+      // with t := leftList' {left} in ...
+    Sll* t = 0;
+    leftList(left, &t);
+
+      // ssl {y :-> h, (y+1) :-> t}
+    *r = malloc(sizeof(Sll));
+    *r->x_0 = v;
+    *r->x_1 = t;
+  }
+}
+\end{lstlisting}
+
+% \noindent
+% In Stage~\ref{stage:in-out}
 

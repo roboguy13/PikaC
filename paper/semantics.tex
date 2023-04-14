@@ -38,24 +38,24 @@ is the number of fields associated to the \textit{result} of the function.
 \begin{figure}
 \begin{center}
   \fbox{
-    $\sem{E[\Delta;C;\Gamma] \vdash e : \tau} \in \typesem{\tau}$
+    $\sem{e} \in \typesem{\tau}$
   }
 \end{center}
 \begin{align*}
-  &\sem{E[\Delta;C;\Gamma] \vdash i : \Int}_r = \{ r \mapsto i \}
+  &\sem{i}_r = \{ r \mapsto i \}\tag{where $i \in \mathbb{Z}$}
   \\
-  &\sem{E[\Delta;C;\Gamma] \vdash b : \Bool}_r = \{ r \mapsto b \}
+  &\sem{b}_r = \{ r \mapsto b \}\tag{where $i \in \mathbb{B}$}
   \\
-  &\sem{E[\Delta;C;\Gamma] \vdash \withIn{a := e_1 : \tau_1} e_2 : \tau_2}_r = \sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1}_a \osep \sem{E[\Delta;C;\Gamma] \vdash e_2 : \tau_2}_r
+  &\sem{\withIn{a := e_1} e_2}_r = \sem{e_1}_a \osep \sem{e_2}_r
   \\
-  &\sem{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x}}{\overline{x_i \mapsto e_i}} : \SSL(n)}_r =
-    \sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1}_{r_1} \osep \cdots \osep \sem{E[\Delta;C;\Gamma] \vdash e_n : \tau_n}_{r_n}
+  &\sem{\ssl{\overline{x}}\{\overline{x_i \mapsto e_i}\}}_r =
+    \sem{e_1}_{r_1} \osep \cdots \osep \sem{e_n}_{r_n}
   \\
-  &\sem{E[\Delta;C;\Gamma] \vdash e\; v : \tau_2}_r =
-      \sem{E[\Delta;C;\Gamma] \vdash e : \tau_1 \ra \tau_2}_r(\sem{E[\Delta;C;\Gamma] \vdash v : \tau_2})
+  &\sem{e\; v}_r =
+      \sem{e}_r(\sem{v}_{-})
   \\
-  &\sem{E[\Delta;C;\Gamma] \vdash \lambda x.\; e : \tau_1 \ra \tau_2}_r(f)
-      = \sem{E[\Delta;C;\Gamma, x : \tau_1] \vdash e : \tau_2}_r \osep f(x)
+  &\sem{\lambda x.\; e}_r(f)
+      = \sem{e}_r \osep f(x)
 \end{align*}
   \caption{Semantic function for \PikaCore}
 \end{figure}
