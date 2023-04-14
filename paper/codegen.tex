@@ -53,14 +53,14 @@ Generated C code:
 \begin{lstlisting}
 typedef struct Sll {
   int x_0;
-  Sll* x_1;
-};
+  struct Sll* x_1;
+} Sll;
 
 typedef struct TreeLayout {
   int y_0;
-  TreeLayout* y_1;
-  TreeLayout* y_2;
-};
+  struct TreeLayout* y_1;
+  struct TreeLayout* y_2;
+} TreeLayout;
 
 void leftList(TreeLayout* arg, Sll** r) {
   if (arg == 0) {
@@ -131,9 +131,9 @@ Generated C code:
 \begin{lstlisting}
 typedef struct Dll {
   int x_0;
-  Dll* x_1;
-  Dll* x_2;
-};
+  struct Dll* x_1;
+  struct Dll* x_2;
+} Dll;
 
 void convertList1(Dll* arg, Sll** r) {
   if (arg == 0) {
@@ -147,14 +147,16 @@ void convertList1(Dll* arg, Sll** r) {
     Dll* w = arg->x_1;
     Dll* z = arg->x_2;
 
+      // allocations for result
+    *r = malloc(sizeof(Sll));
+
       // with {nxt} := convertList1 {w x} in ...
     Sll* nxt = 0;
     convertList1(arg, &nxt);
 
       // ssl {y :-> h, (y+1) :-> nxt}
-    *r = malloc(sizeof(Sll));
-    *r->x_0 = h;
-    *r->x_1 = nxt;
+    (*r)->x_0 = h;
+    (*r)->x_1 = nxt;
   }
 }
 
@@ -164,48 +166,23 @@ void convertList2(Sll* arg, Dll** r, Dll** z) {
 
       // ssl {}
     *r = 0;
-    *w = 0;
   } else {
       // pattern match {y :-> h, (y+1) :-> nxt}
-    int h = arg->y_0;
-    Sll* nxt = arg->y_1;
+    int h = arg->x_0;
+    Sll* nxt = arg->x_1;
+
+      // allocations for result
+    *r = malloc(sizeof(Dll));
 
       // with {w x} := convertList2 {nxt} in ...
-    Sll* w = 0;
-    convertList2(nxt, &w, &r);
+    Dll* w = 0;
+    convertList2(nxt, &w, r);
 
       // ssl {x :-> h, (x+1) :-> w, (x+2) :-> z}
-    *r = malloc(sizeof(Dll));
-    *r->x_0 = h;
-    *r->x_1 = w;
-    *r->x_2 = *z;
+    (*r)->x_0 = h;
+    (*r)->x_1 = w;
+    (*r)->x_2 = *z;
   }
 }
 \end{lstlisting}
-
-% void convertList2(Sll* arg, Dll** r) {
-%   if (arg == 0) {
-%       // pattern match {}
-%
-%       // ssl {}
-%     *r = 0;
-%   } else {
-%       // pattern match {y :-> h, (y+1) :-> nxt}
-%     int h = arg->y_0;
-%     Sll* nxt = arg->y_1;
-%
-%       // with {w z} := convertList2 {nxt} in ...
-%     Sll* part = 0;
-%     Sll* w = 0;
-%     Sll* z = 0;
-%     convertList2(nxt, &part);
-%     w = part->x_1;
-%     z = part->x_2;
-%
-%       // ssl {x :-> h, (x+1) :-> w, (x+2) :-> z}
-%     *r->x_0 = h;
-%     *r->x_1 = w;
-%     *r->x_2 = z;
-%   }
-% }
 
