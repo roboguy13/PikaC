@@ -1,6 +1,6 @@
 \section{C Code Generation}
 
-The translation of PikaCore function into C is divided into the stages.
+The translation of \PikaCore{} function into C is divided into the stages.
 
 \begin{enumerate}
   \item \label{stage:in-out} For each branch, determine the abstract heap for the input and a collection of
@@ -9,14 +9,16 @@ The translation of PikaCore function into C is divided into the stages.
     previous stage
 \end{enumerate}
 
-\subsection{Example}
-First, lets look at a Pika function that takes a tree and gives back a list by traversing the leftmost branches.
+\subsection{Examples}
+
+\subsubsection{leftList}
+First, lets look at a \Pika{} function that takes a tree and gives back a list by traversing the leftmost branches.
 
 \begin{lstlisting}
 %generate leftList[TreeLayout, Sll]
 
 data List := Nil | Cons Int List;
-data Tree := Tip | Bin Int Tree Tree;
+data Tree := Tip | Node Int Tree Tree;
 
 Sll : layout(List);
 Sll Nil := emp;
@@ -24,24 +26,24 @@ Sll (Cons h t) := x :-> h, (x+1) :-> t, Sll t;
 
 TreeLayout : layout(Tree);
 TreeLayout Tip := emp;
-TreeLayout (Bin v l r) :=
-  y :-> v, (y+1) :-> l, (y+2) :-> r, TreeLayout l, TreeLayout r;
+TreeLayout (Node v left right) :=
+  y :-> v, (y+1) :-> left, (y+2) :-> right,
+  TreeLayout left, TreeLayout right;
 
 leftList : (a ~ layout(Tree), b ~ layout(List)) => a -> b
 leftList Tip := Nil;
-leftList [a b] (Bin v l r) := Cons v ($\apply_a$ (leftList ($\liftExpr_b$ l));
+leftList [a b] (Node v left right) :=
+  Cons v ($\instExpr_{\verb|a|,\verb|b|}$(leftList) left);
 \end{lstlisting}
 
 \noindent
-This is first translated into PikaCore:
+This is first translated into \PikaCore:
 
 \begin{lstlisting}
-leftList' :
-  ($\mu s.$ SSL(x : Int, (x+1) : s, (x+2) : s))
-  -> $\mu t.$ SSL(y : Int, (y+1) : t)
+leftList' : SSL(1) -> SSL(1)
 leftList' {} = ssl {}
-leftList' {x :-> h, (x+1) :-> l, (x+2) :-> r} =
-  with nxt := leftList' l
+leftList' {x :-> h, (x+1) :-> left, (x+2) :-> right} =
+  with nxt := leftList' {left} : SSL(1)
   in
   ssl {y :-> h, (y+1) :-> nxt}
 \end{lstlisting}

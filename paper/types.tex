@@ -1,7 +1,7 @@
 \section{Static Semantics}
 
-In this section, we discuss two different parts of the Pika compiler: the type system and the translation
-from surface Pika to PikaCore. The translation is accomplished with two stages. First, ANF translation. Then,
+In this section, we discuss two different parts of the \Pika{} compiler: the type system and the translation
+from surface \Pika{} to \PikaCore. The translation is accomplished with two stages. First, ANF translation. Then,
 all layout definitions are substituted into their use sites during a desugaring stage.
 
 \subsection{Type System}
@@ -31,7 +31,7 @@ are discussed further in Section~\ref{sec:related-work}.
 
 A general type system is given in Fig.~\ref{fig:type-form}, Fig.~\ref{fig:layout-constraints} and Fig.~\ref{fig:typing-judgment}. In
 Fig.~\ref{fig:type-form} and Fig.~\ref{fig:typing-judgment}, all rules that deal with layouts are boxed and highlighted. Type signatures
-in Pika are restricted to only have types of the form
+in \Pika{} are restricted to only have types of the form
 
 \[
   \overline{\alpha_i \isA \layout{X_i}} \Ra \tau
@@ -178,8 +178,8 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
 
       \\\\
       \highlight{
-      \labinfer[T-SSL]{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x}}{\overline{x \mapsto e}} : \SSL({\overline{\langle x, \tau \rangle}})}
-        {E[\Delta;C;\Gamma] \vdash e_i : \tau_i \ensuremath{\textnormal{ for each $e_i$}}}
+      \labinfer[T-SSL]{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x \mapsto e}} : \SSL(n)}
+        {x_1,\cdots,x_n \textnormal{ disjoint} & E[\Delta;C;\Gamma] \vdash e_i : \tau_i \ensuremath{\textnormal{ for each $1 \le i \le n$}}}
       }
     \end{array}
   \]
@@ -198,6 +198,15 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
   \caption{Definitional equation typing}
   \label{fig:def-eq}
 \end{figure}
+
+For convenience, we define an ``instantiate'' operation \instExpr{} that will apply the first two
+layout parameters of an expression to a given pair of layouts. This is useful for calling a function
+with one argument. In that case, it allows you to specify both the layout of the argument and the
+layout of the result.
+
+\[
+  \instExpr_{a,b}(e) \mathrel{=}{\Delta} \apply_b(\apply_a(e))
+\]
 
 % \begin{figure}
 %   \[

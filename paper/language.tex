@@ -2,32 +2,32 @@
 
 \subsection{Shared Syntax}
 
-The following syntactic forms are shared between the Pika surface language and PikaCore.
+The following syntactic forms are shared between the \Pika{} surface language and \PikaCore.
 
 \begin{align*}
   &i ::= \cdots \mid -2 \mid -1 \mid 0 \mid 1 \mid 2 \mid \cdots
   \\
   &b ::= \True{} \mid \False
   \\
-  &e ::= x \mid i \mid b \mid e\; e \mid \lambda x.\; e
+  &e ::= x \mid i \mid b \mid \lambda x.\; e
   \\
   &\tau ::= \Int \mid \Bool \mid \tau \ra \tau
 \end{align*}
 
-\subsection{Pika Syntax}
+\subsection{\Pika{} Syntax}
 \begin{align*}
   &e ::= \cdots \mid \apply_{\alpha}(e) \mid \liftExpr_{\alpha}(e) \mid \Lambda (\alpha \isA \layout{X}).\; e
   \\
-  &\tau ::= \cdots \mid X \mid \alpha \mid (\alpha \isA \layout{X}) \Ra \tau
+  &\tau ::= \cdots \mid X \mid \alpha \mid e\; e \mid (\alpha \isA \layout{X}) \Ra \tau
 \end{align*}
 
-\subsection{PikaCore Syntax}
+\subsection{\PikaCore{} Syntax}
 \begin{align*}
-  &e ::= \cdots \mid \ssl{\overline{x}}{\overline{P}} \mid \withIn{x := e : \tau} e
+  &e ::= \cdots \mid e\; \overline{a} \mid \ssl{\overline{P}} \mid \withIn{x := e : \tau} e
   \\
-  &\tau ::= \cdots \mid \SSL(\overline{\textnormal{ssl-param}})
+  &a ::= \{ \overline{x} \} \mid \{ i \} \mid \{ b \}
   \\
-  &\textnormal{ssl-param} ::= \langle x, \tau \rangle
+  &\tau ::= \cdots \mid \SSL(n)
   \\
   &P ::= \ell \mapsto e
   \\

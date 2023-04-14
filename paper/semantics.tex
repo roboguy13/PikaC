@@ -1,7 +1,7 @@
 \section{Denotational Semantics}
 
-We give a denotational semantics for PikaCore. Since Pika is translated to PikaCore, this can
-also be seen as a denotational semantics for Pika.
+We give a denotational semantics for \PikaCore. Since \Pika{} is translated to \PikaCore, this can
+also be seen as a denotational semantics for \Pika.
 
 The function $\argCount{\tau}$ gives the number of fields in abstract
 heap associated to the type $\tau$. In the case of function types, this
@@ -19,7 +19,7 @@ is the number of fields associated to the \textit{result} of the function.
   \\
   &\typesem{\Bool} = \namesem{\Bool} \ra \Heap
   \\
-  &\typesem{\SSL(p)} = \namesem{\SSL(p)} \ra \Heap
+  &\typesem{\SSL(n)} = \namesem{\SSL(n)} \ra \Heap
   \\
   &\typesem{\tau_1 \ra \tau_2} = \namesem{\tau_1 \ra \tau_2} \ra \typesem{\tau_1} \ra \typesem{\tau_2}
 \end{align*}
@@ -29,7 +29,7 @@ is the number of fields associated to the \textit{result} of the function.
   \\
   &\argCount{\Bool} = 1
   \\
-  &\argCount{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = n
+  &\argCount{\SSL(n)} = n
   \\
   &\argCount{\tau_1 \ra \tau_2} = \argCount{\tau_2}
 \end{align*}
@@ -48,7 +48,7 @@ is the number of fields associated to the \textit{result} of the function.
   \\
   &\sem{E[\Delta;C;\Gamma] \vdash \withIn{a := e_1 : \tau_1} e_2 : \tau_2}_r = \sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1}_a \osep \sem{E[\Delta;C;\Gamma] \vdash e_2 : \tau_2}_r
   \\
-  &\sem{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x}}{\overline{x_i \mapsto e_i}} : \SSL(\overline{\langle x_i, \tau_i \rangle})}_r =
+  &\sem{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x}}{\overline{x_i \mapsto e_i}} : \SSL(n)}_r =
     \sem{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1}_{r_1} \osep \cdots \osep \sem{E[\Delta;C;\Gamma] \vdash e_n : \tau_n}_{r_n}
   \\
   &\sem{E[\Delta;C;\Gamma] \vdash e\; v : \tau_2}_r =
@@ -57,7 +57,7 @@ is the number of fields associated to the \textit{result} of the function.
   &\sem{E[\Delta;C;\Gamma] \vdash \lambda x.\; e : \tau_1 \ra \tau_2}_r(f)
       = \sem{E[\Delta;C;\Gamma, x : \tau_1] \vdash e : \tau_2}_r \osep f(x)
 \end{align*}
-  \caption{Semantic function for PikaCore}
+  \caption{Semantic function for \PikaCore}
 \end{figure}
 
 % \subsection{Equational soundness}

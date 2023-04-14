@@ -4,7 +4,12 @@
 \newcommand*\bigcdot@[2]{\mathbin{\vcenter{\hbox{\scalebox{#2}{$\m@th#1\bullet$}}}}}
 \makeatother
 
-\newcommand{\labinfer} [3] [] {\infer[{\textsc{#1}}]{#2}{#3}}
+\newcommand {\Pika} {\textsf{Pika}}
+\newcommand {\PikaCore} {\textsf{PikaCore}}
+
+\newcommand {\instExpr} {\keyword{inst}}
+
+\newcommand {\labinfer} [3] [] {\infer[{\textsc{#1}}]{#2}{#3}}
 
 \newcommand {\keyword} [1] {\textsf{#1}}
 
@@ -37,6 +42,7 @@
 \newcommand {\layoutmatch} [1] {\keyword{layoutcase}\,#1\,\keyword{of}\,}
 
 \newcommand {\withIn} [1] {\keyword{with}\,#1\,\keyword{in}\,}
+\newcommand {\letPure} [1] {\keyword{letpure}\,#1\,\keyword{in}\,}
 
 % Based on https://tex.stackexchange.com/questions/451786/how-do-i-put-a-circle-around-a-symbol
 \makeatletter
@@ -78,7 +84,8 @@
 \newcommand {\desugars} {\steps_d}
 \newcommand {\anfsteps} {\steps_{\textsf{ANF}}}
 
-\newcommand {\ssl} [2] {\keyword{ssl}(#1) \{ #2 \}}
+% \newcommand {\ssl} [2] {\keyword{ssl}(#1) \{ #2 \}}
+\newcommand {\ssl} [1] {\keyword{ssl} \{ #1 \}}
 \newcommand {\SSL} {\keyword{SSL}}
 
 \newcommand {\Var} {\textsf{Var}}
