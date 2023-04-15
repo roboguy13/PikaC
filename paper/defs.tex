@@ -11,12 +11,15 @@
 
 \newcommand {\labinfer} [3] [] {\infer[{\textsc{#1}}]{#2}{#3}}
 
-\newcommand {\keyword} [1] {\textsf{#1}}
+% \newcommand {\keyword} [1] {\textsf{#1}}
+\newcommand {\keyword} [1] {\textbf{#1}}
 
 \newcommand {\Int} {\keyword{Int}}
 \newcommand {\Bool} {\keyword{Bool}}
 \newcommand {\Type} {\keyword{Type}}
 \newcommand {\layout} [1] {\keyword{layout}(#1)}
+
+\newcommand {\data} {\keyword{data}}
 
 \newcommand {\inL} {\keyword{inL}}
 \newcommand {\inR} {\keyword{inR}}
@@ -25,6 +28,8 @@
 \newcommand {\fst} {\keyword{fst}}
 \newcommand {\snd} {\keyword{snd}}
 \newcommand {\either} {\keyword{either}}
+
+\newcommand {\outs} {\longrightarrow}
 
 \newcommand {\Pair} {\otimes}
 \newcommand {\Either} {\oplus}
@@ -80,14 +85,29 @@
 \newcommand {\argCount} [1] {N\sem{#1}}
 \newcommand {\namesem} [1] {\Var^{\argCount{#1}}}
 
-\newcommand {\steps} {\longrightarrow}
-\newcommand {\desugars} {\steps_d}
-\newcommand {\anfsteps} {\steps_{\textsf{ANF}}}
+\newcommand {\pcsubscript} {\textsf{PC}}
+\newcommand {\step} {\longrightarrow}
+\newcommand {\steps} {\longrightarrow^{*}}
+\newcommand {\pcstep} {\step_{\pcsubscript}}
+\newcommand {\pcsteps} {\steps_{\pcsubscript}}
+\newcommand {\pcNotionStep} {\rightsquigarrow_{\pcsubscript}}
+
+\newcommand {\FV} {\textsf{FV}}
+
+\newcommand {\bigstep} {\Downarrow}
+\newcommand {\pcStep} {\bigstep_{\pcsubscript}}
+
+\newcommand {\val} {\textsf{value}}
+
+\newcommand {\fresh} [1] {#1 \textrm{ fresh}}
 
 % \newcommand {\ssl} [2] {\keyword{ssl}(#1) \{ #2 \}}
 % \newcommand {\ssl} [1] {\keyword{ssl} \{ #1 \}}
-\newcommand {\ssl} [1] {\{ #1 \}}
+\newcommand {\sslmath} [2] {\ssl\{ #1 \}\{ #2 \}}
+\newcommand {\ssl} {\keyword{layout}}
 \newcommand {\SSL} {\keyword{SSL}}
+
+\newcommand {\SuSLik} {SuSLik}
 
 \newcommand {\Var} {\textsf{Var}}
 
@@ -103,6 +123,12 @@
 
 \newcommand {\True} {\keyword{True}}
 \newcommand {\False} {\keyword{False}}
+
+\newcommand {\generate} {\keyword{generate}}
+
+\newcommand {\vdashpc} {\vdash_{\textsf{PC}}}
+
+\newcommand {\fboxNewlines} {\\\\\\}
 
 % From https://tex.stackexchange.com/questions/502652/define-tcolorbox-in-math-mode
 \newtcbox{\boxtext}{on line,colback=white,colframe=black,size=fbox,arc=3pt,boxrule=0.8pt}

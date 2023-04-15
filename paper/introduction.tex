@@ -1,3 +1,18 @@
 \section{Introduction}
-\input{pipeline.tex}
+
+\Pika{} is a functional programming language with layouts and layout
+polymorphism. \PikaCore{} is an intermediate representation of \Pika{} where all
+layout polymorphism has been removed. That is, in \PikaCore, all layout
+polymorphism is specialized to specific layouts and SSL assertions are
+first-class values. Furthermore, \PikaCore{} is in ANF form.
+
+From \PikaCore, the program can be translated to several different targets. This
+pipeline is given in Fig.~\ref{fig:translation-pipeline}.
+
+
+\begin{figure}
+  \input{pipeline.tex}
+  \caption{Translation pipeline}
+  \label{fig:translation-pipeline}
+\end{figure}
 

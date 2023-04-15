@@ -12,40 +12,76 @@ The translation of \PikaCore{} function into C is divided into the stages.
 \subsection{Example: leftList}
 First, lets look at a \Pika{} function that takes a tree and gives back a list by traversing the leftmost branches.
 
-\begin{lstlisting}
-%generate leftList[TreeLayout, Sll]
+$\begin{aligned}
+  &\generate\; \textrm{leftList}\; : \textrm{TreeLayout} \ra \textrm{Sll}\\
+  \\%
+  &\data\; \textrm{List} := \textrm{Nil} \mid \textrm{Cons}\; \Int\; \textrm{List}\\
+  &\data\; \textrm{Tree} := \textrm{Tip} \mid \textrm{Node}\; \Int\; \textrm{Tree}\; \textrm{Tree}\\
+  \\%
+  &\textrm{Sll} : \textrm{List} \monic \SSL(1)\\
+  &\textrm{Sll}\; \textrm{Nil} := \sslmath{x}{}\\
+  &\textrm{Sll}\; (\textrm{Cons}\; h\; t) := \sslmath{x}{ x \mapsto h, (x+1) \mapsto n, \textrm{Sll}\; t\; \{n\} }\\
+  \\%
+  &\textrm{TreeLayout} : \textrm{Tree} \monic \SSL(1)\\
+  &\textrm{TreeLayout}\; \textrm{Tip} := \sslmath{x}{}\\
+  &\begin{aligned}
+    \textrm{Tr}&\textrm{eeLayout}\; (\textrm{Node}\; v\; \textrm{left}\; \textrm{right}) :=\\
+        &\sslmath{x}{ x \mapsto v, (x+1) \mapsto p, (x+2) \mapsto q, \textrm{TreeLayout}\; \textrm{left}\; \{p\}, \textrm{TreeLayout}\; \textrm{right}\; \{q\}}
+   \end{aligned}\\
+  \\%
+  &\textrm{leftList} : (a \isA \layout{\textrm{Tree}}, b \isA \layout{\textrm{List}}) \Ra a \ra b\\
+  &\textrm{leftList}\; \textrm{Tip} := \textrm{Nil}\\
+  &\textrm{leftList}\; [a, b]\; (\textrm{Node}\; v\; \textrm{left}\; \textrm{right}) :=
+      \textrm{Cons}\; v\; (\textrm{leftList}_{a,b}\; \textrm{left})
+\end{aligned}$
+\\
 
-data List := Nil | Cons Int List;
-data Tree := Tip | Node Int Tree Tree;
-
-Sll : List >-> SSL(1);
-Sll Nil {x} := emp;
-Sll (Cons h t) {x} := x :-> h, (x+1) :-> nxt, Sll t {nxt};
-
-TreeLayout : Tree >-> SSL(1);
-TreeLayout Tip {x} := emp;
-TreeLayout (Node v left right) {x} :=
-  y :-> v, (y+1) :-> p, (y+2) :-> q,
-  TreeLayout left {p}, TreeLayout right {q} ;
-
-leftList : (a ~ layout(Tree), b ~ layout(List)) =>
-  a -> b
-leftList Tip := Nil;
-leftList [a b] (Node v left right) :=
-  Cons v (leftList$_{\verb|a|,\verb|b|}$ left);
-\end{lstlisting}
+% \begin{lstlisting}
+% %generate leftList[TreeLayout, Sll]
+%
+% data List := Nil | Cons Int List;
+% data Tree := Tip | Node Int Tree Tree;
+%
+% Sll : List >-> SSL(1);
+% Sll Nil -> {x} := emp;
+% Sll (Cons h t) -> {x} := x :-> h, (x+1) :-> nxt, Sll t {nxt};
+%
+% TreeLayout : Tree >-> SSL(1);
+% TreeLayout Tip -> {x} := emp;
+% TreeLayout (Node v left right) -> {x} :=
+%   y :-> v, (y+1) :-> p, (y+2) :-> q,
+%   TreeLayout left {p}, TreeLayout right {q} ;
+%
+% leftList : (a ~ layout(Tree), b ~ layout(List)) =>
+%   a -> b
+% leftList Tip := Nil;
+% leftList [a b] (Node v left right) :=
+%   Cons v (leftList$_{\verb|a|,\verb|b|}$ left);
+% \end{lstlisting}
 
 \noindent
 This is first translated into \PikaCore:
+\\
 
-\begin{lstlisting}
-leftList' : SSL(1) -> SSL(1);
-leftList' {} => {r} := {};
-leftList' {x :-> h, (x+1) :-> p, (x+2) :-> q} => {r} :=
-  with {t} := leftList' {p}
-  in
-  {r :-> h, (r+1) :-> t};
-\end{lstlisting}
+$\begin{aligned}
+  &\textrm{leftList'} : \SSL(1) \ra \SSL(1)\\
+  &\textrm{leftList'}\; \{\} := \sslmath{r}{}\\
+  &\begin{aligned}
+    \textrm{le}&\textrm{ftList'}\; \{x \mapsto h, (x+1) \mapsto p, (x+2) \mapsto q\} :=\\
+      &\withIn{\{t\} := \textrm{leftList'}\; \{p\}}\\
+      &\sslmath{r}{r \mapsto h, (r+1) \mapsto t}
+   \end{aligned}
+\end{aligned}$
+\\
+
+% \begin{lstlisting}
+% leftList' : SSL(1) -> SSL(1);
+% leftList' {} -> {r} := {};
+% leftList' {x :-> h, (x+1) :-> p, (x+2) :-> q} -> {r} :=
+%   with {t} := leftList' {p}
+%   in
+%   {r :-> h, (r+1) :-> t};
+% \end{lstlisting}
 
 \noindent
 Generated C code:
@@ -97,10 +133,10 @@ void leftList(TreeLayout* arg, Sll** r) {
 %generate convertList[Sll, Dll]
 
 Dll : List >-> SSL(2)
-Dll Nil {x z} := emp;
-Dll (Cons h t) {x z} :=
-  x :-> h, (x+1) :-> w, (x+2) :-> z,
-  Dll t {w x};
+Dll Nil := $\ssl${x, z} {};
+Dll (Cons h t) :=
+  $\ssl${x, z} {x :-> h, (x+1) :-> w, (x+2) :-> z,
+              Dll t {w x}};
 
 convertList : (a ~ layout(List), b ~ layout(List)) =>
   a -> b;
@@ -112,18 +148,18 @@ Generated \PikaCore:
 
 \begin{lstlisting}
 convertList1 : SSL(2) -> SSL(1);
-convertList1 {} -> {r} := {};
-convertList1 {x :-> h, (x+1) :-> w, (x+2) :-> z} -> {r} :=
+convertList1 {} := [r]{};
+convertList1 {x :-> h, (x+1) :-> w, (x+2) :-> z} :=
   with {nxt} := convertList1 {w x}
   in
-  {r :-> h, (r+1) :-> nxt}
+  [r]{r :-> h, (r+1) :-> nxt}
 
 convertList2 : SSL(1) -> SSL(2);
-convertList2 {} -> {r z} := {};
-convertList2 {x :-> h, (x+1) :-> nxt} -> {r z} :=
-  with {w r} := convertList2 {nxt}
+convertList2 {} := $\ssl${r, z}{};
+convertList2 {x :-> h, (x+1) :-> nxt} :=
+  with {w, r} := convertList2 {nxt}
   in
-  {r :-> h, (r+1) :-> w, (r+2) :-> z}
+  $\ssl${r, z} {r :-> h, (r+1) :-> w, (r+2) :-> z}
 \end{lstlisting}
 
 Generated C code:

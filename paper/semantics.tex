@@ -1,4 +1,89 @@
-\section{Denotational Semantics}
+\section{Semantics}
+
+\subsection{Translation From \Pika{} to \PikaCore}
+
+\[
+  \begin{array}{c}
+    \fbox{$e ~\val$}
+    \fboxNewlines
+    \labinfer{i ~\val}{i \in \mathbb{Z}}
+    ~~~
+    \labinfer{b ~\val}{b \in \mathbb{B}}
+    ~~~
+    \labinfer{v ~\val}{v \in \Var}
+    \\\\
+    \labinfer{\sslmath{\overline{x}}{\overline{\ell_i \mapsto e_i}}}
+      {e_i ~\val \;\textrm{ for each $e_i$}}
+  \end{array}
+\]
+\\
+
+\[
+  \begin{aligned}
+  \mathcal{E}
+    ::=\; &[]\\
+    \mid\; &\apply_A(\mathcal{E})\\
+    \mid\; &\mathcal{E}\; e\\
+    \mid\; &v\; \mathcal{E}\\
+    \mid\; &\withIn{\{ \overline{x} \} := \mathcal{E}} e\\
+    \mid\; &\withIn{\{ \overline{x} \} := v} \mathcal{E}\\
+    \mid\; &\sslmath{\overline{x}}{\overline{\ell \mapsto v}, \ell \mapsto \mathcal{E}, \overline{\ell \mapsto e}}
+  \end{aligned}
+\]
+
+\[
+  \begin{array}{c}
+    \fbox{$e \pcstep e$}
+    \fboxNewlines
+    \labinfer{\mathcal{E}[e] \pcstep \mathcal{E}[e']}
+      {e \pcNotionStep e'}
+  \end{array}
+\]
+
+Where $\mathcal{L} \sqcup \mathcal{L}'$ is the language union that combines common non-terminals shared by the $\mathcal{L}$ and $\mathcal{L}'$.
+
+\[
+  \begin{array}{c}
+    \fbox{$e \pcNotionStep e'\textrm{ where $e, e' \in (\Pika \sqcup \PikaCore)$}$}
+    \fboxNewlines
+    \labinfer[PC-Int]{E[\Delta;C;\Gamma] \vdash i \pcNotionStep i}{E[\Delta;C;\Gamma] \vdash i : \Int}
+    ~~~
+    \labinfer[PC-Bool]{E[\Delta;C;\Gamma] \vdash b \pcNotionStep b}{E[\Delta;C;\Gamma] \vdash b : \Bool}
+    \\\\
+    \labinfer[PC-Unfold-Layout-Ctr]{E[\Delta;C;\Gamma] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{\overline{h'}}}
+      {\fresh{\overline{x}}
+      & (A\; (C\; \overline{y}) := \sslmath{\overline{x}}{\overline{h}}) \in E
+      & \overline{h'} = \overline{h}[\overline{y} := \overline{e}]
+      }
+    \\\\
+    \labinfer[PC-App]{E[\Delta;C;\Gamma] \vdash e_1\;(\apply_A(e_2)) \pcNotionStep \withIn{\{ \overline{x} \} := e_2'} e_1\; \{\overline{x}\}}
+      {}
+    \\\\
+    \labinfer[PC-With-App]{E[\Delta;C;\Gamma] \vdash e\; (\withIn{\{ \overline{x} \} := e_1} e_2) \pcNotionStep \withIn{\{ \overline{x} \} := e_1} e\; e_2}
+      {\overline{x} \not\in \FV(e)}
+    \\\\
+    \labinfer[PC-Apply]{E[\Delta;C;\Gamma] \vdash \apply_A(e) \pcNotionStep e}
+      {}
+    % \\\\
+    % \labinfer[PC-Unfold-Layout-Var]{E[\Delta;C;\Gamma] \vdash \apply_A(x)
+      % \pcNotionStep \sslmath{\overline{y}}{\overline{h}}}
+    %   {}
+  \end{array}
+\]
+
+Define the big-step relation induced by the small-step relation by the following
+
+\[
+  \begin{array}{c}
+    \labinfer{e \pcStep e'}
+      {e \pcsteps e' & e' ~\val}
+  \end{array}
+\]
+
+\begin{theorem} $\pcStep{} \subseteq \Pika \times \PikaCore$
+\end{theorem}
+
+\subsection{Denotational Semantics}
 
 We give a denotational semantics for \PikaCore. Since \Pika{} is translated to \PikaCore, this can
 also be seen as a denotational semantics for \Pika.
@@ -48,8 +133,8 @@ is the number of fields associated to the \textit{result} of the function.
   \\
   &\sem{\withIn{a := e_1} e_2}_r = \sem{e_1}_a \osep \sem{e_2}_r
   \\
-  &\sem{\ssl{\overline{x}}\{\overline{x_i \mapsto e_i}\}}_r =
-    \sem{e_1}_{r_1} \osep \cdots \osep \sem{e_n}_{r_n}
+  &\sem{\sslmath{\overline{x}}{\overline{\ell_i \mapsto e_i}}}_r =
+    \sem{e_1[\overline{x := r}]}_{\ell_1[\overline{x := r}]} \osep \cdots \osep \sem{e_n[\overline{x := r}]}_{\ell_n[\overline{x := r}]}
   \\
   &\sem{e\; v}_r =
       \sem{e}_r(\sem{v}_{-})

@@ -4,7 +4,7 @@ In this section, we discuss two different parts of the \Pika{} compiler: the typ
 from surface \Pika{} to \PikaCore. The translation is accomplished with two stages. First, ANF translation. Then,
 all layout definitions are substituted into their use sites during a desugaring stage.
 
-\subsection{Type System}
+\subsection{\Pika{} Type System}
 
 $E$ is the global environment. We write:
 
@@ -44,7 +44,7 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
   \[
   \begin{array}{c}
     \fbox{$E[\Delta] \vdash \tau ~\type$}
-    \\\\\\
+    \fboxNewlines
     \labinfer{E[\Delta, \tau ~\type] \vdash \tau ~\type}{}
     \\\\
     \labinfer{E[\Delta] \vdash X ~\type}{(X : \Type) \in E}
@@ -88,7 +88,7 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
   \[
     \begin{array}{c}
       \fbox{$E[C] \vdash \alpha \isA \layout{X}$}
-      \\\\\\
+      \fboxNewlines
       \labinfer{E[C] \vdash \Int \isA \layout{\Int}}{}
       ~~~
       \labinfer{E[C] \vdash \Bool \isA \layout{\Bool}}{}
@@ -109,7 +109,7 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
   \[
     \begin{array}{c}
       \fbox{$E[\Delta;C;\Gamma] \vdash e : \tau$}
-      \\\\\\
+      \fboxNewlines
       \labinfer[T-Int]{E[\Delta;C;\Gamma] \vdash i : \Int}{i \in \mathbb{Z}}
       ~~~
       \labinfer[T-Bool]{E[\Delta;C;\Gamma] \vdash b : \Bool}{b \in \mathbb{B}}
@@ -154,37 +154,37 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
       \labinfer[T-App]{E[\Delta;C;\Gamma] \vdash e_1\; e_2 : \tau_2}
         {E[\Delta;C;\Gamma] \vdash e_1 : \tau_1 \ra \tau_2
         &E[\Delta;C;\Gamma] \vdash e_2 : \tau_1}
-      \\\\
-      \labinfer[T-InL]{E[\Delta;C;\Gamma] \vdash \inL(e) : \tau_1 \Either \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_1}
-      ~~~
-      \labinfer[T-InR]{E[\Delta;C;\Gamma] \vdash \inR(e) : \tau_1 \Either \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_2}
-      \\\\
-      \labinfer[T-Pair]{E[\Delta;C;\Gamma] \vdash (e_1, e_2) : \tau_1 \Pair \tau_2}{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1 & E[\Delta;C;\Gamma] \vdash e_2 : \tau_2}
-      \\\\
-      \labinfer[T-Fst]{E[\Delta;C;\Gamma] \vdash \fst(e) : \tau_1}{E[\Delta;C;\Gamma] \vdash e : \tau_1 \Pair \tau_2}
-      ~~~
-      \labinfer[T-Snd]{E[\Delta;C;\Gamma] \vdash \snd(e) : \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_1 \Pair \tau_2}
-      \\\\
-      \labinfer[T-Match]{E[\Delta;C;\Gamma] \vdash \matchWith{e} \inL(x) \Ra e_1 \mid \inR(y) \Ra e_2 : \tau}
-        {E[\Delta;C;\Gamma] \vdash e : \tau_1 \Either \tau_2
-        &E[\Delta;C;\Gamma, x : \tau_1] \vdash e_1 : \tau
-        &E[\Delta;C;\Gamma, y : \tau_2] \vdash e_2 : \tau}
-      \\\\
-      \labinfer[T-Fold]{E[\Delta;C;\Gamma] \vdash \fold_\tau(e) : \tau}
-        {\tau = \mu\alpha.\tau_1 & E[\Delta;C;\Gamma] \vdash e : \tau_1[\alpha\mapsto\tau]}
-      \\\\
-      \labinfer[T-Unfold]{E[\Delta;C;\Gamma] \vdash \unfold_\tau(e) : \tau_1[\alpha\mapsto\tau]}
-        {\tau = \mu\alpha.\tau_1 & E[\Delta;C;\Gamma] \vdash e : \tau}
-
+      % \\\\
+      % \labinfer[T-InL]{E[\Delta;C;\Gamma] \vdash \inL(e) : \tau_1 \Either \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_1}
+      % ~~~
+      % \labinfer[T-InR]{E[\Delta;C;\Gamma] \vdash \inR(e) : \tau_1 \Either \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_2}
+      % \\\\
+      % \labinfer[T-Pair]{E[\Delta;C;\Gamma] \vdash (e_1, e_2) : \tau_1 \Pair \tau_2}{E[\Delta;C;\Gamma] \vdash e_1 : \tau_1 & E[\Delta;C;\Gamma] \vdash e_2 : \tau_2}
+      % \\\\
+      % \labinfer[T-Fst]{E[\Delta;C;\Gamma] \vdash \fst(e) : \tau_1}{E[\Delta;C;\Gamma] \vdash e : \tau_1 \Pair \tau_2}
+      % ~~~
+      % \labinfer[T-Snd]{E[\Delta;C;\Gamma] \vdash \snd(e) : \tau_2}{E[\Delta;C;\Gamma] \vdash e : \tau_1 \Pair \tau_2}
+      % \\\\
+      % \labinfer[T-Match]{E[\Delta;C;\Gamma] \vdash \matchWith{e} \inL(x) \Ra e_1 \mid \inR(y) \Ra e_2 : \tau}
+      %   {E[\Delta;C;\Gamma] \vdash e : \tau_1 \Either \tau_2
+      %   &E[\Delta;C;\Gamma, x : \tau_1] \vdash e_1 : \tau
+      %   &E[\Delta;C;\Gamma, y : \tau_2] \vdash e_2 : \tau}
+      % \\\\
+      % \labinfer[T-Fold]{E[\Delta;C;\Gamma] \vdash \fold_\tau(e) : \tau}
+      %   {\tau = \mu\alpha.\tau_1 & E[\Delta;C;\Gamma] \vdash e : \tau_1[\alpha\mapsto\tau]}
+      % \\\\
+      % \labinfer[T-Unfold]{E[\Delta;C;\Gamma] \vdash \unfold_\tau(e) : \tau_1[\alpha\mapsto\tau]}
+      %   {\tau = \mu\alpha.\tau_1 & E[\Delta;C;\Gamma] \vdash e : \tau}
+      %
       \\\\
       \highlight{
-      \labinfer[T-SSL]{E[\Delta;C;\Gamma] \vdash \ssl{\overline{x \mapsto e}} : \SSL(n)}
+        \labinfer[T-SSL]{E[\Delta;C;\Gamma] \vdash \sslmath{\overline{x}}{\overline{\ell \mapsto e}} : \SSL(n)}
         {x_1,\cdots,x_n \textnormal{ disjoint} & E[\Delta;C;\Gamma] \vdash e_i : \tau_i \ensuremath{\textnormal{ for each $1 \le i \le n$}}}
       }
     \end{array}
   \]
-  \caption{Typing judgment}
-  \label{fig:typing-judgment}
+  \caption{Typing judgment for \Pika}
+  \label{fig:pika-typing-judgment}
 \end{figure}
 
 \begin{figure}
@@ -205,10 +205,8 @@ with one argument. In that case, it allows you to specify both the layout of the
 layout of the result.
 
 \[
-  \instExpr_{a,b}(e) \mathrel{=}{\Delta} \apply_b(\apply_a(e))
+  \instExpr_{a,b}(e) \triangleq \apply_b(\apply_a(e))
 \]
-
-We further abbreviate $\instExpr_{a,b}(f)$ as $f_{a,b}$.
 
 % \begin{figure}
 %   \[
@@ -227,23 +225,51 @@ We further abbreviate $\instExpr_{a,b}(f)$ as $f_{a,b}$.
 %   \caption{Derived types for layout constructs}
 % \end{figure}
 
-\subsection{ANF Translation}
+% \subsection{\PikaCore{} Type System}
+%
+% \[
+%   \begin{array}{c}
+%     \fbox{$\Delta \vdashpc e ~\type$}
+%     \fboxNewlines
+%     \labinfer{\Delta, \tau ~\type \vdashpc \tau ~\type}{}
+%     \\\\
+%     \labinfer{\Delta \vdashpc \Int ~\type}{}
+%     ~~~
+%     \labinfer{\Delta \vdashpc \Bool ~\type}{}
+%     \\\\
+%     \labinfer{\Delta \vdashpc \tau_1 \ra \tau_2 ~\type}{E[\Delta] \vdashpc \tau_1 ~\type & \Delta \vdashpc \tau_2 ~\type}
+%     \\\\
+%     \labinfer{\Delta \vdashpc \SSL(n) ~\type}{n \in \mathbb{N}}
+%   \end{array}
+% \]
+% \\
+%
+% \[
+%   \begin{array}{c}
+%     \fbox{$E[\Delta;\Gamma] \vdashpc e : \tau$}
+%     \fboxNewlines
+%     \labinfer[T-PC-SSL]{E[\Delta;\Gamma] \vdashpc \sslmath{\overline{x}}{\overline{(x_i + k_i) \mapsto e}} : \SSL(n)}
+%       {n = |\overline{x}| & k_i \in \mathbb{N} & E[\Delta;\Gamma, \overline{x_i : \alpha_i}] \vdashpc e_i : \tau_i & \textrm{for each $e_i$}}
+%   \end{array}
+% \]
 
-All nested function applications are turned into \verb|with-in| expressions.
-
-\subsection{Desugaring}
-
-Well-typed functions written in the surface language
-are desugared into a simplified language with no layout polymorphism. Instead of using layout polymorphism, this language explicitly manipulates layouts.
-
+% \subsection{ANF Translation}
+%
+% All nested function applications are turned into \verb|with-in| expressions.
+%
+% \subsection{Desugaring}
+%
+% Well-typed functions written in the surface language
+% are desugared into a simplified language with no layout polymorphism. Instead of using layout polymorphism, this language explicitly manipulates layouts.
+%
+% % \begin{figure}
+% %   \caption{Additional typing rules for desugared language}
+% % \end{figure}
+%
 % \begin{figure}
-%   \caption{Additional typing rules for desugared language}
+%   \[
+%     \labinfer{E \vdash \apply_\alpha(e) \desugars \cdots}{(\alpha = e'') \in E & \textrm{{\color{red}TODO:} finish}}
+%   \]
+%   \caption{Desugaring judgment}
+%   \label{fig:desugaring}
 % \end{figure}
-
-\begin{figure}
-  \[
-    \labinfer{E \vdash \apply_\alpha(e) \desugars \cdots}{(\alpha = e'') \in E & \textrm{{\color{red}TODO:} finish}}
-  \]
-  \caption{Desugaring judgment}
-  \label{fig:desugaring}
-\end{figure}
