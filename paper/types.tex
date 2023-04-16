@@ -133,12 +133,12 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
       \labinfer[T-Layout-App]{E[\Delta;C;\Gamma] \vdash \apply_{\alpha'}(e) : \tau[\alpha\mapsto\alpha']}
         {E[C] \vdash \alpha' \isA \layout{X} & E[\Delta;C;\Gamma] \vdash e : (\alpha \isA \layout{X}) \Ra \tau}
       }
-      \\\\
-      \highlight{
-      % \textnormal{{\color{red} TODO:} Does this rule make sense?}
-      % \\
-        \labinfer[T-Layout-Lift]{E[\Delta;C;\Gamma] \vdash \liftExpr(e) : A}{E[C] \vdash \alpha \isA \layout{X} & E[\Delta;C;\Gamma] \vdash e : \alpha}
-      }
+      % \\\\
+      % \highlight{
+      % % \textnormal{{\color{red} TODO:} Does this rule make sense?}
+      % % \\
+      %   \labinfer[T-Layout-Lift]{E[\Delta;C;\Gamma] \vdash \liftExpr(e) : A}{E[C] \vdash \alpha \isA \layout{X} & E[\Delta;C;\Gamma] \vdash e : \alpha}
+      % }
       % \labinfer[T-Instantiate]{\Delta;\Gamma \vdash \instantiate_{\alpha,\beta}(e) : A \ra B}
       %   {\Delta;\Gamma \vdash e : \alpha \ra \beta & \Delta;\Gamma \vdash \alpha : \layout{A} & \Delta;\Gamma \vdash \beta : \layout{B}}
       % \\\\
