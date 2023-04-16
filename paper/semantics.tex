@@ -61,9 +61,9 @@ Where $\mathcal{L} \sqcup \mathcal{L}'$ is the language union that combines comm
     \\\\
     \labinfer[PC-Lambda]{E[\Delta;C;\Gamma] \vdash \lambda x.\; e \pcNotionStep \lambda x.\; e}{}
     \\\\
-    \labinfer[PC-Unfold-Layout-Ctr]{E[\Delta;C;\Gamma] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{\overline{h'}}}
+    \labinfer[PC-Unfold-Layout-Ctr]{E[\Delta;C;\Gamma] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{T}{\overline{h'}}}
       {\fresh{\overline{x}}
-      & (A\; (C\; \overline{y}) := \sslmath{\overline{x}}{\overline{h}}) \in E
+      & (A\; (C\; \overline{y}) := \sslmath{\overline{x}}{T}{\overline{h}}) \in E
       & \overline{h'} = \overline{h}[\overline{y} := \overline{e}]
       }
     \\\\

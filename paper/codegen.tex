@@ -13,20 +13,20 @@ The translation of \PikaCore{} function into C is divided into the stages.
 First, lets look at a \Pika{} function that takes a tree and gives back a list by traversing the leftmost branches.
 
 $\begin{aligned}
-  &\generate\; \textrm{leftList}\; : \textrm{TreeLayout} \ra \textrm{Sll}\\
+  &\generate\; \textrm{leftList} : \textrm{TreeLayout} \ra \textrm{Sll}\\
   \\%
   &\data\; \textrm{List} := \textrm{Nil} \mid \textrm{Cons}\; \Int\; \textrm{List}\\
   &\data\; \textrm{Tree} := \textrm{Tip} \mid \textrm{Node}\; \Int\; \textrm{Tree}\; \textrm{Tree}\\
   \\%
-  &\textrm{Sll} : \textrm{List} \monic \mu\alpha.\;\SSL(x : \Int, (x+1) : \alpha)\\
-  &\textrm{Sll}\; \textrm{Nil} := \sslmath{x}{}{}\\
-  &\textrm{Sll}\; (\textrm{Cons}\; h\; t) := \sslmath{x}{}{ x \mapsto h, (x+1) \mapsto n, \textrm{Sll}\; t\; \{n\} }\\
+  &\textrm{Sll} : \Layout{\textrm{List}}\\
+  &\textrm{Sll}\; \textrm{Nil} := \ssl\{x\}\{\}\\
+  &\textrm{Sll}\; (\textrm{Cons}\; h\; t) := \ssl\{x\}\{ x \mapsto h, (x+1) \mapsto n, \textrm{Sll}\; t\; \{n\} \}\\
   \\%
-  &\textrm{TreeLayout} : \textrm{Tree} \monic \mu\alpha.\;\SSL(x : \Int, (x+1) : \alpha, (x+2) : \alpha)\\
-  &\textrm{TreeLayout}\; \textrm{Tip} := \sslmath{x}{}{}\\
+  &\textrm{TreeLayout} : \Layout{\textrm{Tree}}\\
+  &\textrm{TreeLayout}\; \textrm{Tip} := \ssl\{x\}\{\}\\
   &\begin{aligned}
     \textrm{Tr}&\textrm{eeLayout}\; (\textrm{Node}\; v\; \textrm{left}\; \textrm{right}) :=\\
-        &\sslmath{x}{}{ x \mapsto v, (x+1) \mapsto p, (x+2) \mapsto q, \textrm{TreeLayout}\; \textrm{left}\; \{p\}, \textrm{TreeLayout}\; \textrm{right}\; \{q\}}
+        &\ssl\{x\}\{ x \mapsto v, (x+1) \mapsto p, (x+2) \mapsto q, \textrm{TreeLayout}\; \textrm{left}\; \{p\}, \textrm{TreeLayout}\; \textrm{right}\; \{q\}\}
    \end{aligned}\\
   \\%
   &\textrm{leftList} : (a \isA \Layout{\textrm{Tree}}, b \isA \Layout{\textrm{List}}) \Ra a \ra b\\
@@ -64,12 +64,12 @@ This is first translated into \PikaCore:
 \\
 
 $\begin{aligned}
-  &\textrm{leftList'} : \mu\alpha.\;\SSL(x : \Int, (x+1) : \alpha, (x+2) : \alpha) \ra \mu\alpha.\;\SSL(r : \Int, (r+1) : \alpha)\\
-  &\textrm{leftList'}\; \{\} := \sslmath{r}{}{}\\
+  &\textrm{leftList'} : \SSL(x : \Int, (x+1) : \textrm{TreeLayout}, (x+2) : \textrm{TreeLayout}) \ra \SSL(r : \Int, (r+1) : \textrm{Sll})\\
+  &\textrm{leftList'}\; \{\} := \sslmath{r}{r : \Int, (r+1) : \textrm{Sll}}{}\\
   &\begin{aligned}
     \textrm{le}&\textrm{ftList'}\; \{x \mapsto h, (x+1) \mapsto p, (x+2) \mapsto q\} :=\\
       &\withIn{\{t\} := \textrm{leftList'}\; \{p\}}\\
-      &\sslmath{r}{}{r \mapsto h, (r+1) \mapsto t}
+      &\sslmath{r}{r : \Int, (r+1) : \textrm{Sll}}{r \mapsto h, (r+1) \mapsto t}
    \end{aligned}
 \end{aligned}$
 \\
