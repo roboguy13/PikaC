@@ -176,11 +176,6 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
       % \labinfer[T-Unfold]{E[\Delta;C;\Gamma] \vdash \unfold_\tau(e) : \tau_1[\alpha\mapsto\tau]}
       %   {\tau = \mu\alpha.\tau_1 & E[\Delta;C;\Gamma] \vdash e : \tau}
       %
-      \\\\
-      \highlight{
-        \labinfer[T-SSL]{E[\Delta;C;\Gamma] \vdash \sslmath{\overline{x}}{\overline{\ell \mapsto e}} : \SSL(n)}
-        {x_1,\cdots,x_n \textnormal{ disjoint} & E[\Delta;C;\Gamma] \vdash e_i : \tau_i \ensuremath{\textnormal{ for each $1 \le i \le n$}}}
-      }
     \end{array}
   \]
   \caption{Typing judgment for \Pika}
@@ -197,6 +192,23 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
   \]
   \caption{Definitional equation typing}
   \label{fig:def-eq}
+\end{figure}
+
+\begin{figure}
+  \[
+    \begin{array}{c}
+      \labinfer[T-SSL]{E[\Delta;C;\Gamma] \vdashpc \sslmath{\overline{x}}{\overline{\ell \mapsto e}} : \SSL(n)}
+        {x_1,\cdots,x_n \textnormal{ disjoint} & E[\Delta;C;\Gamma] \vdashpc e_i : \tau_i \ensuremath{\textnormal{ for each $1 \le i \le n$}}}
+      \\\\
+      \labinfer[T-With]{E[\Delta;C;\Gamma] \vdashpc \withIn{\{ \overline{x} := e_1 \}} e_2 : \tau}
+        {E[\Delta;C;\Gamma,\overline{x_i : \tau_i}] \vdashpc e_1 : \tau
+        &E[\Delta;C;\Gamma] \vdashpc e_1 : \SSL(n)
+        &n = |\overline{x}|
+        }
+    \end{array}
+  \]
+  \caption{Additional typing rules for \PikaCore}
+  \label{fig:pikacore-typing-judgment}
 \end{figure}
 
 For convenience, we define an ``instantiate'' operation \instExpr{} that will apply the first two
