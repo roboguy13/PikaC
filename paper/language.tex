@@ -1,5 +1,10 @@
 \section{Syntax}
 
+\Pika{} code is translated into \PikaCore{} before being translated into the target language. \PikaCore{}
+is a layout monomorphic version of \Pika{}. While it retains most of the functional syntax of \Pika,
+all data structures are manipulated as collections of SSL heaplets. This includes both construction
+of data structure values and pattern matching.
+
 \subsection{Shared Syntax}
 
 The following syntactic forms are shared between the \Pika{} surface language and \PikaCore.
