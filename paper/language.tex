@@ -13,6 +13,30 @@ can be seen as an SSL assertion that is parametrized over two locations: $x$ and
 $z$ occurs free. When this layout value is applied to two locations, $z$ must remain a fresh variable in
 the use-site.
 
+There is only one situation in \PikaCore{} in which layouts can be applied. This is when a function
+is called. A function, generally, takes at least one layout value as input and produces a layout value as
+output. The \verb|with-in| construct allows both of the input and output layouts to be applied with
+appropriate variables, representing the input and output variables that the function will use when
+it's called.
+
+For example, given a function
+
+\begin{align*}
+  &f\; \{ x \mapsto a \} := \sslmath{y, z}{(y+1) \mapsto a, z \mapsto w}
+\end{align*}
+
+\noindent
+we can apply it like this
+
+\begin{align*}
+  \withIn{\{p, q\} := f\; \{s\}} e
+\end{align*}
+
+\noindent
+If $s$ is nonzero (meaning $s$ points to something and this branch of $f$ is actually used), this will result in an SSL assertion
+for the input $\{s \mapsto a\}$ and an SSL assertion for the output $\{p \mapsto a, q \mapsto w\}$ where $w$ is fresh. These
+SSL assertions are combined with the SSL assertion given by the expression $e$.
+
 \subsection{Shared Syntax}
 
 The following syntactic forms are shared between the \Pika{} surface language and \PikaCore.
