@@ -204,7 +204,7 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
         }
       \\\\
       \labinfer[T-With]{E[\Delta;C;\Gamma] \vdashpc \withIn{\{ \overline{x} \} := e_1} e_2 : \tau}
-        {E[\Delta;C;\Gamma,\overline{x_i : \tau_i}] \vdashpc e_1 : \tau
+        {E[\Delta;C;\Gamma,\overline{x_i : \tau_i}] \vdashpc e_2 : \tau
         &E[\Delta;C;\Gamma] \vdashpc e_1 : \SSL(n)
         &n = |\overline{x}|
         }
