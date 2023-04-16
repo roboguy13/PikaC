@@ -94,67 +94,67 @@ Define the big-step relation induced by the small-step relation by the following
 \begin{theorem} $\pcStep{} \subseteq \Pika \times \PikaCore$
 \end{theorem}
 
-\subsection{Denotational Semantics}
-
-We give a denotational semantics for \PikaCore. Since \Pika{} is translated to \PikaCore, this can
-also be seen as a denotational semantics for \Pika.
-
-The function $\argCount{\tau}$ gives the number of fields in abstract
-heap associated to the type $\tau$. In the case of function types, this
-is the number of fields associated to the \textit{result} of the function.
-
-\begin{align*}
-  % &\typesem{\Int} = \Var \ra \lifted{\mathbb{Z}}
-  % \\
-  % &\typesem{\Bool} = \Var \ra \lifted{\mathbb{B}}
-  % \\
-  % &\typesem{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = \Var^n \ra \lifted{\Heap}
-  % \\
-  % &\typesem{\tau_1 \ra \tau_2} = \typesem{\tau_1} \ra \typesem{\tau_2}
-  &\typesem{\Int} = \namesem{\Int} \ra \Heap
-  \\
-  &\typesem{\Bool} = \namesem{\Bool} \ra \Heap
-  \\
-  &\typesem{\SSL(n)} = \namesem{\SSL(n)} \ra \Heap
-  \\
-  &\typesem{\tau_1 \ra \tau_2} = \namesem{\tau_1 \ra \tau_2} \ra \typesem{\tau_1} \ra \typesem{\tau_2}
-\end{align*}
-
-\begin{align*}
-  &\argCount{\Int} = 1
-  \\
-  &\argCount{\Bool} = 1
-  \\
-  &\argCount{\SSL(n)} = n
-  \\
-  &\argCount{\tau_1 \ra \tau_2} = \argCount{\tau_2}
-\end{align*}
-\\
-
-\begin{figure}
-\begin{center}
-  \fbox{
-    $\sem{e} \in \typesem{\tau}\textrm{ where $E[\bullet] \vdash e : \tau$}$
-  }
-\end{center}
-\begin{align*}
-  &\sem{i}_r = \{ r \mapsto i \}\tag{where $i \in \mathbb{Z}$}
-  \\
-  &\sem{b}_r = \{ r \mapsto b \}\tag{where $i \in \mathbb{B}$}
-  \\
-  &\sem{\withIn{a := e_1} e_2}_r = \sem{e_1}_a \osep \sem{e_2}_r
-  \\
-  &\sem{\sslmath{\overline{x}}{\overline{\ell_i \mapsto e_i}}}_r =
-    \sem{e_1[\overline{x := r}]}_{\ell_1[\overline{x := r}]} \osep \cdots \osep \sem{e_n[\overline{x := r}]}_{\ell_n[\overline{x := r}]}
-  \\
-  &\sem{e\; v}_r =
-      \sem{e}_r(\sem{v}_{-})
-  \\
-  &\sem{\lambda x.\; e}_r(f)
-      = \sem{e}_r \osep f(x)
-\end{align*}
-  \caption{Denotation function for \PikaCore ({\color{red}TODO}: Finish)}
-\end{figure}
+% \subsection{Denotational Semantics}
+%
+% We give a denotational semantics for \PikaCore. Since \Pika{} is translated to \PikaCore, this can
+% also be seen as a denotational semantics for \Pika.
+%
+% The function $\argCount{\tau}$ gives the number of fields in abstract
+% heap associated to the type $\tau$. In the case of function types, this
+% is the number of fields associated to the \textit{result} of the function.
+%
+% \begin{align*}
+%   % &\typesem{\Int} = \Var \ra \lifted{\mathbb{Z}}
+%   % \\
+%   % &\typesem{\Bool} = \Var \ra \lifted{\mathbb{B}}
+%   % \\
+%   % &\typesem{\SSL(\langle x_1, \tau_1 \rangle, \cdots, \langle x_n, \tau_n \rangle)} = \Var^n \ra \lifted{\Heap}
+%   % \\
+%   % &\typesem{\tau_1 \ra \tau_2} = \typesem{\tau_1} \ra \typesem{\tau_2}
+%   &\typesem{\Int} = \namesem{\Int} \ra \Heap
+%   \\
+%   &\typesem{\Bool} = \namesem{\Bool} \ra \Heap
+%   \\
+%   &\typesem{\SSL(n)} = \namesem{\SSL(n)} \ra \Heap
+%   \\
+%   &\typesem{\tau_1 \ra \tau_2} = \namesem{\tau_1 \ra \tau_2} \ra \typesem{\tau_1} \ra \typesem{\tau_2}
+% \end{align*}
+%
+% \begin{align*}
+%   &\argCount{\Int} = 1
+%   \\
+%   &\argCount{\Bool} = 1
+%   \\
+%   &\argCount{\SSL(n)} = n
+%   \\
+%   &\argCount{\tau_1 \ra \tau_2} = \argCount{\tau_2}
+% \end{align*}
+% \\
+%
+% \begin{figure}
+% \begin{center}
+%   \fbox{
+%     $\sem{e} \in \typesem{\tau}\textrm{ where $E[\bullet] \vdash e : \tau$}$
+%   }
+% \end{center}
+% \begin{align*}
+%   &\sem{i}_r = \{ r \mapsto i \}\tag{where $i \in \mathbb{Z}$}
+%   \\
+%   &\sem{b}_r = \{ r \mapsto b \}\tag{where $i \in \mathbb{B}$}
+%   \\
+%   &\sem{\withIn{a := e_1} e_2}_r = \sem{e_1}_a \osep \sem{e_2}_r
+%   \\
+%   &\sem{\sslmath{\overline{x}}{\overline{\ell_i \mapsto e_i}}}_r =
+%     \sem{e_1[\overline{x := r}]}_{\ell_1[\overline{x := r}]} \osep \cdots \osep \sem{e_n[\overline{x := r}]}_{\ell_n[\overline{x := r}]}
+%   \\
+%   &\sem{e\; v}_r =
+%       \sem{e}_r(\sem{v}_{-})
+%   \\
+%   &\sem{\lambda x.\; e}_r(f)
+%       = \sem{e}_r \osep f(x)
+% \end{align*}
+%   \caption{Denotation function for \PikaCore ({\color{red}TODO}: Finish)}
+% \end{figure}
 
 % \subsection{Equational soundness}
 %
