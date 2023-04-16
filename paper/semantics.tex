@@ -15,12 +15,12 @@
     ~~~
     \labinfer{v ~\val}{v \in \Var}
     \\\\
-    \labinfer{\sslmath{\overline{x}}{\overline{\ell_i \mapsto e_i}}}
+    \labinfer{\sslmath{\overline{x}}{\overline{\ell_i \mapsto e_i}} ~\val}
       {e_i ~\val \;\textrm{ for each $e_i$}}
     \\\\
     \labinfer{\lambda x.\; e ~\val}{e ~\val}
     ~~~
-    \labinfer{\withIn{\{\overline{x} := e_1\}} e_2}
+    \labinfer{\withIn{\{\overline{x} := e_1\}} e_2 ~\val}
       {e_1 ~\val & e_2 ~\val}
   \end{array}
 \]
