@@ -3,7 +3,9 @@
 \Pika{} code is translated into \PikaCore{} before being translated into the target language. \PikaCore{}
 is a layout monomorphic version of \Pika{}. While it retains most of the functional syntax of \Pika,
 all data structures are manipulated as collections of SSL heaplets. This includes both construction
-of data structure values and pattern matching.
+of data structure values and pattern matching. Also, the argument of every function application in
+\PikaCore{} is a literal or a variable. This is because it is entirely given in a kind of ANF, using
+the \verb|with-in| construct to introduce an ANF binding.
 
 \subsection{Shared Syntax}
 
