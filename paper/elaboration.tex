@@ -1,0 +1,23 @@
+\section{Elaboration}
+
+The body of a layout polymorphic \Pika{} function will often make use of the 
+layout parameters that it is given. For example, consider the function \texttt{singleton}.
+
+\begin{align*}
+  &\texttt{singleton} : (a \isA \layout{List}) \Ra \Int \ra a\\
+  &\texttt{singleton}\; i := \textrm{Cons}\; i\; \textrm{Nil}
+\end{align*}
+
+\noindent
+We know just by looking at the type that we want to give back a \textrm{List} using
+whatever layout is given as $a$. However, without elaboration, this is not enough. We must
+explicitly lower the constructors to use the layout $a$ like this:
+
+\begin{align*}
+  &\texttt{singleton} : (a \isA \layout{List}) \Ra \Int \ra a\\
+  &\texttt{singleton}\; [a]\; i := \apply_a(\textrm{Cons}\; i\; (\apply_a(\textrm{Nil})))
+\end{align*}
+
+\noindent
+Elaboration will turn the first definition of \texttt{singleton} into the second definition.
+

@@ -2,6 +2,9 @@
 
 \subsection{Translation From \Pika{} to \PikaCore}
 
+% Note that the lambda case of the $\val$ judgment is unusual. It requires
+% the body of the lambda to be reduced.
+
 \[
   \begin{array}{c}
     \fbox{$e ~\val$}
@@ -14,6 +17,11 @@
     \\\\
     \labinfer{\sslmath{\overline{x}}{\overline{\ell_i \mapsto e_i}}}
       {e_i ~\val \;\textrm{ for each $e_i$}}
+    \\\\
+    \labinfer{\lambda x.\; e ~\val}{e ~\val}
+    ~~~
+    \labinfer{\withIn{\{\overline{x} := e_1\}} e_2}
+      {e_1 ~\val & e_2 ~\val}
   \end{array}
 \]
 \\
@@ -27,7 +35,8 @@
     \mid\; &v\; \mathcal{E}\\
     \mid\; &\withIn{\{ \overline{x} \} := \mathcal{E}} e\\
     \mid\; &\withIn{\{ \overline{x} \} := v} \mathcal{E}\\
-    \mid\; &\sslmath{\overline{x}}{\overline{\ell \mapsto v}, \ell \mapsto \mathcal{E}, \overline{\ell \mapsto e}}
+    \mid\; &\sslmath{\overline{x}}{\overline{\ell \mapsto v}, \ell \mapsto \mathcal{E}, \overline{\ell \mapsto e}}\\
+    \mid\; &\lambda x.\; \mathcal{E}
   \end{aligned}
 \]
 
@@ -49,6 +58,8 @@ Where $\mathcal{L} \sqcup \mathcal{L}'$ is the language union that combines comm
     \labinfer[PC-Int]{E[\Delta;C;\Gamma] \vdash i \pcNotionStep i}{E[\Delta;C;\Gamma] \vdash i : \Int}
     ~~~
     \labinfer[PC-Bool]{E[\Delta;C;\Gamma] \vdash b \pcNotionStep b}{E[\Delta;C;\Gamma] \vdash b : \Bool}
+    \\\\
+    \labinfer[PC-Lambda]{E[\Delta;C;\Gamma] \vdash \lambda x.\; e \pcNotionStep \lambda x.\; e}{}
     \\\\
     \labinfer[PC-Unfold-Layout-Ctr]{E[\Delta;C;\Gamma] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{\overline{h'}}}
       {\fresh{\overline{x}}
