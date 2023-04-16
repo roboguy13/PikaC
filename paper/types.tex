@@ -18,7 +18,7 @@ $E$ is the global environment. We write:
 In particular, $E$ is a set that includes:
 \begin{itemize}
   \item $(X : \Type)$ for every user-defined algebraic data type $X$
-  \item $(\alpha \isA \layout{X})$ for every user-defined layout $\alpha$ for a data type $X$
+  \item $(\alpha \isA \Layout{X})$ for every user-defined layout $\alpha$ for a data type $X$
 \end{itemize}
 
 \noindent
@@ -34,7 +34,7 @@ Fig.~\ref{fig:type-form} and Fig.~\ref{fig:pika-typing-judgment}, all rules that
 in \Pika{} are restricted to only have types of the form
 
 \[
-  \overline{\alpha_i \isA \layout{X_i}} \Ra \tau
+  \overline{\alpha_i \isA \Layout{X_i}} \Ra \tau
 \]
 
 \noindent
@@ -56,7 +56,7 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
     \labinfer{E[\Delta] \vdash \tau_1 \ra \tau_2 ~\type}{E[\Delta] \vdash \tau_1 ~\type & E[\Delta] \vdash \tau_2 ~\type}
     \\\\
     \highlight{
-      \labinfer{E[\Delta] \vdash (\alpha \isA \layout{X}) \Ra \tau ~\type}{E[\Delta,\alpha ~\type] \vdash \tau ~\type}
+      \labinfer{E[\Delta] \vdash (\alpha \isA \Layout{X}) \Ra \tau ~\type}{E[\Delta,\alpha ~\type] \vdash \tau ~\type}
     }
   \end{array}
   \]
@@ -87,15 +87,15 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
 \begin{figure}
   \[
     \begin{array}{c}
-      \fbox{$E[C] \vdash \alpha \isA \layout{X}$}
+      \fbox{$E[C] \vdash \alpha \isA \Layout{X}$}
       \fboxNewlines
-      \labinfer{E[C] \vdash \Int \isA \layout{\Int}}{}
+      \labinfer{E[C] \vdash \Int \isA \Layout{\Int}}{}
       ~~~
-      \labinfer{E[C] \vdash \Bool \isA \layout{\Bool}}{}
+      \labinfer{E[C] \vdash \Bool \isA \Layout{\Bool}}{}
       \\\\
-      \labinfer{E[C] \vdash L \isA \layout{X}}{(L \isA \layout{X}) \in E}
+      \labinfer{E[C] \vdash L \isA \Layout{X}}{(L \isA \Layout{X}) \in E}
       \\\\
-      \labinfer{E[C, \alpha \isA \layout{X}] \vdash \alpha \isA \layout{X}}{}
+      \labinfer{E[C, \alpha \isA \Layout{X}] \vdash \alpha \isA \Layout{X}}{}
       % TODO: Should the rule below be included?
       % \\\\
       % \labinfer{E[\Delta] \vdash (\ell_1 \ra \ell_2) \isA \layout{A \ra B}}{E[\Delta] \vdash \ell_1 \isA \layout{A} & E[\Delta] \vdash \ell_2 \isA \layout{B}}
@@ -122,8 +122,8 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
       % % \\\\
       % % \labinfer{\Delta;\Gamma \vdash \alpha \ra \beta : \layout{A \ra B}}{\Delta;\Gamma \vdash \alpha : \layout{A} & \Delta;\Gamma \vdash \beta : \layout{B}}
       \highlight{
-        \labinfer[T-Layout-Lambda]{E[\Delta;C;\Gamma] \vdash \Lambda (\alpha \isA \layout{X}).\; e : (\alpha \isA \layout{X}) \Ra \tau}
-        {E[\Delta] \vdash \alpha ~\type & E[\Delta;C,\alpha \isA \layout{X};\Gamma] \vdash e : \tau}
+        \labinfer[T-Layout-Lambda]{E[\Delta;C;\Gamma] \vdash \Lambda (\alpha \isA \Layout{X}).\; e : (\alpha \isA \Layout{X}) \Ra \tau}
+        {E[\Delta] \vdash \alpha ~\type & E[\Delta;C,\alpha \isA \Layout{X};\Gamma] \vdash e : \tau}
       }
       % % \\\\
       % % \labinfer[T-Lower]{\Delta;\Gamma \vdash \lowerExpr_\alpha(e) : \forall (\alpha : \layout{A}).\; \alpha}
@@ -131,7 +131,7 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
       \\\\
       \highlight{
       \labinfer[T-Layout-App]{E[\Delta;C;\Gamma] \vdash \apply_{\alpha'}(e) : \tau[\alpha\mapsto\alpha']}
-        {E[C] \vdash \alpha' \isA \layout{X} & E[\Delta;C;\Gamma] \vdash e : (\alpha \isA \layout{X}) \Ra \tau}
+        {E[C] \vdash \alpha' \isA \Layout{X} & E[\Delta;C;\Gamma] \vdash e : (\alpha \isA \Layout{X}) \Ra \tau}
       }
       % \\\\
       % \highlight{
@@ -185,21 +185,57 @@ where $\tau$ is a type with no layout constraints and the type variables $\overl
 \begin{figure}
   \[
     \begin{array}{c}
-      \labinfer[T-SSL]{E[\Delta;C;\Gamma] \vdashpc \sslmath{\overline{x}}{\overline{\ell \mapsto e}} : \SSL(n)}
-        {n = |\overline{x}|
-        &x_1,\cdots,x_n \textnormal{ disjoint}
-        &E[\Delta;C;\Gamma] \vdashpc e_i : \tau_i \ensuremath{\textnormal{ for each $1 \le i \le n$}}
+      \labinfer[T-Layout]{E[\Delta;C;\Gamma] \vdashpc \sslmath{\overline{x}}{T}{\overline{\ell \mapsto e}} : \SSL(T)}
+        {\begin{gathered}
+          E[\Delta;C;\Gamma, \overline{x : \tau}] \vdashpc e_i : \tau_i \textrm{ for each $i$}
+          ~~~T \rhd \overline{x : \tau}
+         \end{gathered}
         }
       \\\\
-      \labinfer[T-With]{E[\Delta;C;\Gamma] \vdashpc \withIn{\{ \overline{x} \} := e_1} e_2 : \tau}
-        {E[\Delta;C;\Gamma,\overline{x_i : \tau_i}] \vdashpc e_2 : \tau
-        &E[\Delta;C;\Gamma] \vdashpc e_1 : \SSL(n)
-        &n = |\overline{x}|
+      \labinfer[T-With]{E[\Delta;C;\Gamma] \vdashpc \withIn{\{ \overline{x} \} := e_1} e_2 : \tau'}
+        {E[\Delta;C;\Gamma] \vdashpc e_1 : \SSL(T)
+        &E[\Delta;C;\Gamma,\overline{x : \tau}] \vdashpc e_2 : \tau'
+        &T \rhd \overline{x : \tau}
+        % &\overline{x'} = \overline{y}[\overline{y := x}
         }
+      % \labinfer[T-Layout]{E[\Delta;C;\Gamma] \vdashpc \sslmath{\overline{x}}{\overline{\ell \mapsto e}} : \mu\alpha.\; \SSL(\overline{\ell_i : \tau_i})}
+      %   {\begin{gathered}
+      %     x_1,\cdots,x_n \textnormal{ disjoint}
+      %     ~~~\tau' = \mu\alpha.\;\SSL(\overline{\ell_i : \tau_i})
+      %     ~~~\dom(\overline{\ell}) = \overline{x}
+      %     \\
+      %     E[\Delta, \alpha ~\type;C;\Gamma] \vdashpc e_i : \tau_i[\alpha:=\tau'] \ensuremath{\textnormal{ for each $1 \le i \le n$}}
+      %    \end{gathered}
+      %   }
+      % \\\\
+      % \labinfer[T-With]{E[\Delta;C;\Gamma] \vdashpc \withIn{\{ \overline{x} \} := e_1} e_2 : \tau}
+      %   {E[\Delta;C;\Gamma,\overline{x_i : \tau_i}] \vdashpc e_2 : \tau
+      %   &E[\Delta;C;\Gamma] \vdashpc e_1 : \SSL(\overline{\ell_i : \tau_i})
+      %   &\dom(\overline{\ell}) = \overline{x}
+      %   &\todo{finish}
+      %   }
     \end{array}
   \]
   \caption{Additional typing rules for \PikaCore}
   \label{fig:pikacore-typing-judgment}
+\end{figure}
+
+\begin{figure}
+  \[
+    \begin{array}{c}
+      \fbox{$\overline{\ell : \tau} \rhd \overline{x : \tau}$}
+      \fboxNewlines
+      \labinfer{T, x : \tau \rhd \Gamma, x : \tau}
+        {T \rhd \Gamma}
+      \\\\
+      \labinfer{T, (x+n) : \tau \rhd \Gamma}
+        {n > 0
+        &T \rhd \Gamma
+        }
+    \end{array}
+  \]
+  \caption{Rules for extracting variable types from $\SSL$ location types}
+  \label{fig:SSL-var-typing-judgment}
 \end{figure}
 
 \begin{figure}

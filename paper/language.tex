@@ -8,7 +8,7 @@ of data structure values and pattern matching. Also, the argument of every funct
 the \verb|with-in| construct to introduce an ANF binding.
 
 The syntactic form that introduces an SSL assertion in \PikaCore{} can be seen as a kind of binding
-form, the values of which can be ``applied''. For example, $\sslmath{x, y}{x \mapsto y, (x+1) \mapsto z}$
+form, the values of which can be ``applied''. For example, $\sslmath{x, y}{T}{x \mapsto y, (x+1) \mapsto z}$
 can be seen as an SSL assertion that is parametrized over two locations: $x$ and $y$. Also, the name
 $z$ occurs free. When this layout value is applied to two locations, $z$ must remain a fresh variable in
 the use-site.
@@ -22,7 +22,7 @@ it's called.
 For example, given a function
 
 \begin{align*}
-  &f\; \{ x \mapsto a \} := \sslmath{y, z}{(y+1) \mapsto a, z \mapsto w}
+  &f\; \{ x \mapsto a \} := \sslmath{y, z}{T}{(y+1) \mapsto a, z \mapsto w}
 \end{align*}
 
 \noindent
@@ -48,33 +48,65 @@ The following syntactic forms are shared between the \Pika{} surface language an
   \\
   &e ::= x \mid i \mid b \mid \lambda x.\; e
   \\
-  &\tau ::= \Int \mid \Bool \mid \tau \ra \tau
+  &\tau ::= \Int \mid \Bool \mid \alpha \mid \tau \ra \tau
 \end{align*}
 
 \subsection{\Pika{} Syntax}
 \begin{align*}
-  &e ::= \cdots \mid \apply_{\alpha}(e) \mid \Lambda (\alpha \isA \layout{X}).\; e
+  &e ::= \cdots \mid \apply_{\alpha}(e) \mid \Lambda (\alpha \isA \Layout{X}).\; e
   \\
-  &\tau ::= \cdots \mid X \mid \alpha \mid e\; e \mid (\alpha \isA \layout{X}) \Ra \tau
+  &\tau ::= \cdots \mid X \mid e\; e \mid (\alpha \isA \Layout{X}) \Ra \tau
 \end{align*}
 
 \subsection{\PikaCore{} Syntax}
 \begin{align*}
-  &e ::= \cdots \mid e\; \overline{a} \mid \sslmath{\overline{x}}{\overline{h}} \mid \withIn{\{ \overline{x} \} := e} e
+  &e ::= \cdots \mid e\; \overline{a} \mid \sslmath{\overline{x}}{T}{\overline{h}} \mid \withIn{\{ \overline{x} \} := e} e
   \\
   &a ::= \{ \overline{x} \} \mid \{ i \} \mid \{ b \}
   \\
-  &\tau ::= \cdots \mid \SSL(n)
+  &\tau ::= \cdots \mid A
   \\
   &h ::= \ell \mapsto e
+  \\
+  &T ::= \overline{\ell : \tau}
+  % \\
+  % &d ::= \recspec{\overline{n : \tau}}
   \\
   &\ell ::= x \mid (x + n)
   \\
   &n ::= 0 \mid 1 \mid 2 \mid \cdots
 \end{align*}
 
-The construct $\sslmath{\overline{x}}{\overline{h}}$ is an SSL assertion with heaplets $\overline{h}$ and
+The construct $\sslmath{\overline{x}}{T}{\overline{h}}$ is an SSL assertion with heaplets $\overline{h}$ and
 bound variables $\overline{x}$. Note that it can have free variables as well.
+
+$\mu\alpha.\; \SSL(\overline{x : \tau})$ is an equi-recursive type, with $\mu$ being the recursive binder,
+introducing the type variable $\alpha$. When
+the variable bound by $\mu$ does not appear in any of the $\tau$, we leave out the binder and write $\SSL(\overline{x : \tau})$
+as a shorthand.
+
+
+% $d$ is a record specification, given by index. Consider the following SSL assertion.
+% \[
+%   \sslmath{x,y}{x \mapsto 1, (x+2) \mapsto \True, y \mapsto 22, (y+1) \mapsto 0}
+% \]
+% This could have the type $\SSL(x : \recspec{0 : \Int, 2 : \Bool}, y : \recspec{0 : \Int, 1 : \Int})$.
+% It could have other types as well, however. For example, $y$ could also fit the
+% layout of a singly-linked list. We might not know at a type-level how long a list is. So, the
+% assertion also has the type
+% $\SSL(x : \recspec{0 : \Int, 2 : \Bool}, y : \recspec{0 : \Layout})$. We use $\Layout$ to indicate
+% that we only know 
+
+% $d$ is a record specification, given by index. Consider the following SSL assertion.
+% \[
+%   \sslmath{x,y}{x \mapsto 1, (x+2) \mapsto \True, y \mapsto 22, (y+1) \mapsto 0}
+% \]
+% This could have the type $\SSL(x : \recspec{0 : \Int, 2 : \Bool}, y : \recspec{0 : \Int, 1 : \Int})$.
+% It could have other types as well, however. For example, $y$ could also fit the
+% layout of a singly-linked list. If we have such a singly-linked list layout
+% named \verb|Sll|, then the assertion would also have the type
+% $\SSL(x : \recspec{0 : \Int, 2 : \Bool}, y : \recspec{0 : \texttt{Sll}})$. Regarding $y$, this
+% type says that, at offset $0$, $y$ satisfies the \texttt{Sll} layout.
 
 % The general form of a one-parameter \PikaCore{} function definition is
 % \begin{align*}
