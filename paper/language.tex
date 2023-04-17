@@ -56,6 +56,10 @@ The following syntactic forms are shared between the \Pika{} surface language an
   &e ::= \cdots \mid \apply_{\alpha}(e) \mid \Lambda (\alpha \isA \Layout{X}).\; e
   \\
   &\tau ::= \cdots \mid X \mid e\; e \mid (\alpha \isA \Layout{X}) \Ra \tau
+  \\
+  &D ::= \overline{B}
+  \\
+  &B ::= f\; (\textrm{Ctr}\; \overline{x}) := e
 \end{align*}
 
 \subsection{\PikaCore{} Syntax}
@@ -75,6 +79,10 @@ The following syntactic forms are shared between the \Pika{} surface language an
   &\ell ::= x \mid (x + n)
   \\
   &n ::= 0 \mid 1 \mid 2 \mid \cdots
+  \\
+  &D ::= \overline{B}
+  \\
+  &B ::= f\; \{ \overline{h} \} := e
 \end{align*}
 
 The construct $\sslmath{\overline{x}}{T}{\overline{h}}$ is an SSL assertion with heaplets $\overline{h}$ and
