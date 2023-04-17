@@ -4,14 +4,22 @@
 (define-language Base-Pika
   (bool ::= True False)
   (e ::= integer bool x (λ (x : τ) e))
-  (A X x α a ::= variable-not-otherwise-mentioned)
+  (A X x α a Ctr ::= variable-not-otherwise-mentioned)
   (τ ::= Bool Int α (τ → τ) ((α ~ (Layout X)) ⇒ τ) (SSL T))
   (Δ ::= [] ((x type) ...))
   (Γ ::= [] ((x : τ) ...))
-  (E C ::= [] ((a ~ (Layout X)) ...))
+  (C ::= [] ((a ~ (Layout X)) ...))
+
+  (layout-constraint ::= (a ~ (Layout X)))
+
+  (layout-defs ::= (layout-def ...))
+  (layout-def ::= ((A : (Layout X) [x ...]) layout-case ...))
+  (layout-case ::= (pat := (h ...)))
+  (pat ::= (Ctr x ...))
+  (h ::= (loc ↦ e))
   #;(E ::= [] ((A ~ (Layout X)) E))
   (T ::= ((loc : τ) ...))
-  (loc ::= (x + number))
+  (loc ::= x (x + number))
   #:binding-forms
   (λ (x : τ) e #:refers-to x))
 
@@ -24,13 +32,29 @@
 
 (define-extended-language Pika-Core
   Base-Pika
-  (e ::= .... (e arg ...) (layout (x ...) ((l : τ) ...) (h ...))
+  (e ::= .... (layout-arg x ...) (e arg ...) (layout (x ...) T (h ...))
          (with ((x ...) := e) e))
   (arg ::= (x ...) (integer) (bool))
-  (h ::= (loc ↦ e))
   #:binding-forms
   (layout (x ...) ((l : τ) ...) (h ...) #:refers-to (shadow x ...))
   (with ((x ...) := e) e #:refers-to (shadow x ...)))
+
+(define-union-language Full-Pika Pika Pika-Core)
+
+(define-extended-language Full-Pika-Ctx
+  Full-Pika
+  (v ::= integer bool x (layout (x ...) T ((loc ↦ v) ...))
+     (λ (x) v) (with ((x ...) := v) v))
+
+  (E ::= (apply α E)
+         (E e)
+         (v E)
+         (with ((x ...) := E) e)
+         (with ((x ...) := v) E)
+         (layout (x ...) T ((loc ↦ v) ... (loc ↦ E) (loc ↦ e) ...))
+         (Λ (x ~ (Layout X)) E)
+         (λ (x : τ) E)
+         hole))
 
 (define-judgment-form Base-Pika
   #:mode (is-type I I)
@@ -103,6 +127,18 @@
    (type-wf-base Δ ((α ~ (Layout X)) ⇒ τ))
    ])
 
+(define-judgment-form Base-Pika
+  #:mode (get-layout-def-type I I O O)
+  #:contract (get-layout-def-type layout-defs A layout-constraint [x ...])
+
+  [
+   -----
+   (get-layout-def-type (((A : (Layout X) [x ...]) layout-case ...) layout-def ...) A (A ~ (Layout X)) [x ...])]
+
+  [(get-layout-def-type (layout-def ...) A layout-constraint [x_2 ...])
+   -----
+   (get-layout-def-type (((B : (Layout X) [x ...]) layout-case ...) layout-def ...) A layout-constraint [x_2 ...])])
+
 (define-judgment-form Pika
   #:mode (has-type I I I O)
   #:contract (has-type Γ C e τ)
@@ -145,7 +181,7 @@
 
   [(get-T-vars ((x_2 : τ_2) ...) Γ)
    -----
-   (get-T-vars ((x : τ) (x_2 : τ_2) ...) ((x : τ) Γ))]
+   (get-T-vars ((x : τ) (x_2 : τ_2) ...) ((x : τ) . Γ))]
 
 
   [(get-T-vars ((x_2 : τ_2) ...) Γ)
@@ -155,30 +191,30 @@
   [-----
    (get-T-vars [] [])])
 
-(define-judgment-form Pika-Core
+(define-extended-judgment-form Full-Pika has-type #;Pika-Core
   #:mode (has-type-pc I I I O)
   #:contract (has-type-pc Γ C e τ)
 
-  [
-   ------ ;[T-Int]
-   (has-type-pc Γ C integer Int)]
-
-  [
-   ------ ;[T-Bool]
-   (has-type-pc Γ C bool Bool)]
-
-  [(lookup-type Γ x τ)
-   ------ ;[T-Var]
-   (has-type-pc Γ C x τ)]
-
-  [(has-type-pc ((x : τ_1) Γ) C e τ_2)
-   ------ ;[T-Lambda]
-   (has-type-pc Γ C (λ (x : τ_1) e) (τ_1 → τ_2))]
-  
-  [(has-type-pc Γ C e_1 (τ_1 → τ_2))
-   (has-type-pc Γ C e_2 τ_1)
-   ------ ;[T-App]
-   (has-type-pc Γ C (e_1 e_2) τ_2)]
+;  [
+;   ------ ;[T-Int]
+;   (has-type-pc Γ C integer Int)]
+;
+;  [
+;   ------ ;[T-Bool]
+;   (has-type-pc Γ C bool Bool)]
+;
+;  [(lookup-type Γ x τ)
+;   ------ ;[T-Var]
+;   (has-type-pc Γ C x τ)]
+;
+;  [(has-type-pc ((x : τ_1) Γ) C e τ_2)
+;   ------ ;[T-Lambda]
+;   (has-type-pc Γ C (λ (x : τ_1) e) (τ_1 → τ_2))]
+;  
+;  [(has-type-pc Γ C e_1 (τ_1 → τ_2))
+;   (has-type-pc Γ C e_2 τ_1)
+;   ------ ;[T-App]
+;   (has-type-pc Γ C (e_1 e_2) τ_2)]
 
   [(has-type-pc Γ C e τ_2) ...
    ------ ;[T-Layout]
@@ -186,10 +222,45 @@
    ]
 
   [(has-type-pc Γ C e_1 (SSL T))
-   (get-T-vars T Γ_2)
-   (has-type-pc ,(append (term Γ_2) (term Γ)) C e_2 τ_2)
+   (get-T-vars T ((x_3 : τ_3) ...))
+   (where Γ_2 ((x_3 : τ_3) ...))
+   (has-type-pc ,(append (term (substitute Γ_2 (x_3 x) ...)) (term Γ))
+                C
+                e_2 τ_2)
    ------ ;[T-With]
    (has-type-pc Γ C (with ((x ...) := e_1) e_2) τ_2)])
+
+
+(define (-->PC defs Γ C)
+  (reduction-relation
+   Full-Pika-Ctx
+   #:domain e
+
+   (--> (in-hole E (e_1 (apply α e_2)))
+        (in-hole E (with ((x ...) := e_3) (e_1 (layout-arg x ...))))
+        
+        (judgment-holds (has-type-pc ,Γ ,C (apply α e_2) τ))
+        (judgment-holds (get-layout-def-type ,defs α layout-constraint [x ...]))
+        "PC-With")
+
+   (--> (apply α e)
+        e
+        "PC-Apply")))
+
+
+;;; Tests
+
+#;(layout-def ::= ((A : (Layout X) [x ...]) layout-case ...))
+#;(layout-case ::= (pat := (h ...)))
+(define Sll
+  (term
+   ((Sll : (Layout List) [x])
+    ((Nil) := [])
+    ((Cons head tail) := [(x ↦ head) ((x + 1) ↦ tail)]))))
+
+(define globals `[,Sll])
+
+#;(traces (-->PC globals (term [(f : ((a ~ (Layout List)) ⇒ (a → a))) (x : ((b ~ (Layout List)) ⇒ b))]) (term [(Sll ~ (Layout List))])) (term ((apply Sll f) (apply Sll x))))
 
 (define test-fn-type
   (term
@@ -197,10 +268,10 @@
 
 (judgment-holds
  (has-type-pc
-  [(y : (SSL []))]
+  [(y : (SSL [(z : Int)]))]
   []
   (with ((x) := y)
-        1)
+        x)
   τ)
  τ)
 
