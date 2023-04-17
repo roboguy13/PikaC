@@ -3,48 +3,58 @@
 
 (define-language Base-Pika
   (bool ::= True False)
-  (e ::= integer bool (λ x e))
+  (e ::= integer bool x (λ (x : τ) e))
   (A X x α a ::= variable-not-otherwise-mentioned)
-  (τ ::= Bool Int α (τ → τ))
-  (Δ ::= [] ((x type) Δ))
-  (Γ ::= [] ((x : τ) Γ))
-  (E C ::= [] ((a ~ (Layout X)) C))
-  #;(E ::= [] ((A ~ (Layout X)) E)))
+  (τ ::= Bool Int α (τ → τ) ((α ~ (Layout X)) ⇒ τ) (SSL T))
+  (Δ ::= [] ((x type) ...))
+  (Γ ::= [] ((x : τ) ...))
+  (E C ::= [] ((a ~ (Layout X)) ...))
+  #;(E ::= [] ((A ~ (Layout X)) E))
+  (T ::= ((loc : τ) ...))
+  (loc ::= (x + number))
+  #:binding-forms
+  (λ (x : τ) e #:refers-to x))
 
 (define-extended-language Pika
   Base-Pika
-  (e ::= .... (apply α e) (Λ (α ~ (Layout X)) e))
-  (τ ::= .... (e e) ((α ~ (Layout X)) ⇒ τ)))
+  (e ::= .... (e e) (apply α e) (Λ (α ~ (Layout X)) e))
+  #:binding-forms
+  (Λ (α ~ (Layout X)) e #:refers-to α)
+  ((α ~ (Layout X)) ⇒ τ #:refers-to α))
 
 (define-extended-language Pika-Core
   Base-Pika
-  (e ::= .... (e a ...) (layout (x ...) ((l : τ) ...) (h ...))
+  (e ::= .... (e arg ...) (layout (x ...) ((l : τ) ...) (h ...))
          (with ((x ...) := e) e))
-  (a ::= (x ...) (integer) (bool))
+  (arg ::= (x ...) (integer) (bool))
   (h ::= (loc ↦ e))
-  (loc ::= (x + number)))
+  #:binding-forms
+  (layout (x ...) ((l : τ) ...) (h ...) #:refers-to (shadow x ...))
+  (with ((x ...) := e) e #:refers-to (shadow x ...)))
 
 (define-judgment-form Base-Pika
   #:mode (is-type I I)
   #:contract (is-type Δ τ)
 
   [------
-   (is-type ((τ type) Δ) τ)]
+   (is-type ((τ type) (τ_2 type) ...) τ)]
 
-  [(is-type Δ τ)
+  [(is-type ((τ_3 type) ...) τ)
    ------
-   (is-type ((τ_2 type) Δ) τ)])
+   (is-type ((τ_2 type) (τ_3 type) ...) τ)])
+
+#;(def-is-type Base-Pika)
 
 (define-judgment-form Base-Pika
   #:mode (lookup-type I I O)
   #:contract (lookup-type Γ x τ)
   [
    -------
-   (lookup-type ((x : τ) Γ) x τ)]
+   (lookup-type ((x : τ) (x_2 : τ_2) ...) x τ)]
 
-  [(lookup-type Γ x τ)
+  [(lookup-type ((x_3 : τ_3) ...) x τ)
    -------
-   (lookup-type ((x_2 : τ_2) Γ) x τ)])
+   (lookup-type ((x_2 : τ_2) (x_3 : τ_3) ...) x τ)])
 
 (define-judgment-form Base-Pika
   #:mode (lookup-constraint I I O)
@@ -61,11 +71,11 @@
 
   [
    ------
-   (lookup-constraint ((α ~ (Layout X)) C) α X)]
+   (lookup-constraint ((α ~ (Layout X)) (α_2 ~ (Layout X_2)) ...) α X)]
 
-  [(lookup-constraint C α X)
+  [(lookup-constraint ((α_3 ~ (Layout X_3)) ...) α X)
    ------
-   (lookup-constraint ((α_2 ~ (Layout X_2)) C) α X)])
+   (lookup-constraint ((α_2 ~ (Layout X_2)) (α_3 ~ (Layout X_3)) ...) α X)])
 
 (define-judgment-form Base-Pika
   #:mode (type-wf-base I I)
@@ -88,7 +98,7 @@
    -------
    (type-wf-base Δ (τ_1 → τ_2))]
 
-  [(type-wf-base ((α type) Δ) τ)
+  [(type-wf-base ((α type) . Δ) τ)
    -------
    (type-wf-base Δ ((α ~ (Layout X)) ⇒ τ))
    ])
@@ -98,13 +108,119 @@
   #:contract (has-type Γ C e τ)
 
   [
-   ------
+   ------ ;[T-Int]
    (has-type Γ C integer Int)]
 
   [
-   ------
+   ------ ;[T-Bool]
    (has-type Γ C bool Bool)]
 
   [(lookup-type Γ x τ)
-   ------
-   (has-type Γ C x τ)])
+   ------ ;[T-Var]
+   (has-type Γ C x τ)]
+
+  [(has-type ((x : τ_1) . Γ) C e τ_2)
+   ------ ;[T-Lambda]
+   (has-type Γ C (λ (x : τ_1) e) (τ_1 → τ_2))]
+  
+  [(has-type Γ C e_1 (τ_1 → τ_2))
+   (has-type Γ C e_2 τ_1)
+   ------ ;[T-App]
+   (has-type Γ C (e_1 e_2) τ_2)]
+
+  [(has-type Γ ((α ~ (Layout X)) C) e τ)
+   ----- ;[T-Layout-Lambda]
+   (has-type Γ C (Λ (α ~ (Layout X)) e) ((α ~ (Layout X)) ⇒ τ))
+   ]
+
+  [(lookup-constraint C α_2 X_2)
+   (has-type Γ C e #;(substitute e α_2 α) ((α ~ (Layout X)) ⇒ τ))
+   ----- ;[T-Layout-App]
+   (has-type Γ C (apply α_2 e) (substitute τ α α_2))]
+  )
+
+(define-judgment-form Pika-Core
+  #:mode (get-T-vars I O)
+  #:contract (get-T-vars T Γ)
+
+  [(get-T-vars ((x_2 : τ_2) ...) Γ)
+   -----
+   (get-T-vars ((x : τ) (x_2 : τ_2) ...) ((x : τ) Γ))]
+
+
+  [(get-T-vars ((x_2 : τ_2) ...) Γ)
+   -----
+   (get-T-vars (((x + n) : τ) (x_2 : τ_2) ...) Γ)]
+
+  [-----
+   (get-T-vars [] [])])
+
+(define-judgment-form Pika-Core
+  #:mode (has-type-pc I I I O)
+  #:contract (has-type-pc Γ C e τ)
+
+  [
+   ------ ;[T-Int]
+   (has-type-pc Γ C integer Int)]
+
+  [
+   ------ ;[T-Bool]
+   (has-type-pc Γ C bool Bool)]
+
+  [(lookup-type Γ x τ)
+   ------ ;[T-Var]
+   (has-type-pc Γ C x τ)]
+
+  [(has-type-pc ((x : τ_1) Γ) C e τ_2)
+   ------ ;[T-Lambda]
+   (has-type-pc Γ C (λ (x : τ_1) e) (τ_1 → τ_2))]
+  
+  [(has-type-pc Γ C e_1 (τ_1 → τ_2))
+   (has-type-pc Γ C e_2 τ_1)
+   ------ ;[T-App]
+   (has-type-pc Γ C (e_1 e_2) τ_2)]
+
+  [(has-type-pc Γ C e τ_2) ...
+   ------ ;[T-Layout]
+   (has-type-pc Γ C (layout (x ...) ((l ↦ e) ...)) (SSL ((l : τ_2) ...)))
+   ]
+
+  [(has-type-pc Γ C e_1 (SSL T))
+   (get-T-vars T Γ_2)
+   (has-type-pc ,(append (term Γ_2) (term Γ)) C e_2 τ_2)
+   ------ ;[T-With]
+   (has-type-pc Γ C (with ((x ...) := e_1) e_2) τ_2)])
+
+(define test-fn-type
+  (term
+   ((α ~ (Layout A)) ⇒ (α → α))))
+
+(judgment-holds
+ (has-type-pc
+  [(y : (SSL []))]
+  []
+  (with ((x) := y)
+        1)
+  τ)
+ τ)
+
+(judgment-holds
+  (has-type [] [] (λ (x : Int) x) τ) τ)
+
+(judgment-holds
+ (has-type
+  [(x : Int) (left : Int)
+             (Cons : ((α_1 ~ (Layout A)) ⇒ (Int → (α_1 → α_1))))
+             (leftList : ((α_2 ~ (Layout A)) ⇒ α_2))]
+  [(α ~ (Layout A))]
+  (((apply α Cons) x) (apply α leftList))
+  τ)
+ τ)
+
+#;(judgment-holds
+ (has-type
+  [(f : ((α_2 ~ (Layout A)) ⇒ (α_2 → α_2))) [(x : ((α_3 ~ (Layout A)) ⇒ α_3)) []]]
+  [(α ~ (Layout A)) []]
+  ((apply α f) (apply α x))
+  τ)
+ τ)
