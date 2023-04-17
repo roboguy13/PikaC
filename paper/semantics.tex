@@ -59,6 +59,10 @@ Where $\mathcal{L} \sqcup \mathcal{L}'$ is the language union that combines comm
     ~~~
     \labinfer[PC-Bool]{E[\Delta;C;\Gamma] \vdash b \pcNotionStep b}{E[\Delta;C;\Gamma] \vdash b : \Bool}
     \\\\
+    \labinfer[PC-Var]{E[\Delta;C;\Gamma] \vdash x \pcNotionStep \sslmath{}{}{}}
+      {E[\Delta;C;\Gamma] \vdash x : \alpha
+      &E[\Delta;C;\Gamma] \vdash \alpha \isA \Layout{X}}
+    \\\\
     \labinfer[PC-Lambda]{E[\Delta;C;\Gamma] \vdash \lambda x.\; e \pcNotionStep \lambda x.\; e}{}
     \\\\
     \labinfer[PC-Unfold-Layout-Ctr]{E[\Delta;C;\Gamma] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{T}{\overline{h'}}}
@@ -93,6 +97,21 @@ Define the big-step relation induced by the small-step relation by the following
 
 \begin{theorem} $\pcStep{} \subseteq \Pika \times \PikaCore$
 \end{theorem}
+
+\subsubsection{Definition Translation}
+
+Translation of function definitions from \Pika{} to \PikaCore{} is accomplished by the following relation.
+
+\[
+  \begin{array}{c}
+    \fbox{$E \vdash D^{\Pika} \defStep^{A} D^{\PikaCore}$}
+    \fboxNewlines
+    \labinfer[PC-Def]{E \vdash f\; (\textrm{Ctr}\; \overline{x}) := e \defStep^{A} f\; \{ \overline{\ell \mapsto y} \} := e' }
+      {(A : \Layout{X}) \in E
+      &E[\Delta;C;\Gamma] \vdash e \pcStep e'
+      }
+  \end{array}
+\]
 
 % \subsection{Denotational Semantics}
 %
