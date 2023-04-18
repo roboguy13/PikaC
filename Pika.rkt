@@ -5,6 +5,7 @@
   (bool ::= True False)
   (e ::= integer bool x (λ (x : τ) e))
   (A X x α a Ctr ::= variable-not-otherwise-mentioned)
+  (xs ::= (x ...))
   (τ ::= Bool Int α (τ → τ) ((α ~ (Layout X)) ⇒ τ) (SSL T))
   (Δ ::= [] ((x type) ...))
   (Γ ::= [] ((x : τ) ...))
@@ -287,17 +288,31 @@
    ------
    (split-app (e_1 e_2) x (e ... e_2))])
 
+(define-judgment-form Pika-Core
+  #:mode (get-loc-types I I I O)
+  #:contract (get-loc-types Γ C [h ...] T)
+
+  [
+   -----
+   (get-loc-types Γ C [] [])]
+
+  [(get-loc-types Γ C (h ...) T)
+   (has-type-pc Γ C e τ)
+   -----
+   (get-loc-types Γ C ((loc ↦ e) h ...) ((loc : τ) . T))])
+
 
 (define (-->PC defs Γ C)
   (reduction-relation
    Full-Pika-Ctx
    #:domain e
 
-   (--> (in-hole E x)
-        (in-hole E (layout-arg x_2 ...))
+   #;(--> (in-hole E x)
+        (in-hole E (layout-arg x_1 ))
 
         (judgment-holds (has-type-pc ,Γ ,C x A))
-        (judgment-holds (get-layout-def-type ,defs A layout-constraint [x_2 ...]))
+        (judgment-holds (get-layout-def-type ,defs A layout-constraint xs))
+        (fresh x_1)
         "PC-Var")
 
    ; (layout (x ...) T (h ...))
@@ -308,6 +323,7 @@
         (judgment-holds (split-app e_1 Ctr [e ...]))
         (judgment-holds (get-layout-def-type ,defs A layout-constraint [x ...]))
         (judgment-holds (get-layout-branch ,defs A Ctr [a ...] [h ...]))  ; (Ctr a ...) := [h ...]
+        (judgment-holds (get-loc-types ,Γ ,C (substitute [h ...] (a e) ...) T))
         "PC-Unfold-Layout-Ctr")
 
    (--> (in-hole E (e_1 (apply α e_2)))
@@ -322,6 +338,7 @@
 
         (fresh ((y ...) (x ...)))
         "PC-With-App")
+   
    (--> (in-hole E (with ((x ...) := e) (apply A e_2)))
         (in-hole E (apply A (with ((x ...) := e) e_2)))
         "PC-With-Layout-Apply")
@@ -380,3 +397,4 @@
  τ)
 
 #;(traces (-->PC globals (term [(f : ((a ~ (Layout List)) ⇒ (a → a))) (y : Sll)]) (term [(Sll ~ (Layout List))])) (term (f (with ((x) := e_1) e_2))))
+#;(traces (-->PC globals (term [(f : ((a ~ (Layout List)) ⇒ (a → a))) (y : Sll)]) (term [(Sll ~ (Layout List))])) (term (apply Sll ((Cons 1) y))))
