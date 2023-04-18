@@ -65,7 +65,7 @@ Where $\mathcal{L} \sqcup \mathcal{L}'$ is the language union that combines comm
       & \overline{h'} = \overline{h}[\overline{y} := \overline{e}]
       }
     \\\\
-    \labinfer[PC-App]{E[\Delta;C;\Gamma] \vdash e_1\;(\apply_A(e_2)) \pcNotionStep \withIn{\{ \overline{x} \} := e_2'} e_1\; \{\overline{x}\}}
+    \labinfer[PC-With-Intro]{E[\Delta;C;\Gamma] \vdash e_1\;(\apply_A(e_2)) \pcNotionStep \withIn{\{ \overline{x} \} := e_2'} e_1\; \{\overline{x}\}}
       {}
     \\\\
     \labinfer[PC-With-App]{E[\Delta;C;\Gamma] \vdash e\; (\withIn{\{ \overline{x} \} := e_1} e_2) \pcNotionStep \withIn{\{ \overline{x} \} := e_1} e\; e_2}

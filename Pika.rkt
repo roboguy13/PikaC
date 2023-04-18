@@ -139,6 +139,47 @@
    -----
    (get-layout-def-type (((B : (Layout X) [x ...]) layout-case ...) layout-def ...) A layout-constraint [x_2 ...])])
 
+
+
+#;(layout-def ::= ((A : (Layout X) [x ...]) layout-case ...))
+#;(layout-case ::= (pat := (h ...)))
+
+(define-judgment-form Base-Pika
+  #:mode (get-layout I I O)
+  #:contract (get-layout layout-defs A (layout-case ...))
+
+  [
+   -----
+   (get-layout (((A : (Layout α) [x ...]) layout-case ...) layout-def ...) A (layout-case ...))]
+
+  [(get-layout  (layout-def ...) A (layout-case_2 ...))
+   (where #f ,(equal? (term A) (term A_2)))
+   -----
+   (get-layout  (((A_2 : (Layout α) [x ...]) layout-case ...) layout-def ...) A (layout-case_2 ...))])
+
+(define-judgment-form Base-Pika
+  #:mode (get-layout-branch-from-def I I O O)
+  #:contract (get-layout-branch-from-def (layout-case ...) Ctr [x ...] [h ...])
+
+  [
+   -----
+   (get-layout-branch-from-def (((Ctr x ...) := (h ...)) layout-case ...) Ctr [x ...] [h ...])]
+
+  [(get-layout-branch-from-def (layout-case ...) Ctr [x ...] [h ...])
+   (where #f ,(equal? (term Ctr_2) (term Ctr)))
+   -----
+   (get-layout-branch-from-def (((Ctr_2 x_2 ...) := (h_2 ...)) layout-case ...) Ctr [x ...] [h ...])]
+  )
+
+(define-judgment-form Base-Pika
+  #:mode (get-layout-branch I I I O O)
+  #:contract (get-layout-branch layout-defs A Ctr [x ...] [h ...])
+
+  [(get-layout layout-defs A (layout-case ...))
+   (get-layout-branch-from-def (layout-case ...) Ctr [x_2 ...] [h ...])
+   -----
+   (get-layout-branch layout-defs A Ctr [x_2 ...] [h ...])])
+
 (define-judgment-form Pika
   #:mode (has-type I I I O)
   #:contract (has-type Γ C e τ)
@@ -230,20 +271,62 @@
    ------ ;[T-With]
    (has-type-pc Γ C (with ((x ...) := e_1) e_2) τ_2)])
 
+(define-judgment-form Pika
+  #:mode (split-app I O O)
+  #:contract (split-app e x [e ...])
+
+  [
+   ------
+   (split-app x x [])]
+
+  [
+   ------
+   (split-app (x e) x [e])]
+
+  [(split-app e_1 x [e ...])
+   ------
+   (split-app (e_1 e_2) x (e ... e_2))])
+
 
 (define (-->PC defs Γ C)
   (reduction-relation
    Full-Pika-Ctx
    #:domain e
 
+   (--> (in-hole E x)
+        (in-hole E (layout-arg x_2 ...))
+
+        (judgment-holds (has-type-pc ,Γ ,C x A))
+        (judgment-holds (get-layout-def-type ,defs A layout-constraint [x_2 ...]))
+        "PC-Var")
+
+   ; (layout (x ...) T (h ...))
+   ; (T ::= ((loc : τ) ...))
+   (--> (in-hole E (apply A e_1))
+        (in-hole E (layout [x ...] T (substitute [h ...] (a e) ...)))
+
+        (judgment-holds (split-app e_1 Ctr [e ...]))
+        (judgment-holds (get-layout-def-type ,defs A layout-constraint [x ...]))
+        (judgment-holds (get-layout-branch ,defs A Ctr [a ...] [h ...]))  ; (Ctr a ...) := [h ...]
+        "PC-Unfold-Layout-Ctr")
+
    (--> (in-hole E (e_1 (apply α e_2)))
         (in-hole E (with ((x ...) := e_3) (e_1 (layout-arg x ...))))
         
         (judgment-holds (has-type-pc ,Γ ,C (apply α e_2) τ))
         (judgment-holds (get-layout-def-type ,defs α layout-constraint [x ...]))
-        "PC-With")
+        "PC-With-Intro")
 
-   (--> (apply α e)
+   (--> (in-hole E (e (with ((x ...) := e_1) e_2)))
+        (in-hole E (with ((y ...) := e_1) (e (substitute e_2 (x y) ...))))
+
+        (fresh ((y ...) (x ...)))
+        "PC-With-App")
+   (--> (in-hole E (with ((x ...) := e) (apply A e_2)))
+        (in-hole E (apply A (with ((x ...) := e) e_2)))
+        "PC-With-Layout-Apply")
+
+   #;(--> (apply α e)
         e
         "PC-Apply")))
 
@@ -295,3 +378,5 @@
   ((apply α f) (apply α x))
   τ)
  τ)
+
+#;(traces (-->PC globals (term [(f : ((a ~ (Layout List)) ⇒ (a → a))) (y : Sll)]) (term [(Sll ~ (Layout List))])) (term (f (with ((x) := e_1) e_2))))
