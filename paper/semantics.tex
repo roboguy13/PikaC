@@ -53,30 +53,68 @@ Where $\mathcal{L} \sqcup \mathcal{L}'$ is the language union that combines comm
 
 \[
   \begin{array}{c}
-    \fbox{$e \pcNotionStep e'\textrm{ where $e, e' \in (\Pika \sqcup \PikaCore)$}$}
+    \fbox{$E[C;\rho] \vdash e \pcNotionStep e'\textrm{ where $e, e' \in (\Pika \sqcup \PikaCore)$ and $\rho$ is a mapping from variables to tuples of variables}$}
     \fboxNewlines
-    \labinfer[PC-Var]{E[\Delta;C;\Gamma] \vdash x \pcNotionStep \sslmath{}{}{}}
-      {E[\Delta;C;\Gamma] \vdash x : \alpha
-      &E[\Delta;C;\Gamma] \vdash \alpha \isA \Layout{X}}
+    \labinfer[PC-Var]{E[C;\rho] \vdash x \pcNotionStep \{\overline{y}\}}
+      {\rho(x) = \{\overline{y}\}}
     \\\\
-    \labinfer[PC-Unfold-Layout-Ctr]{E[\Delta;C;\Gamma] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{T}{\overline{h'}}}
+    % \labinfer[PC-With-Intro]{E[C;\rho] \vdash e_1(e_2) \pcNotionStep \withIn{\{ \overline{x} \} := e_2'} e_1'}
+    %   {\fresh{v}
+    %   &E[C;\rho,v\mapsto\{\overline{x}\}] \vdash e_1(v) \pcNotionStep e_1'
+    %   &E[C;\rho] \vdash e_2 \pcNotionStep e_2'
+    %   }
+    % \\\\
+    \labinfer[PC-App-With]{E[C;\rho] \vdash e_1 (\withIn{ \{ \overline{x} \} := e_2}{e_3}) \pcNotionStep \withIn{\{ \overline{x} \} := e_2}{e_1(e_3)}}
+      {\{\overline{x}\} \not\in \range(\rho)}
+    \\\\
+    \labinfer[PC-Apply-Var]{E[C;\rho] \vdash \apply_A(v) \pcNotionStep \withIn{ \{ \overline{x} \} := v}{\{ \overline{x} \}}}
+      {E \vdash A\; \layoutParams\; \{\overline{x}\}
+      }
+    \\\\
+    \labinfer[PC-Apply-Ctr]{E[C;\rho] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{T}{\overline{h'}}}
       {\fresh{\overline{x}}
       & (A\; (C\; \overline{y}) := \sslmath{\overline{x}}{T}{\overline{h}}) \in E
       & \overline{h'} = \overline{h}[\overline{y} := \overline{e}]
       }
     \\\\
-    \labinfer[PC-With-Intro]{E[\Delta;C;\Gamma] \vdash e_1\;(\apply_A(e_2)) \pcNotionStep \withIn{\{ \overline{x} \} := e_2'} e_1\; \{\overline{x}\}}
-      {}
-    \\\\
-    \labinfer[PC-With-App]{E[\Delta;C;\Gamma] \vdash e\; (\withIn{\{ \overline{x} \} := e_1} e_2) \pcNotionStep \withIn{\{ \overline{x} \} := e_1} e\; e_2}
-      {\overline{x} \not\in \FV(e)}
-    \\\\
-    \labinfer[PC-Apply]{E[\Delta;C;\Gamma] \vdash \apply_A(e) \pcNotionStep e}
+    \labinfer[PC-Apply-With]{E[C;\rho] \vdash \apply_A(\withIn{ \{ \overline{x} \} := e_1}{e_2}) \pcNotionStep \withIn{\{ \overline{x} \} := e_1}{\apply_A(e_2)}}
       {}
     % \\\\
-    % \labinfer[PC-Unfold-Layout-Var]{E[\Delta;C;\Gamma] \vdash \apply_A(x)
-      % \pcNotionStep \sslmath{\overline{y}}{\overline{h}}}
+    % \labinfer[PC-With-Layout]
+    %   {E[C;\rho] \vdash
+    %     \withIn{ \{ \overline{x} \} := \sslmath{\overline{y}}{T}{\overline{h}}}{e}
+    %       \pcNotionStep
+    %     e'}
+    %   {
+    %   }
+    %    
+
+    % \labinfer[PC-Apply]{E[C;\rho] \vdash \apply_A(e) \pcNotionStep \withIn{ \{ \overline{x} \} := e}{\{ \overline{x} \}}}
     %   {}
+
+
+    % \labinfer[PC-Var]{E[\Delta;C;\Gamma] \vdash x \pcNotionStep \sslmath{}{}{}}
+    %   {E[\Delta;C;\Gamma] \vdash x : \alpha
+    %   &E[\Delta;C;\Gamma] \vdash \alpha \isA \Layout{X}}
+    % \\\\
+    % \labinfer[PC-Unfold-Layout-Ctr]{E[\Delta;C;\Gamma] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{T}{\overline{h'}}}
+    %   {\fresh{\overline{x}}
+    %   & (A\; (C\; \overline{y}) := \sslmath{\overline{x}}{T}{\overline{h}}) \in E
+    %   & \overline{h'} = \overline{h}[\overline{y} := \overline{e}]
+    %   }
+    % \\\\
+    % \labinfer[PC-With-Intro]{E[\Delta;C;\Gamma] \vdash e_1\;(\apply_A(e_2)) \pcNotionStep \withIn{\{ \overline{x} \} := e_2'} e_1\; \{\overline{x}\}}
+    %   {}
+    % \\\\
+    % \labinfer[PC-With-App]{E[\Delta;C;\Gamma] \vdash e\; (\withIn{\{ \overline{x} \} := e_1} e_2) \pcNotionStep \withIn{\{ \overline{x} \} := e_1} e\; e_2}
+    %   {\overline{x} \not\in \FV(e)}
+    % \\\\
+    % \labinfer[PC-Apply]{E[\Delta;C;\Gamma] \vdash \apply_A(e) \pcNotionStep e}
+    %   {}
+    % % \\\\
+    % % \labinfer[PC-Unfold-Layout-Var]{E[\Delta;C;\Gamma] \vdash \apply_A(x)
+    %   % \pcNotionStep \sslmath{\overline{y}}{\overline{h}}}
+    % %   {}
   \end{array}
 \]
 
