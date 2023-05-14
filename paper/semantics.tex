@@ -64,11 +64,17 @@ Where $\mathcal{L} \sqcup \mathcal{L}'$ is the language union that combines comm
     %   &E[C;\rho] \vdash e_2 \pcNotionStep e_2'
     %   }
     % \\\\
-    \labinfer[PC-App-With]{E[C;\rho] \vdash e_1 (\withIn{ \{ \overline{x} \} := e_2}{e_3}) \pcNotionStep \withIn{\{ \overline{x} \} := e_2}{e_1(e_3)}}
-      {\{\overline{x}\} \not\in \range(\rho)}
-    \\\\
-    \labinfer[PC-Apply-Var]{E[C;\rho] \vdash \apply_A(v) \pcNotionStep \withIn{ \{ \overline{x} \} := v}{\{ \overline{x} \}}}
+    % \labinfer[PC-App-With]{E[C;\rho] \vdash e_1 (\withIn{ \{ \overline{x} \} := e_2}{e_3}) \pcNotionStep \withIn{\{ \overline{x} \} := e_2}{e_1(e_3)}}
+    %   {\{\overline{x}\} \not\in \range(\rho)}
+    % \\\\
+    \labinfer[PC-Apply]{E[C;\rho] \vdash \apply_A(v) \pcNotionStep \withIn{ \{ \overline{x} \} := v}{\{ \overline{x} \}}}
       {E \vdash A\; \layoutParams\; \{\overline{x}\}
+      }
+    \\\\
+    \labinfer[PC-Apply-App]{E[C;\rho] \vdash \apply_B(e_1(\apply_A(e_2))) \pcNotionStep \withIn{\{ \overline{x} \} := e_2'}{e_1'} }
+      {v\fresh
+      &E[C;\rho] \vdash e_2 \pcNotionStep e_2'
+      &E[C;\rho,v\mapsto\{\overline{x}\}] \vdash \apply_B(e_1(v)) \pcNotionStep e_1'
       }
     \\\\
     \labinfer[PC-Apply-Ctr]{E[C;\rho] \vdash \apply_A(C\; \overline{e}) \pcNotionStep \sslmath{\overline{x}}{T}{\overline{h'}}}
@@ -76,9 +82,9 @@ Where $\mathcal{L} \sqcup \mathcal{L}'$ is the language union that combines comm
       & (A\; (C\; \overline{y}) := \sslmath{\overline{x}}{T}{\overline{h}}) \in E
       & \overline{h'} = \overline{h}[\overline{y} := \overline{e}]
       }
-    \\\\
-    \labinfer[PC-Apply-With]{E[C;\rho] \vdash \apply_A(\withIn{ \{ \overline{x} \} := e_1}{e_2}) \pcNotionStep \withIn{\{ \overline{x} \} := e_1}{\apply_A(e_2)}}
-      {}
+    % \\\\
+    % \labinfer[PC-Apply-With]{E[C;\rho] \vdash \apply_A(\withIn{ \{ \overline{x} \} := e_1}{e_2}) \pcNotionStep \withIn{\{ \overline{x} \} := e_1}{\apply_A(e_2)}}
+    %   {}
     % \\\\
     % \labinfer[PC-With-Layout]
     %   {E[C;\rho] \vdash
