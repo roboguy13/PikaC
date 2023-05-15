@@ -17,6 +17,7 @@ module PikaC.Preorder.Preorder
   ,topologicalSortPairs
   ,topologicalSort
   ,topologicalSortBy
+  ,preorderBy
 
   ,Contains (..)
   ,getContainsLabel
@@ -59,22 +60,38 @@ topologicalSortPairs orig =
   map go .
   getPreorder .
   containsToPreorder .
-  preorderToContains .
-  preorder $
-  map (uncurry (:<=)) orig
+  preorderToContains $
+  thePreorder
   where
+    thePreorder = preorder $ map (uncurry (:<=)) orig
     go (x :<= y) = (x, y)
 
 topologicalSort :: Ord a => [(a, a)] -> [a]
-topologicalSort = fastNub . concatMap to . topologicalSortPairs
+topologicalSort orig = fastNub . combine (preorderElements thePreorder) . concatMap to . topologicalSortPairs $ orig
   where
+    thePreorder = preorder $ map (uncurry (:<=)) orig
     to (x, y) = [x, y]
+    combine [] ys = ys
+    combine (x:xs) ys =
+      if x `notElem` ys
+        then x : combine xs ys
+        else combine xs ys
+
 
 topologicalSortBy :: Ord a => (a -> a -> Bool) -> [a] -> [a]
-topologicalSortBy isLe xs =
-  topologicalSort (concat (go <$> xs <*> xs))
+topologicalSortBy isLe =
+  topologicalSort . map to . leListBy isLe
   where
-    go x y = [(x, y) | isLe x y]
+    to (x :<= y) = (x, y)
+
+preorderBy :: Ord a => (a -> a -> Bool) -> [a] -> Preorder a
+preorderBy isLe =
+  preorder . leListBy isLe
+
+leListBy :: Eq a => (a -> a -> Bool) -> [a] -> [Le a]
+leListBy isLe xs = concat (go <$> xs <*> xs)
+  where
+    go x y = [x :<= y | isLe x y && x /= y]
 
 data Le a = a :<= a
   deriving (Show, Eq, Ord, Foldable, Generic)

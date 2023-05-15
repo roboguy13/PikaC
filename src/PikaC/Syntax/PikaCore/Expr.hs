@@ -42,6 +42,19 @@ data Expr a
 type PointsToExpr a = PointsTo Base a
 type ExprAssertion a = [PointsToExpr a]
 
+instance HasLocs Base where
+  getLocs (V x) = [x :+ 0]
+  getLocs (LayoutV x) = getLocs x
+  getLocs (IntLit i) = []
+  getLocs (BoolLit b) = []
+  getLocs (Add x y) = getLocs x ++ getLocs y
+  getLocs (Sub x y) = getLocs x ++ getLocs y
+  getLocs (Equal x y) = getLocs x ++ getLocs y
+  getLocs (Not x) = getLocs x
+  getLocs (And x y) = getLocs x ++ getLocs y
+
+  
+
 instance LayoutRename Base where
   renameLayoutArg old new (V x) = V x
   renameLayoutArg old new (LayoutV xs) =

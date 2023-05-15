@@ -28,7 +28,7 @@ codeGenBase (PikaCore.Equal x y) = C.Equal (codeGenBase x) (codeGenBase y)
 codeGenBase (PikaCore.Not x) = C.Not (codeGenBase x)
 codeGenBase (PikaCore.And x y) = C.And (codeGenBase x) (codeGenBase y)
 
-codeGenSimple :: (HasCallStack, Ord a) => Outputs a -> PikaCore.SimpleExpr a -> [Command a]
+codeGenSimple :: (HasCallStack, Ord a, Show a) => Outputs a -> PikaCore.SimpleExpr a -> [Command a]
 codeGenSimple outputs (PikaCore.BaseExpr (PikaCore.LayoutV xs)) =
   codeGenAsn $ connectLayoutArgs outputs xs
 
@@ -40,26 +40,27 @@ codeGenSimple outputs (PikaCore.SslAssertion params asn0) =
   in
   codeGenAsn asn
 
-codeGenAsn :: Ord a => PikaCore.ExprAssertion a -> [Command a]
+codeGenAsn :: (Show a, Ord a) => PikaCore.ExprAssertion a -> [Command a]
 codeGenAsn asn =
   let sorted = topologicalSortPointsTo asn
   in
   map codeGenPointsTo sorted
 
-topologicalSortPointsTo :: Ord a => [PointsToExpr a] -> [PointsToExpr a]
-topologicalSortPointsTo = map to . topologicalSortBy isLe . map from
+topologicalSortPointsTo :: (Show a, Ord a) => [PointsToExpr a] -> [PointsToExpr a]
+topologicalSortPointsTo xs =
+    map to . topologicalSortBy isLe . map from $ xs
   where
     to (x, y) = x :-> y
     from (x :-> y) = (x, y)
 
     isLe (lhs1, rhs1) (lhs2, rhs2) =
-      all (`notElem` lhs2) (toList rhs1)
+      all (`notElem` (getLocs lhs2)) (getLocs rhs1)
 
 codeGenPointsTo :: PointsToExpr a -> Command a
 codeGenPointsTo (lhs :-> rhs) =
   C.Assign lhs (codeGenBase rhs)
 
-codeGenExpr :: (HasCallStack, Ord a) => Outputs a -> PikaCore.Expr a -> [Command a]
+codeGenExpr :: (HasCallStack, Ord a, Show a) => Outputs a -> PikaCore.Expr a -> [Command a]
 codeGenExpr outputs (PikaCore.SimpleExpr e) =
   codeGenSimple outputs e
 codeGenExpr outputs (PikaCore.App f xs) =
@@ -68,4 +69,21 @@ codeGenExpr outputs (PikaCore.App f xs) =
 
 connectLayoutArgs :: LayoutArg a -> LayoutArg a -> PikaCore.ExprAssertion a
 connectLayoutArgs (LayoutArg xs) (LayoutArg ys) = zipWith (:->) (map (:+ 0) xs) (map PikaCore.V ys)
+
+example :: PikaCore.Expr String
+example =
+  PikaCore.SimpleExpr $
+  PikaCore.WithIn (LayoutArg ["w", "r"]) (PikaCore.App "convertList2" [LayoutArg ["nxt"]])
+    $ PikaCore.SslAssertion (LayoutArg ["r", "z"])
+        [ ("r" :+ 0) :-> PikaCore.V "h"
+        , ("r" :+ 1) :-> PikaCore.V "w"
+        , ("r" :+ 2) :-> PikaCore.V "z"
+        ]
+
+exampleAsn :: PikaCore.ExprAssertion String
+exampleAsn = 
+        [ ("r" :+ 0) :-> PikaCore.V "h"
+        , ("r" :+ 1) :-> PikaCore.V "w"
+        , ("r" :+ 2) :-> PikaCore.V "z"
+        ]
 

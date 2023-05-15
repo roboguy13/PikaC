@@ -44,6 +44,18 @@ data PointsTo f a = Loc a :-> f a
 data Loc a = a :+ Int
   deriving (Show, Functor, Eq, Ord, Foldable)
 
+class HasLocs f where
+  getLocs :: f a -> [Loc a]
+
+instance HasLocs Loc where
+  getLocs x = [x]
+
+instance HasLocs LayoutArg where
+  getLocs (LayoutArg xs) = map (:+ 0) xs
+
+instance HasLocs f => HasLocs (PointsTo f) where
+  getLocs (lhs :-> rhs) = lhs : getLocs rhs
+
 instance LayoutRename f => LayoutRename (PointsTo f) where
   renameLayoutArg old new (lhs :-> rhs) =
     renameLayoutArg old new lhs :-> renameLayoutArg old new rhs
