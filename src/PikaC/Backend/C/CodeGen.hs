@@ -71,18 +71,34 @@ codeGenExpr outputs (PikaCore.App f xs) =
   where
     convert = map (C.V . (:+ 0)) . toList
 
+codeGenAllocation :: Allocation a -> Command a
+codeGenAllocation (Alloc x sz) =
+  C.IntoMalloc x sz
+
+setToZero :: [a] -> [Command a]
+setToZero = map go
+  where
+    go x = C.Assign (x :+ 0) (C.IntLit 0)
+
 -- sortedCodeGen :: (Ord a, Show a) => Outputs a -> PikaCore.Expr a -> [Command a]
 -- sortedCodeGen outputs = topologicalSortCommands . codeGenExpr outputs
 
 codeGenFnBranch :: (Ord a, Show a) => FnDef a -> FnDefBranch a -> [Command a] -> Command a
 codeGenFnBranch fn branch elseCmd =
   let cond = codeGenBase (computeBranchCondition fn branch)
+      names = getLayoutArg (fnDefOutputParams branch)
+      allocs =
+        findAllocations
+          names
+          (getPointsTo (fnDefBranchBody branch))
+      zeros = findSetToZero names (getPointsTo (fnDefBranchBody branch))
   in
   C.IfThenElse
     cond
-    (concatMap codeGenInputs (fnDefBranchInputAssertions branch)
-      <>
-     codeGenExpr (fnDefOutputParams branch) (fnDefBranchBody branch)
+    (setToZero zeros
+      <> map codeGenAllocation allocs
+      <> concatMap codeGenInputs (fnDefBranchInputAssertions branch)
+      <> codeGenExpr (fnDefOutputParams branch) (fnDefBranchBody branch)
     )
     elseCmd
 

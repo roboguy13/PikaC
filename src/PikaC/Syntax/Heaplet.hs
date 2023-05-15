@@ -1,5 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module PikaC.Syntax.Heaplet
   where
@@ -15,7 +17,7 @@ import Control.Monad.Identity
 -- data Heaplet a
 --   deriving (Show, Functor)
 
-newtype LayoutArg a = LayoutArg [a]
+newtype LayoutArg a = LayoutArg { getLayoutArg :: [a] }
   deriving (Show, Functor, Semigroup, Monoid, Foldable, Eq, Ord)
 
 class LayoutRename f where
@@ -46,6 +48,9 @@ data Loc a = a :+ Int
 
 class HasLocs f where
   getLocs :: f a -> [Loc a]
+
+class HasPointsTo f g | f -> g where
+  getPointsTo :: f a -> [PointsTo g a]
 
 instance HasLocs Loc where
   getLocs x = [x]
@@ -88,6 +93,15 @@ locIx (_ :+ i) = i
 
 pointsToNames :: Ord a => [PointsTo f a] -> [a]
 pointsToNames = nub . map (locBase . pointsToLhs)
+
+findSetToZero :: Eq a => [a] -> [PointsTo f a] -> [a]
+findSetToZero names xs =
+    let modified = go xs
+    in
+    filter (`notElem` modified) names
+  where
+    go [] = []
+    go ((x :-> y):rest) = locBase x : go rest
 
 data Allocation a = Alloc a Int
   deriving (Show)

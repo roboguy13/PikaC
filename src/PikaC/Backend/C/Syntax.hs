@@ -73,7 +73,8 @@ instance HasLocs CExpr where
 
 instance Ppr a => Ppr (Command a) where
   ppr (Assign loc e) =
-    hsep [text "*" <> ppr loc, text "=", ppr e] <> text ";"
+    writeLoc loc e
+    -- hsep [text "*" <> ppr loc, text "=", ppr e] <> text ";"
 
   ppr (IfThenElse c t f) =
     foldr1 ($$) [hsep [text "if (" <> ppr c <> text ")", text "{"]
@@ -89,13 +90,22 @@ instance Ppr a => Ppr (Command a) where
     text f <> text "(" <> hsep (punctuate (text ",") (map ppr args)) <> text ");"
 
   ppr (IntoMalloc target size) =
-    hsep [ppr target, text "=", text "malloc(", ppr size, text "*sizeof(loc));"]
+    hsep [ppr target, text "=", text "(loc)malloc(" <> ppr size <> text " * sizeof(loc));"]
 
   ppr (Free x) =
     hsep [text "free(", ppr x, text ");"]
 
-  ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr (Deref y)) <> ";"
+  -- ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr (Deref y)) <> ";"
+  ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> readLoc y) <> ";"
   ppr Nop = ";"
+
+writeLoc :: (Ppr a, Ppr b) => Loc a -> b -> Doc
+writeLoc (x :+ i) y =
+  text "WRITE_LOC(" <> hsep (punctuate (text ",") [ppr x , ppr i, ppr y]) <> ")"
+
+readLoc :: Ppr a => Loc a -> Doc
+readLoc (x :+ i) =
+  text "READ_LOC(" <> hsep (punctuate (text ",") [ppr x, ppr i]) <> ")"
 
 instance Ppr a => Ppr (CFunction a) where
   ppr fn =

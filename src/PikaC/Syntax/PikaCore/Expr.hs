@@ -42,6 +42,16 @@ data Expr a
 type PointsToExpr a = PointsTo Base a
 type ExprAssertion a = [PointsToExpr a]
 
+instance HasPointsTo SimpleExpr Base where
+  getPointsTo (BaseExpr {}) = []
+  getPointsTo (WithIn _ e e') =
+    getPointsTo e ++ getPointsTo e'
+  getPointsTo (SslAssertion arg xs) = xs
+
+instance HasPointsTo Expr Base where
+  getPointsTo (SimpleExpr e) = getPointsTo e
+  getPointsTo (App _ _) = []
+
 instance HasLocs Base where
   getLocs (V x) = [x :+ 0]
   getLocs (LayoutV x) = getLocs x
