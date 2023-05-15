@@ -1,9 +1,12 @@
+{-# LANGUAGE DeriveFoldable #-}
+
 module PikaC.Syntax.PikaCore.Expr
   where
 
 import PikaC.Syntax.Heaplet
 import PikaC.Ppr
 import Data.List
+import Data.Foldable
 
 data Base a
   -- = V a
@@ -16,7 +19,7 @@ data Base a
   | Equal (Base a) (Base a)
   | Not (Base a)
   | And (Base a) (Base a)
-  deriving (Show, Functor)
+  deriving (Show, Functor, Eq, Ord, Foldable)
 
 data SimpleExpr a
   = BaseExpr (Base a)

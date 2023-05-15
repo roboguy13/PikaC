@@ -38,11 +38,14 @@ codeGenSimple outputs (PikaCore.SslAssertion params asn0) =
   in
   map codeGenPointsTo sorted
 
-topologicalSortPointsTo :: [PointsToExpr a] -> [PointsToExpr a]
-topologicalSortPointsTo = map to . topologicalSort . map from
+topologicalSortPointsTo :: Ord a => [PointsToExpr a] -> [PointsToExpr a]
+topologicalSortPointsTo = map to . topologicalSortBy isLe . map from
   where
     to (x, y) = x :-> y
     from (x :-> y) = (x, y)
+
+    isLe (lhs1, rhs1) (lhs2, rhs2) =
+      all (`notElem` lhs2) (toList rhs1)
 
 codeGenPointsTo :: PointsToExpr a -> Command a
 codeGenPointsTo (lhs :-> rhs) =

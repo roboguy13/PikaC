@@ -16,7 +16,7 @@ import Control.Monad.Identity
 --   deriving (Show, Functor)
 
 newtype LayoutArg a = LayoutArg [a]
-  deriving (Show, Functor, Semigroup, Monoid, Foldable)
+  deriving (Show, Functor, Semigroup, Monoid, Foldable, Eq, Ord)
 
 class LayoutRename f where
   renameLayoutArg ::
@@ -39,10 +39,10 @@ renameLayoutArg' (LayoutArg old) (LayoutArg new) x =
       assocs = zip old new
 
 data PointsTo f a = Loc a :-> f a
-  deriving (Show)
+  deriving (Show, Foldable)
 
 data Loc a = a :+ Int
-  deriving (Show, Functor)
+  deriving (Show, Functor, Eq, Ord, Foldable)
 
 instance LayoutRename f => LayoutRename (PointsTo f) where
   renameLayoutArg old new (lhs :-> rhs) =

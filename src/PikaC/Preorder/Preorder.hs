@@ -14,7 +14,9 @@ module PikaC.Preorder.Preorder
   ,preorderElements
   ,pMax
 
+  ,topologicalSortPairs
   ,topologicalSort
+  ,topologicalSortBy
 
   ,Contains (..)
   ,getContainsLabel
@@ -51,8 +53,8 @@ import GHC.Generics
 import Data.Ord
 import Data.Maybe
 
-topologicalSort :: Ord a => [(a, a)] -> [(a, a)]
-topologicalSort orig =
+topologicalSortPairs :: Ord a => [(a, a)] -> [(a, a)]
+topologicalSortPairs orig =
   filter (`elem` orig) .
   map go .
   getPreorder .
@@ -62,6 +64,17 @@ topologicalSort orig =
   map (uncurry (:<=)) orig
   where
     go (x :<= y) = (x, y)
+
+topologicalSort :: Ord a => [(a, a)] -> [a]
+topologicalSort = fastNub . concatMap to . topologicalSortPairs
+  where
+    to (x, y) = [x, y]
+
+topologicalSortBy :: Ord a => (a -> a -> Bool) -> [a] -> [a]
+topologicalSortBy isLe xs =
+  topologicalSort (concat (go <$> xs <*> xs))
+  where
+    go x y = [(x, y) | isLe x y]
 
 data Le a = a :<= a
   deriving (Show, Eq, Ord, Foldable, Generic)
