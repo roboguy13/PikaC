@@ -32,7 +32,7 @@ instance LayoutRename Identity where
   renameLayoutArg old new (Identity x) =
     Identity $ renameLayoutArg' old new x
 
-renameLayoutArg' :: Ord a =>LayoutArg a -> LayoutArg a -> a -> a
+renameLayoutArg' :: Ord a => LayoutArg a -> LayoutArg a -> a -> a
 renameLayoutArg' (LayoutArg old) (LayoutArg new) x =
       fromMaybe x $ lookup x assocs
     where

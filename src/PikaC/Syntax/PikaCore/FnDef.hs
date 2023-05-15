@@ -11,6 +11,7 @@ data FnDef a =
   FnDef
   { fnDefName :: String
   , fnDefBranches :: [FnDefBranch a]
+  , fnDefParams :: [a]
   }
 
 data FnDefBranch a =
@@ -28,7 +29,7 @@ fnDefBranchInputNames =
   concatMap pointsToNames . fnDefBranchInputAssertions
 
 computeBranchCondition :: Ord a => FnDef a -> FnDefBranch a -> Base a
-computeBranchCondition def branch = go allInputNames
+computeBranchCondition def branch = not' $ go allInputNames
   where
     allInputNames = fnDefInputNames def
     branchNames = fnDefBranchInputNames branch
@@ -64,4 +65,8 @@ instance Ppr a => Ppr (FnDefBranch a) where
 and' :: Base a -> Base a -> Base a
 and' x (BoolLit True) = x
 and' x y = And x y
+
+not' :: Base a -> Base a
+not' (Not x) = x
+not' x = Not x
 
