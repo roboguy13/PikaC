@@ -9,8 +9,8 @@ import Data.List
 import Data.Foldable
 
 data Base a
-  -- = V a
-  = LayoutV (LayoutArg a)    -- {x ...}
+  = V a
+  | LayoutV (LayoutArg a)    -- {x ...}
   | IntLit Int -- TODO: Add output locations?
   | BoolLit Bool
 
@@ -43,7 +43,7 @@ type PointsToExpr a = PointsTo Base a
 type ExprAssertion a = [PointsToExpr a]
 
 instance LayoutRename Base where
-  -- renameLayoutArg old new (V x) = V x
+  renameLayoutArg old new (V x) = V x
   renameLayoutArg old new (LayoutV xs) =
     LayoutV $ renameLayoutArg old new xs
   renameLayoutArg old new (IntLit i) = IntLit i
@@ -87,7 +87,7 @@ instance Ppr a => Ppr (LayoutArg a) where
   ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
 instance Ppr a => Ppr (Base a) where
-  -- ppr (V x) = ppr x
+  ppr (V x) = ppr x
   ppr (LayoutV x) = ppr x
   ppr (IntLit i) = ppr i
   ppr (BoolLit b) = ppr b
@@ -119,7 +119,7 @@ instance IsNested (SimpleExpr a) where
   isNested (SslAssertion {}) = True
 
 instance IsNested (Base a) where
-  -- isNested (V _) = False
+  isNested (V _) = False
   isNested (LayoutV _) = False
   isNested (IntLit _) = False
   isNested (BoolLit _) = False

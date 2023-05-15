@@ -18,7 +18,7 @@ type Outputs = LayoutArg
 codeGenBase :: HasCallStack =>
   PikaCore.Base a ->
   CExpr a
--- codeGenBase (PikaCore.V x) = C.V x
+codeGenBase (PikaCore.V x) = C.V x
 codeGenBase (PikaCore.LayoutV xs) = error "codeGenBase: LayoutV"
 codeGenBase (PikaCore.IntLit i) = C.IntLit i
 codeGenBase (PikaCore.BoolLit b) = C.BoolLit b
@@ -29,12 +29,20 @@ codeGenBase (PikaCore.Not x) = C.Not (codeGenBase x)
 codeGenBase (PikaCore.And x y) = C.And (codeGenBase x) (codeGenBase y)
 
 codeGenSimple :: (HasCallStack, Ord a) => Outputs a -> PikaCore.SimpleExpr a -> [Command a]
+codeGenSimple outputs (PikaCore.BaseExpr (PikaCore.LayoutV xs)) =
+  codeGenAsn $ connectLayoutArgs outputs xs
+
 codeGenSimple outputs (PikaCore.WithIn vars bnd body) =
   codeGenExpr vars bnd ++ codeGenSimple outputs body
 
 codeGenSimple outputs (PikaCore.SslAssertion params asn0) =
   let asn = fmap (renameLayoutArg params outputs) asn0
-      sorted = topologicalSortPointsTo asn
+  in
+  codeGenAsn asn
+
+codeGenAsn :: Ord a => PikaCore.ExprAssertion a -> [Command a]
+codeGenAsn asn =
+  let sorted = topologicalSortPointsTo asn
   in
   map codeGenPointsTo sorted
 
@@ -58,7 +66,6 @@ codeGenExpr outputs (PikaCore.App f xs) =
     -- TODO: Translate PikaCore function names into C function names
   [C.Call f (map C.V . toList $ (fold xs <> outputs))]
 
--- assignToOutputs :: Outputs a -> [PikaCore.Expr a] -> [Command a]
--- assignToOutputs (LayoutArg []) [] = []
--- assignToOutputs (LayoutArg (outputVar:vars)) (e:es) = undefined
+connectLayoutArgs :: LayoutArg a -> LayoutArg a -> PikaCore.ExprAssertion a
+connectLayoutArgs (LayoutArg xs) (LayoutArg ys) = zipWith (:->) (map (:+ 0) xs) (map PikaCore.V ys)
 
