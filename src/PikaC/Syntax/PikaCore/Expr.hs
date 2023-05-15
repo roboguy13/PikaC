@@ -32,10 +32,11 @@ data SimpleExpr a
 
 data Expr a
   = SimpleExpr (SimpleExpr a)
-  | App (Expr a) (LayoutArg a)
+  -- | App (Expr a) (LayoutArg a)
+  | App String [LayoutArg a] -- | Fully saturated function application
   deriving (Show)
 
-type PointsToExpr a = PointsTo Expr a
+type PointsToExpr a = PointsTo Base a
 type ExprAssertion a = [PointsToExpr a]
 
 instance LayoutRename Base where
@@ -77,7 +78,7 @@ instance LayoutRename Expr where
     SimpleExpr $ renameLayoutArg old new e
 
   renameLayoutArg old new (App f x) =
-    App (renameLayoutArg old new f) (renameLayoutArg old new x)
+    App f (map (renameLayoutArg old new) x)
 
 instance Ppr a => Ppr (LayoutArg a) where
   ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
@@ -103,7 +104,16 @@ instance Ppr a => Ppr (SimpleExpr a) where
 
 instance Ppr a => Ppr (Expr a) where
   ppr (SimpleExpr e) = ppr e
-  ppr (App f x) = ppr f <+> ppr x
+  ppr (App f x) = ppr f <+> hsep (map ppr x)
+
+instance IsNested (Expr a) where
+  isNested (SimpleExpr e) = isNested e
+  isNested (App {}) = True
+
+instance IsNested (SimpleExpr a) where
+  isNested (BaseExpr e) = isNested e
+  isNested (WithIn {}) = True
+  isNested (SslAssertion {}) = True
 
 instance IsNested (Base a) where
   -- isNested (V _) = False

@@ -16,7 +16,7 @@ import Control.Monad.Identity
 --   deriving (Show, Functor)
 
 newtype LayoutArg a = LayoutArg [a]
-  deriving (Show, Functor)
+  deriving (Show, Functor, Semigroup, Monoid, Foldable)
 
 class LayoutRename f where
   renameLayoutArg ::
