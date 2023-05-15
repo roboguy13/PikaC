@@ -6,9 +6,9 @@ import PikaC.Ppr
 import Data.List
 
 data Base a
-  = V a
-  | LayoutV (LayoutArg a)    -- {x ...}
-  | IntLit Int
+  -- = V a
+  = LayoutV (LayoutArg a)    -- {x ...}
+  | IntLit Int -- TODO: Add output locations?
   | BoolLit Bool
 
   | Add (Base a) (Base a)
@@ -16,9 +16,6 @@ data Base a
   | Equal (Base a) (Base a)
   | Not (Base a)
   | And (Base a) (Base a)
-  deriving (Show, Functor)
-
-newtype LayoutArg a = LayoutArg [Base a]
   deriving (Show, Functor)
 
 data SimpleExpr a
@@ -38,14 +35,55 @@ data Expr a
   | App (Expr a) (LayoutArg a)
   deriving (Show)
 
-type PointsToExpr a = PointsTo a (Expr a)
+type PointsToExpr a = PointsTo Expr a
 type ExprAssertion a = [PointsToExpr a]
+
+instance LayoutRename Base where
+  -- renameLayoutArg old new (V x) = V x
+  renameLayoutArg old new (LayoutV xs) =
+    LayoutV $ renameLayoutArg old new xs
+  renameLayoutArg old new (IntLit i) = IntLit i
+  renameLayoutArg old new (BoolLit b) = BoolLit b
+  renameLayoutArg old new (Add x y) =
+    Add (renameLayoutArg old new x)
+        (renameLayoutArg old new y)
+  renameLayoutArg old new (Sub x y) =
+    Sub (renameLayoutArg old new x)
+        (renameLayoutArg old new y)
+  renameLayoutArg old new (Equal x y) =
+    Equal (renameLayoutArg old new x)
+          (renameLayoutArg old new y)
+  renameLayoutArg old new (Not x) =
+    Not (renameLayoutArg old new x)
+  renameLayoutArg old new (And x y) =
+    And (renameLayoutArg old new x)
+        (renameLayoutArg old new y)
+
+instance LayoutRename SimpleExpr where
+  renameLayoutArg old new (BaseExpr e) =
+    BaseExpr $ renameLayoutArg old new e
+
+  renameLayoutArg old0@(LayoutArg old) new0@(LayoutArg new) (WithIn vars0@(LayoutArg vars) bnd body) =
+    WithIn
+      vars0
+      (renameLayoutArg old0 new0 bnd)
+      (renameLayoutArg (LayoutArg old') (LayoutArg new') body)
+    where
+      assocs = filter ((`notElem` vars) . fst) $ zip old new
+      (old', new') = unzip assocs
+
+instance LayoutRename Expr where
+  renameLayoutArg old new (SimpleExpr e) =
+    SimpleExpr $ renameLayoutArg old new e
+
+  renameLayoutArg old new (App f x) =
+    App (renameLayoutArg old new f) (renameLayoutArg old new x)
 
 instance Ppr a => Ppr (LayoutArg a) where
   ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
 instance Ppr a => Ppr (Base a) where
-  ppr (V x) = ppr x
+  -- ppr (V x) = ppr x
   ppr (LayoutV x) = ppr x
   ppr (IntLit i) = ppr i
   ppr (BoolLit b) = ppr b
@@ -68,7 +106,7 @@ instance Ppr a => Ppr (Expr a) where
   ppr (App f x) = ppr f <+> ppr x
 
 instance IsNested (Base a) where
-  isNested (V _) = False
+  -- isNested (V _) = False
   isNested (LayoutV _) = False
   isNested (IntLit _) = False
   isNested (BoolLit _) = False
