@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveFunctor #-}
+
 module PikaC.Syntax.Type
   where
 
@@ -25,14 +27,22 @@ newtype AdtName = AdtName String
 data LayoutConstraint a = a :~ AdtName
   deriving (Show, Functor)
 
-instance Ppr a => Ppr (Type a) where
-  pprS IntType = standalone "Int"
-  pprS BoolType = standalone "Bool"
-  pprS (FnType src tgt) = grouped $ pprGrouped src <> " -> " <> ppr tgt
-  pprS (TyVar x) = pprS x
+data LayoutArg a = ConcreteLayout String | LayoutVar a
+  deriving (Show, Functor)
 
-instance Ppr AdtName where pprS (AdtName n) = standalone n
+instance Ppr a => Ppr (Type a) where
+  ppr IntType = text "Int"
+  ppr BoolType = text "Bool"
+  ppr (FnType src tgt) = hsep [pprP src, text " -> ", ppr tgt]
+  ppr (TyVar x) = ppr x
+
+instance Ppr AdtName where ppr (AdtName n) = text n
 
 instance Ppr a => Ppr (LayoutConstraint a) where
-  pprS (x :~ adt) = standalone $ ppr x <> " :~ layout(" <> ppr adt <> ")"
+  ppr (x :~ adt) = hsep [ppr x, text ":~ layout(" <> ppr adt <> text ")"]
 
+instance IsNested (Type a) where
+  isNested (FnType {}) = True
+  isNested IntType = False
+  isNested BoolType = False
+  isNested (TyVar x) = False

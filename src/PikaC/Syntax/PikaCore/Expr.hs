@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module PikaC.Syntax.PikaCore.Expr
   where
