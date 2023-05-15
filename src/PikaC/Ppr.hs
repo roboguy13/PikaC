@@ -1,30 +1,52 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module PikaC.Ppr
+  (module Text.PrettyPrint.HughesPJ
+  ,Ppr
+  ,ppr
+  ,ppr'
+  ,pprP
+  ,IsNested
+  ,isNested
+  )
   where
 
-data Brackets = NoBrackets | Brackets
+import Text.PrettyPrint.HughesPJ hiding ((<>))
 
 class Ppr a where
-  pprS :: a -> Brackets -> String
+  ppr :: a -> Doc
 
-ppr :: Ppr a => a -> String
-ppr = flip pprS NoBrackets
+ppr' :: Ppr a => a -> String
+ppr' = render . ppr
 
-pprGrouped :: Ppr a => a -> String
-pprGrouped x = pprS x Brackets
+pprP :: (IsNested a, Ppr a) => a -> Doc
+pprP x = maybeParens (isNested x) (ppr x)
 
-instance Ppr String where pprS = const
-instance Ppr Int where pprS = (show .) . const
+instance Ppr String where ppr = text
+instance Ppr Int where ppr = text . show
+instance Ppr Bool where ppr = text . show
 
-grouped :: String -> Brackets -> String
-grouped = groupedWith ("(", ")")
+class IsNested a where
+  isNested :: a -> Bool
 
-groupedWith :: (String, String) -> String -> Brackets -> String
-groupedWith (start, end) x NoBrackets = x
-groupedWith (start, end) x Brackets = start <> x <> end
-
-standalone :: String -> Brackets -> String
-standalone = const
-
-
+--   pprS :: a -> Brackets -> String
+-- data Brackets = NoBrackets | Brackets
+--
+-- ppr :: Ppr a => a -> String
+-- ppr = flip pprS NoBrackets
+--
+-- pprGrouped :: Ppr a => a -> String
+-- pprGrouped x = pprS x Brackets
+--
+--
+-- grouped :: String -> Brackets -> String
+-- grouped = groupedWith ("(", ")")
+--
+-- groupedWith :: (String, String) -> String -> Brackets -> String
+-- groupedWith (start, end) x NoBrackets = x
+-- groupedWith (start, end) x Brackets = start <> x <> end
+--
+-- standalone :: String -> Brackets -> String
+-- standalone = const
+--
+--
