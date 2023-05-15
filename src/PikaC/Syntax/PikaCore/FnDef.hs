@@ -57,7 +57,7 @@ instance Ppr a => Ppr (FnDefBranch a) where
       , text "==>"
       , ppr (fnDefOutputParams branch)
       , text ":="
-      , ppr (fnDefBranchBody branch)
+      , nest 1 $ ppr (fnDefBranchBody branch)
       , text ";"
       ]
 

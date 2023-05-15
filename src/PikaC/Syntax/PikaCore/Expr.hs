@@ -58,7 +58,7 @@ instance Ppr a => Ppr (Base a) where
 instance Ppr a => Ppr (SimpleExpr a) where
   ppr (BaseExpr e) = ppr e
   ppr (WithIn vars bnd body) =
-    sep [text "with", ppr vars, text ":=", ppr bnd, text "in", ppr body]
+    sep [text "with", hsep [ppr vars, text ":=", ppr bnd], text "in", ppr body]
 
   ppr (SslAssertion vars heaplets) =
     sep [text "layout", ppr vars, ppr heaplets]
