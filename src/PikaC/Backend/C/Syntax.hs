@@ -94,7 +94,7 @@ instance Ppr a => Ppr (Command a) where
   ppr (Free x) =
     hsep [text "free(", ppr x, text ");"]
 
-  ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr y) <> ";"
+  ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr (Deref y)) <> ";"
   ppr Nop = ";"
 
 instance Ppr a => Ppr (CFunction a) where
