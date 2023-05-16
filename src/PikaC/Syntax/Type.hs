@@ -1,9 +1,15 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PikaC.Syntax.Type
   where
 
-import           PikaC.Ppr
+import PikaC.Ppr
+import Text.Show.Deriving
+
+import Bound
+
+import Control.Monad.Trans
 
 data Type a
   = IntType
@@ -11,6 +17,13 @@ data Type a
   | FnType (Type a) (Type a)
   | TyVar a
   deriving (Show, Functor)
+
+splitFnType :: Type a -> ([Type a], Type a)
+splitFnType (FnType src tgt) =
+  let (args, r) = splitFnType tgt
+  in
+  (src:args, r)
+splitFnType x = ([], x)
 
 -- | Example:
 --     (a :~ layout(Adt2), b :~ layout(Adt2)) => a -> b
@@ -27,8 +40,16 @@ newtype AdtName = AdtName String
 data LayoutConstraint a = a :~ AdtName
   deriving (Show, Functor)
 
-data LayoutArg a = ConcreteLayout String | LayoutVar a
+data LayoutTypeArg f a = ConcreteLayout String | LayoutVar (f a)
   deriving (Show, Functor)
+
+deriveShow1 ''LayoutTypeArg
+
+layoutTypeArgSubst :: Monad f => LayoutTypeArg f a -> (a -> f c) -> LayoutTypeArg f c
+layoutTypeArgSubst (ConcreteLayout s) _ = ConcreteLayout s
+layoutTypeArgSubst (LayoutVar x) f = LayoutVar $ x >>= f
+
+-- instance Bound LayoutTypeArg where
 
 instance Ppr a => Ppr (Type a) where
   ppr IntType = text "Int"

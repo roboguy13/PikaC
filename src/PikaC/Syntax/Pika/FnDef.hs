@@ -5,16 +5,17 @@ import PikaC.Syntax.Type
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.Expr
 
-data FnDef a =
+data FnDef t a =
   FnDef
     { fnDefName :: String
-    , fnDefType :: Type a
+    , fnDefType :: Type t
     , fnDefBranches :: [FnDefBranch a]
     }
 
-data FnDefBranch a =
-  FnDefBranch
-    { fnBranchPat :: Pattern a
-    , fnBranchBody :: Expr a
-    }
+newtype FnDefBranch a =
+  FnDefBranch { fnBranchPat :: PatternMatch Expr a }
+  -- FnDefBranch
+  --   { fnBranchPat :: Pattern a
+  --   , fnBranchBody :: Expr a
+  --   }
 
