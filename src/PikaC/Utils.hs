@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module PikaC.Utils
   where
 
@@ -7,6 +9,20 @@ import Data.Set (Set)
 
 import Data.Bifunctor
 import Data.List
+
+import Unbound.Generics.LocallyNameless
+import Unbound.Generics.PermM
+
+import Data.Typeable
+
+-- | Actually swaps the names in each pair
+rename :: forall a b. (Typeable a, Alpha b) => [(Name a, Name a)] -> b -> b
+rename pairs = swaps (go pairs)
+  where
+    go :: [(Name a, Name a)] -> Perm AnyName
+    go [] = mempty
+    go ((x, y) : rest) =
+      single (AnyName x) (AnyName y) <> go rest
 
 fastNub :: Ord a => [a] -> [a]
 fastNub = Set.toList . Set.fromList

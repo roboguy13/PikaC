@@ -1,118 +1,93 @@
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module PikaC.Syntax.PikaCore.Expr
   where
 
-import PikaC.Syntax.Heaplet
+-- import PikaC.Syntax.Heaplet
 import PikaC.Ppr
 import Data.List
 import Data.Foldable
 
-data Base a
-  = V a
-  | LayoutV (LayoutArg a)    -- {x ...}
+import Unbound.Generics.LocallyNameless
+
+import PikaC.Syntax.Heaplet
+
+import Control.Lens
+import Control.Lens.TH
+
+import GHC.Generics
+
+type ExprName = Name Expr
+
+-- type LocName = ExprName
+
+data Base
+  = V ExprName
+  | LocV LocName
+  | LayoutV LayoutArg    -- {x ...}
   | IntLit Int -- TODO: Add output locations?
   | BoolLit Bool
 
-  | Add (Base a) (Base a)
-  | Sub (Base a) (Base a)
-  | Equal (Base a) (Base a)
-  | Not (Base a)
-  | And (Base a) (Base a)
-  deriving (Show, Functor, Eq, Ord, Foldable)
+  | Add Base Base
+  | Sub Base Base
+  | Equal Base Base
+  | Not Base
+  | And Base Base
+  deriving (Show, Eq, Ord, Generic)
 
-data SimpleExpr a
-  = BaseExpr (Base a)
+data SimpleExpr
+  = BaseExpr Base
   | WithIn                -- with
-      (LayoutArg a)       --   {x ...}
-      (Expr a)            --     := e
-      (SimpleExpr a)      -- in e
+      LayoutArg       --   {x ...}
+      Expr            --     := e
+      SimpleExpr      -- in e
 
   | SslAssertion            -- layout
-      (LayoutArg a)         --     {x ...}
-      (ExprAssertion a)     --   { (x+1) :-> e ** ... }
-  deriving (Show)
+      LayoutArg         --     {x ...}
+      ExprAssertion     --   { (x+1) :-> e ** ... }
+  deriving (Show, Eq, Ord, Generic)
 
-data Expr a
-  = SimpleExpr (SimpleExpr a)
+data Expr
+  = SimpleExpr SimpleExpr
   -- | App (Expr a) (LayoutArg a)
-  | App String [LayoutArg a] -- | Fully saturated function application
-  deriving (Show)
+  | App String [LayoutArg] -- | Fully saturated function application
+  deriving (Show, Eq, Ord, Generic)
 
-type PointsToExpr a = PointsTo Base a
-type ExprAssertion a = [PointsToExpr a]
+type PointsToExpr = PointsTo Base
+type ExprAssertion = [PointsToExpr]
 
-instance HasPointsTo SimpleExpr Base where
-  getPointsTo (BaseExpr {}) = []
-  getPointsTo (WithIn _ e e') =
-    getPointsTo e ++ getPointsTo e'
-  getPointsTo (SslAssertion arg xs) = xs
+makePrisms ''Base
+makePrisms ''SimpleExpr
+makePrisms ''Expr
 
-instance HasPointsTo Expr Base where
-  getPointsTo (SimpleExpr e) = getPointsTo e
-  getPointsTo (App _ _) = []
+instance Alpha Base
+instance Alpha SimpleExpr
+instance Alpha Expr
 
-instance HasLocs Base where
-  getLocs (V x) = [x :+ 0]
-  getLocs (LayoutV x) = getLocs x
-  getLocs (IntLit i) = []
-  getLocs (BoolLit b) = []
-  getLocs (Add x y) = getLocs x ++ getLocs y
-  getLocs (Sub x y) = getLocs x ++ getLocs y
-  getLocs (Equal x y) = getLocs x ++ getLocs y
-  getLocs (Not x) = getLocs x
-  getLocs (And x y) = getLocs x ++ getLocs y
 
-  
+getPointsToExpr :: Expr -> [PointsToExpr]
+getPointsToExpr e = e ^.. (_SimpleExpr . _SslAssertion . _2 . traversed)
 
-instance LayoutRename Base where
-  renameLayoutArg old new (V x) = V x
-  renameLayoutArg old new (LayoutV xs) =
-    LayoutV $ renameLayoutArg old new xs
-  renameLayoutArg old new (IntLit i) = IntLit i
-  renameLayoutArg old new (BoolLit b) = BoolLit b
-  renameLayoutArg old new (Add x y) =
-    Add (renameLayoutArg old new x)
-        (renameLayoutArg old new y)
-  renameLayoutArg old new (Sub x y) =
-    Sub (renameLayoutArg old new x)
-        (renameLayoutArg old new y)
-  renameLayoutArg old new (Equal x y) =
-    Equal (renameLayoutArg old new x)
-          (renameLayoutArg old new y)
-  renameLayoutArg old new (Not x) =
-    Not (renameLayoutArg old new x)
-  renameLayoutArg old new (And x y) =
-    And (renameLayoutArg old new x)
-        (renameLayoutArg old new y)
+-- instance HasPointsTo SimpleExpr Base where
+--   getPointsTo (BaseExpr {}) = []
+--   getPointsTo (WithIn _ e e') =
+--     getPointsTo e ++ getPointsTo e'
+--   getPointsTo (SslAssertion arg xs) = xs
 
-instance LayoutRename SimpleExpr where
-  renameLayoutArg old new (BaseExpr e) =
-    BaseExpr $ renameLayoutArg old new e
+-- instance HasPointsTo Expr Base where
+--   getPointsTo (SimpleExpr e) = getPointsTo e
+--   getPointsTo (App _ _) = []
 
-  renameLayoutArg old0@(LayoutArg old) new0@(LayoutArg new) (WithIn vars0@(LayoutArg vars) bnd body) =
-    WithIn
-      vars0
-      (renameLayoutArg old0 new0 bnd)
-      (renameLayoutArg (LayoutArg old') (LayoutArg new') body)
-    where
-      assocs = filter ((`notElem` vars) . fst) $ zip old new
-      (old', new') = unzip assocs
+-- instance Ppr a => Ppr (LayoutArg a) where
+--   ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
-instance LayoutRename Expr where
-  renameLayoutArg old new (SimpleExpr e) =
-    SimpleExpr $ renameLayoutArg old new e
-
-  renameLayoutArg old new (App f x) =
-    App f (map (renameLayoutArg old new) x)
-
-instance Ppr a => Ppr (LayoutArg a) where
-  ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
-
-instance Ppr a => Ppr (Base a) where
+instance Ppr Base where
   ppr (V x) = ppr x
+  ppr (LocV x) = ppr x
   ppr (LayoutV x) = ppr x
   ppr (IntLit i) = ppr i
   ppr (BoolLit b) = ppr b
@@ -122,7 +97,7 @@ instance Ppr a => Ppr (Base a) where
   ppr (Not x) = sep [text "!", pprP x]
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
 
-instance Ppr a => Ppr (SimpleExpr a) where
+instance Ppr SimpleExpr where
   ppr (BaseExpr e) = ppr e
   ppr (WithIn vars bnd body) =
     sep [text "with", hsep [ppr vars, text ":=", ppr bnd], text "in", ppr body]
@@ -130,21 +105,22 @@ instance Ppr a => Ppr (SimpleExpr a) where
   ppr (SslAssertion vars heaplets) =
     sep [text "layout", ppr vars, ppr heaplets]
 
-instance Ppr a => Ppr (Expr a) where
+instance Ppr Expr where
   ppr (SimpleExpr e) = ppr e
   ppr (App f x) = ppr f <+> hsep (map ppr x)
 
-instance IsNested (Expr a) where
+instance IsNested Expr where
   isNested (SimpleExpr e) = isNested e
   isNested (App {}) = True
 
-instance IsNested (SimpleExpr a) where
+instance IsNested SimpleExpr where
   isNested (BaseExpr e) = isNested e
   isNested (WithIn {}) = True
   isNested (SslAssertion {}) = True
 
-instance IsNested (Base a) where
+instance IsNested Base where
   isNested (V _) = False
+  isNested (LocV _) = False
   isNested (LayoutV _) = False
   isNested (IntLit _) = False
   isNested (BoolLit _) = False

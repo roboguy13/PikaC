@@ -1,9 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module PikaC.Syntax.Heaplet
   where
@@ -16,87 +15,62 @@ import PikaC.Ppr
 import Data.Maybe
 import Control.Monad.Identity
 
--- data Heaplet a
---   deriving (Show, Functor)
+import Unbound.Generics.LocallyNameless
 
-newtype LayoutArg a = LayoutArg { getLayoutArg :: [a] }
-  deriving (Show, Functor, Semigroup, Monoid, Foldable, Eq, Ord)
+import GHC.Generics
 
-class LayoutRename f where
-  renameLayoutArg ::
-    Ord a => LayoutArg a -> LayoutArg a -> f a -> f a
+type LayoutArg = [LocName]
 
-instance LayoutRename LayoutArg where
-  renameLayoutArg old new (LayoutArg xs) =
-      LayoutArg $ map (renameLayoutArg' old new) xs
-    where
-      go = renameLayoutArg' old new
+instance Ppr LayoutArg where
+  ppr xs =  text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
-instance LayoutRename Identity where
-  renameLayoutArg old new (Identity x) =
-    Identity $ renameLayoutArg' old new x
+data PointsTo a = Loc :-> a
+  deriving (Show, Foldable, Functor, Generic, Eq, Ord)
 
-renameLayoutArg' :: Ord a => LayoutArg a -> LayoutArg a -> a -> a
-renameLayoutArg' (LayoutArg old) (LayoutArg new) x =
-      fromMaybe x $ lookup x assocs
-    where
-      assocs = zip old new
+-- data Loc = LocName :+ Int
+data Loc = LocName :+ Int
+  deriving (Show, Eq, Ord, Generic)
 
-data PointsTo f a = Loc a :-> f a
-  deriving (Show, Foldable)
+instance Alpha Loc
 
-data Loc a = a :+ Int
-  deriving (Show, Functor, Eq, Ord, Foldable)
+newtype LocVar = LocVar String deriving (Show, Generic)
+type LocName = Name LocVar
 
-class HasLocs f where
-  getLocs :: f a -> [Loc a]
+-- instance Ppr LocVar where ppr (LocVar v) = text v
+--
+-- instance Alpha LocVar
 
-class HasPointsTo f g | f -> g where
-  getPointsTo :: f a -> [PointsTo g a]
+class HasPointsTo a where
+  getPointsTo :: a -> [PointsTo a]
 
-instance HasLocs Loc where
-  getLocs x = [x]
+instance (Alpha a, Show a) => Alpha (PointsTo a)
 
-instance HasLocs LayoutArg where
-  getLocs (LayoutArg xs) = map (:+ 0) xs
-
-instance HasLocs f => HasLocs (PointsTo f) where
-  getLocs (lhs :-> rhs) = lhs : getLocs rhs
-
-instance LayoutRename f => LayoutRename (PointsTo f) where
-  renameLayoutArg old new (lhs :-> rhs) =
-    renameLayoutArg old new lhs :-> renameLayoutArg old new rhs
-
-instance LayoutRename Loc where
-  renameLayoutArg old new (x :+ i) =
-    renameLayoutArg' old new x :+ i
-
-instance Ppr a => Ppr (Loc a) where
+instance Ppr Loc where
   ppr (x :+ 0) = ppr x
   ppr (x :+ i) = parens $ hsep [ppr x, text "+", ppr i]
 
-instance (Ppr a, Ppr (f a)) => Ppr (PointsTo f a) where
+instance (Ppr a) => Ppr (PointsTo a) where
   ppr (lhs :-> rhs) = hsep [ppr lhs, text ":->", ppr rhs]
 
-instance (Ppr a, Ppr (f a)) => Ppr [PointsTo f a] where
+instance (Ppr a) => Ppr [PointsTo a] where
   ppr xs = braces $ sep $ punctuate (text "**") (map ppr xs)
 
-pointsToLhs :: PointsTo f a -> Loc a
+pointsToLhs :: PointsTo a -> Loc
 pointsToLhs (lhs :-> _) = lhs
 
-pointsToRhs :: PointsTo f a -> f a
+pointsToRhs :: PointsTo a -> a
 pointsToRhs (_ :-> rhs) = rhs
 
-locBase :: Loc a -> a
+locBase :: Loc -> LocName
 locBase (x :+ _) = x
 
-locIx :: Loc a -> Int
+locIx :: Loc -> Int
 locIx (_ :+ i) = i
 
-pointsToNames :: Ord a => [PointsTo f a] -> [a]
+pointsToNames :: Ord a => [PointsTo a] -> [LocName]
 pointsToNames = nub . map (locBase . pointsToLhs)
 
-findSetToZero :: Eq a => [a] -> [PointsTo f a] -> [a]
+findSetToZero :: [LocName] -> [PointsTo a] -> [LocName]
 findSetToZero names xs =
     let modified = go xs
     in
@@ -105,23 +79,23 @@ findSetToZero names xs =
     go [] = []
     go ((x :-> y):rest) = locBase x : go rest
 
-data Allocation a = Alloc a Int
+data Allocation = Alloc LocName Int
   deriving (Show)
 
-findAllocations :: forall f a b. Eq a => [a] -> [PointsTo f a] -> [Allocation a]
+findAllocations :: forall a. [LocName] -> [PointsTo a] -> [Allocation]
 findAllocations names xs = map toAlloc locMaximums
   where
       -- Grouped by base name. Only include locations that have base names
       -- included in the 'names' argument
-    locGroups :: [[Loc a]]
+    locGroups :: [[Loc]]
     locGroups = groupBy ((==) `on` locBase) . filter ((`elem` names) . locBase) $ map pointsToLhs xs
 
-    locMaximums :: [Loc a]
+    locMaximums :: [Loc]
     locMaximums = map (foldr1 go) locGroups
 
-    go :: Loc a -> Loc a -> Loc a
+    go :: Loc -> Loc -> Loc
     go (name :+ i) (_ :+ j) = name :+ max i j
 
-    toAlloc :: Loc a -> Allocation a
+    toAlloc :: Loc -> Allocation
     toAlloc (x :+ i) = Alloc x i
 

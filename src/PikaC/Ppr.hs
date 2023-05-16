@@ -13,6 +13,8 @@ module PikaC.Ppr
 
 import Text.PrettyPrint.HughesPJ hiding ((<>))
 
+import Unbound.Generics.LocallyNameless
+
 class Ppr a where
   ppr :: a -> Doc
 
@@ -25,6 +27,10 @@ pprP x = maybeParens (isNested x) (ppr x)
 instance Ppr String where ppr = text
 instance Ppr Int where ppr = text . show
 instance Ppr Bool where ppr = text . show
+
+instance Ppr (Name a) where ppr = text . name2String
+
+instance Ppr AnyName where ppr (AnyName n) = ppr n
 
 class IsNested a where
   isNested :: a -> Bool

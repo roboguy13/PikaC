@@ -4,74 +4,42 @@ module PikaC.Backend.C.Syntax
 import PikaC.Syntax.Heaplet
 import PikaC.Ppr
 
-data CExpr a
-  = V (Loc a)
+import Unbound.Generics.LocallyNameless
+
+data CExpr
+  = V LocName
+  | LocValue Loc
   | IntLit Int
   | BoolLit Bool
-  | Add (CExpr a) (CExpr a)
-  | Sub (CExpr a) (CExpr a)
-  | Equal (CExpr a) (CExpr a)
-  | And (CExpr a) (CExpr a)
-  | Not (CExpr a)
-  | Deref (Loc a)
+  | Add CExpr CExpr
+  | Sub CExpr CExpr
+  | Equal CExpr CExpr
+  | And CExpr CExpr
+  | Not CExpr
+  | Deref Loc
   deriving (Show, Eq, Ord)
 
-data Command a
-  = Assign (Loc a) (CExpr a)
-  | IfThenElse (CExpr a) [Command a] [Command a]
+data Command
+  = Assign Loc CExpr
+  | IfThenElse CExpr [Command] [Command]
   | Call
       String
-      [CExpr a] -- Input parameters
-      [CExpr a] -- Output parameters
-  | IntoMalloc a Int
-  | Let a (Loc a)
-  | Free a
+      [CExpr] -- Input parameters
+      [CExpr] -- Output parameters
+  | IntoMalloc LocName Int
+  | Let LocName Loc
+  | Free LocName
   | Nop
   deriving (Show, Eq, Ord)
 
-data CFunction a =
+data CFunction =
   CFunction
     { cfunctionName :: String
-    , cfunctionParams :: [a]
-    , cfunctionBody :: [Command a]
+    , cfunctionParams :: [LocName]
+    , cfunctionBody :: [Command]
     }
 
-intoMalloc :: String -> Int -> Command String
-intoMalloc v = IntoMalloc ("_local_" <> v)
-
-instance LayoutRename CExpr where
-  renameLayoutArg old new (V x) = V $ renameLayoutArg old new x
-  renameLayoutArg old new (IntLit i) = IntLit i
-  renameLayoutArg old new (BoolLit b) = BoolLit b
-  renameLayoutArg old new (Add x y) = Add (renameLayoutArg old new x) (renameLayoutArg old new y)
-  renameLayoutArg old new (Sub x y) = Sub (renameLayoutArg old new x) (renameLayoutArg old new y)
-  renameLayoutArg old new (Equal x y) = Equal (renameLayoutArg old new x) (renameLayoutArg old new y)
-  renameLayoutArg old new (And x y) = And (renameLayoutArg old new x) (renameLayoutArg old new y)
-  renameLayoutArg old new (Not x) = Not (renameLayoutArg old new x)
-  renameLayoutArg old new (Deref x) = Deref $ renameLayoutArg old new x
-
-instance LayoutRename Command where
-  renameLayoutArg old new (Assign lhs rhs) =
-    Assign (renameLayoutArg old new lhs) (renameLayoutArg old new rhs)
-  renameLayoutArg old new (IfThenElse c t f) =
-    IfThenElse (renameLayoutArg old new c)
-      (map (renameLayoutArg old new) t)
-      (map (renameLayoutArg old new) f)
-  renameLayoutArg old new (IntoMalloc a sz) = IntoMalloc a sz
-  renameLayoutArg old new (Free x) = Free $ renameLayoutArg' old new x
-
-instance HasLocs CExpr where
-  getLocs (V x) = [x]
-  getLocs (IntLit i) = []
-  getLocs (BoolLit b) = []
-  getLocs (Add x y) = getLocs x <> getLocs y
-  getLocs (Sub x y) = getLocs x <> getLocs y
-  getLocs (Equal x y) = getLocs x <> getLocs y
-  getLocs (Not x) = getLocs x
-  getLocs (And x y) = getLocs x <> getLocs y
-  getLocs (Deref x) = [x]
-
-instance Ppr a => Ppr (Command a) where
+instance Ppr Command where
   ppr (Assign loc e) =
     writeLoc loc e
     -- hsep [text "*" <> ppr loc, text "=", ppr e] <> text ";"
@@ -96,18 +64,18 @@ instance Ppr a => Ppr (Command a) where
     hsep [text "free(", ppr x, text ");"]
 
   -- ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr (Deref y)) <> ";"
-  ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> readLoc y) <> ";"
-  ppr Nop = ";"
+  ppr (Let x y) = (text "loc" <+> ppr x <+> text "=" <+> readLoc y) <> text ";"
+  ppr Nop = text ";"
 
-writeLoc :: (Ppr a, Ppr b) => Loc a -> b -> Doc
+writeLoc :: Ppr b => Loc -> b -> Doc
 writeLoc (x :+ i) y =
-  text "WRITE_LOC(" <> hsep (punctuate (text ",") [ppr x , ppr i, ppr y]) <> ")"
+  text "WRITE_LOC(" <> hsep (punctuate (text ",") [ppr x , ppr i, ppr y]) <> text ")"
 
-readLoc :: Ppr a => Loc a -> Doc
+readLoc :: Loc -> Doc
 readLoc (x :+ i) =
-  text "READ_LOC(" <> hsep (punctuate (text ",") [ppr x, ppr i]) <> ")"
+  text "READ_LOC(" <> hsep (punctuate (text ",") [ppr x, ppr i]) <> text ")"
 
-instance Ppr a => Ppr (CFunction a) where
+instance Ppr CFunction where
   ppr fn =
     hsep [text "void", text (cfunctionName fn) <> text "(" <> hsep (punctuate (text ",") (map ((text "loc" <+>) . ppr) (cfunctionParams fn))) <> text ")", text "{"]
       $$
@@ -115,20 +83,22 @@ instance Ppr a => Ppr (CFunction a) where
       $$
        text "}"
 
-instance Ppr a => Ppr (CExpr a) where
+instance Ppr CExpr where
   ppr (V x) = ppr x
+  ppr (LocValue x) = ppr x
   ppr (IntLit i) = ppr i
-  ppr (BoolLit True) = "true"
-  ppr (BoolLit False) = "false"
+  ppr (BoolLit True) = text "true"
+  ppr (BoolLit False) = text "false"
   ppr (Add x y) = sep [pprP x, text "+", pprP y]
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
   ppr (Not x) = sep [text "!", pprP x]
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
-  ppr (Deref x) = "*" <> ppr x
+  ppr (Deref x) = text "*" <> ppr x
 
-instance IsNested (CExpr a) where
+instance IsNested CExpr where
   isNested (V _) = False
+  isNested (LocValue _) = False
   isNested (IntLit _) = False
   isNested (BoolLit _) = False
 

@@ -1,5 +1,6 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module PikaC.Syntax.Type
   where
@@ -7,18 +8,23 @@ module PikaC.Syntax.Type
 import PikaC.Ppr
 import Text.Show.Deriving
 
-import Bound
+-- import Bound
+import Unbound.Generics.LocallyNameless
 
 import Control.Monad.Trans
+import GHC.Generics
 
-data Type a
+data Type
   = IntType
   | BoolType
-  | FnType (Type a) (Type a)
-  | TyVar a
-  deriving (Show, Functor)
+  | FnType Type Type
+  | TyVar TypeName
+  | TyLayoutName String
+  deriving (Show, Generic)
 
-splitFnType :: Type a -> ([Type a], Type a)
+instance Alpha Type
+
+splitFnType :: Type -> ([Type], Type)
 splitFnType (FnType src tgt) =
   let (args, r) = splitFnType tgt
   in
@@ -27,31 +33,30 @@ splitFnType x = ([], x)
 
 -- | Example:
 --     (a :~ layout(Adt2), b :~ layout(Adt2)) => a -> b
-data TypeSig a =
+data TypeSig =
   TypeSig
-  { typeSigLayoutConstraints :: [LayoutConstraint a]
-  , typeSigTy :: Type a
+  { typeSigLayoutConstraints :: [LayoutConstraint]
+  , typeSigTy :: Type
   }
-  deriving (Show, Functor)
+  deriving (Show)
 
 newtype AdtName = AdtName String
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Generic)
 
-data LayoutConstraint a = a :~ AdtName
-  deriving (Show, Functor)
+newtype TypeVar = TypeVar String
+type TypeName = Name TypeVar
 
-data LayoutTypeArg f a = ConcreteLayout String | LayoutVar (f a)
-  deriving (Show, Functor)
+instance Ppr TypeVar where ppr (TypeVar v) = text v
 
-deriveShow1 ''LayoutTypeArg
+instance Alpha AdtName
+instance Subst a AdtName where isvar _ = Nothing -- We never replace a concrete layout name with anything else
 
-layoutTypeArgSubst :: Monad f => LayoutTypeArg f a -> (a -> f c) -> LayoutTypeArg f c
-layoutTypeArgSubst (ConcreteLayout s) _ = ConcreteLayout s
-layoutTypeArgSubst (LayoutVar x) f = LayoutVar $ x >>= f
+data LayoutConstraint = TypeName :~ AdtName
+  deriving (Show)
 
 -- instance Bound LayoutTypeArg where
 
-instance Ppr a => Ppr (Type a) where
+instance Ppr Type where
   ppr IntType = text "Int"
   ppr BoolType = text "Bool"
   ppr (FnType src tgt) = hsep [pprP src, text " -> ", ppr tgt]
@@ -59,11 +64,12 @@ instance Ppr a => Ppr (Type a) where
 
 instance Ppr AdtName where ppr (AdtName n) = text n
 
-instance Ppr a => Ppr (LayoutConstraint a) where
+instance Ppr LayoutConstraint where
   ppr (x :~ adt) = hsep [ppr x, text ":~ layout(" <> ppr adt <> text ")"]
 
-instance IsNested (Type a) where
+instance IsNested Type where
   isNested (FnType {}) = True
   isNested IntType = False
   isNested BoolType = False
   isNested (TyVar x) = False
+

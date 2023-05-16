@@ -1,57 +1,49 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module PikaC.Syntax.Pika.Expr
   where
 
 import PikaC.Syntax.Type
 
-import Bound
+-- import Bound
+import Unbound.Generics.LocallyNameless
 import Text.Show.Deriving
 
 import Control.Monad
 import Data.Void
 
-data Expr a
-  = V a
+import GHC.Generics
+
+import PikaC.Syntax.Heaplet (LocName)
+
+data Expr
+  = V ExprName
+  -- | LocV LocName
+  | LayoutTypeArg LocName
   | IntLit Int
   | BoolLit Bool
-  | LayoutLambda AdtName (Scope () Expr a)
-  | ApplyLayout (Expr a) (LayoutTypeArg Expr a)
-  | App String [Expr a]
-  | Add (Expr a) (Expr a)
-  | Sub (Expr a) (Expr a)
-  | Equal (Expr a) (Expr a)
-  | LayoutTypeArg (LayoutTypeArg Expr a)
-  deriving (Functor)
+  | LayoutLambda AdtName (Bind LayoutName Expr)
+  | ApplyLayout Expr LayoutName
+  | App String [Expr]
+  | Add Expr Expr
+  | Sub Expr Expr
+  | Equal Expr Expr
+  deriving (Show, Generic)
 
-deriveShow1 ''Expr
-deriving instance Show a => Show (Expr a)
+instance Alpha Expr
+instance Subst Expr Expr
+instance Subst LayoutName Expr
 
-data ExprVars a
-  = ClosedExpr (Expr a)
-  | OpenExpr (Scope () ExprVars a)
+type ExprName = Name Expr
+-- type LocName = Name 
 
-instance Applicative Expr where
-  pure = V
-  (<*>) = ap
-
-instance Monad Expr where
-  return = pure
-  V x >>= f = f x
-  IntLit i >>= _ = IntLit i
-  BoolLit b >>= _ = BoolLit b
-  LayoutLambda a e >>= f = LayoutLambda a (e >>>= f)
-  ApplyLayout x y >>= f = ApplyLayout (x >>= f) (layoutTypeArgSubst y f)
-  App x ys >>= f = App x (fmap (>>= f) ys)
-  Add x y >>= f = Add (x >>= f) (y >>= f)
-  Sub x y >>= f = Sub (x >>= f) (y >>= f)
-  Equal x y >>= f = Equal (x >>= f) (y >>= f)
-  LayoutTypeArg x >>= f = LayoutTypeArg (layoutTypeArgSubst x f)
+newtype LayoutName' = LayoutName String
+type LayoutName = Name LayoutName'
 
 -- | No layout lambdas
-isConcrete :: Expr a -> Bool
+isConcrete :: Expr -> Bool
 isConcrete (V {}) = True
 isConcrete (IntLit {}) = True
 isConcrete (BoolLit {}) = True
