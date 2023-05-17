@@ -79,7 +79,7 @@ data LayoutBranch =
 --
 -- newtype LayoutBody operand a = LayoutBody [LayoutHeaplet operand a]
 newtype LayoutBody = LayoutBody { unLayoutBody :: [LayoutHeaplet] }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Semigroup, Monoid)
 
 data LayoutHeaplet
   = LPointsTo (PointsTo Expr)

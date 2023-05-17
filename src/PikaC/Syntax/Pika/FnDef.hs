@@ -14,7 +14,7 @@ data FnDef =
 
 data FnDefBranch =
   FnDefBranch
-    { fnBranchPat :: Pattern
+    { fnBranchPats :: [Pattern]
     , fnBranchBody :: Expr
     }
 
