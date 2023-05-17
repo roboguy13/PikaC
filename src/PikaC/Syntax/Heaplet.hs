@@ -1,8 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 module PikaC.Syntax.Heaplet
   where
@@ -18,6 +18,7 @@ import Control.Monad.Identity
 import Unbound.Generics.LocallyNameless
 
 import GHC.Generics
+import Data.Data
 
 type LayoutArg = [LocName]
 
@@ -25,7 +26,7 @@ instance Ppr LayoutArg where
   ppr xs =  text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
 data PointsTo a = Loc :-> a
-  deriving (Show, Foldable, Functor, Generic, Eq, Ord)
+  deriving (Show, Foldable, Functor, Generic, Eq, Ord, Traversable)
 
 -- data Loc = LocName :+ Int
 data Loc = LocName :+ Int
@@ -33,7 +34,7 @@ data Loc = LocName :+ Int
 
 instance Alpha Loc
 
-newtype LocVar = LocVar String deriving (Show, Generic)
+newtype LocVar = LocVar String deriving (Show, Generic, Data)
 type LocName = Name LocVar
 
 -- instance Ppr LocVar where ppr (LocVar v) = text v

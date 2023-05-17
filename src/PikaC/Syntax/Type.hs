@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module PikaC.Syntax.Type
   where
@@ -13,6 +14,7 @@ import Unbound.Generics.LocallyNameless
 
 import Control.Monad.Trans
 import GHC.Generics
+import Data.Data
 
 data Type
   = IntType
@@ -41,7 +43,7 @@ data TypeSig =
   deriving (Show)
 
 newtype AdtName = AdtName String
-  deriving (Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic, Data)
 
 newtype TypeVar = TypeVar String
 type TypeName = Name TypeVar

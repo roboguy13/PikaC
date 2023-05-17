@@ -3,6 +3,8 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module PikaC.Syntax.PikaCore.Expr
   where
@@ -32,11 +34,11 @@ data Base
   | IntLit Int -- TODO: Add output locations?
   | BoolLit Bool
 
-  | Add Base Base
-  | Sub Base Base
-  | Equal Base Base
-  | Not Base
-  | And Base Base
+  | Add Expr Expr
+  | Sub Expr Expr
+  | Equal Expr Expr
+  | Not Expr
+  | And Expr Expr
   deriving (Show, Eq, Ord, Generic)
 
 data SimpleExpr
@@ -54,7 +56,7 @@ data SimpleExpr
 data Expr
   = SimpleExpr SimpleExpr
   -- | App (Expr a) (LayoutArg a)
-  | App String [LayoutArg] -- | Fully saturated function application
+  | App String [Expr] -- | Fully saturated function application
   deriving (Show, Eq, Ord, Generic)
 
 type PointsToExpr = PointsTo Base
@@ -68,6 +70,11 @@ instance Alpha Base
 instance Alpha SimpleExpr
 instance Alpha Expr
 
+instance Subst Expr Base
+instance Subst Expr SimpleExpr
+instance Subst Expr Expr
+instance Subst Expr a => Subst Expr (PointsTo a)
+instance Subst Expr Loc
 
 getPointsToExpr :: Expr -> [PointsToExpr]
 getPointsToExpr e = e ^.. (_SimpleExpr . _SslAssertion . _2 . traversed)
@@ -130,4 +137,10 @@ instance IsNested Base where
   isNested (Equal {}) = True
   isNested (Not {}) = True
   isNested (And {}) = True
+
+base :: Base -> Expr
+base = SimpleExpr . BaseExpr
+
+simple :: SimpleExpr -> Expr
+simple = SimpleExpr
 

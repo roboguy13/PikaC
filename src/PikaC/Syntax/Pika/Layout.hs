@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PikaC.Syntax.Pika.Layout
   where
@@ -19,6 +20,8 @@ import PikaC.Ppr
 
 import Control.Monad.Identity
 
+import GHC.Stack
+
 -- import Bound
 -- import Bound.Var
 
@@ -26,7 +29,8 @@ import Unbound.Generics.LocallyNameless
 
 import Data.Void
 
-import Control.Monad.Morph
+import Control.Lens
+import Control.Lens.TH
 
 import GHC.Generics
 
@@ -47,17 +51,17 @@ import GHC.Generics
 
 data Layout =
   Layout
-    { layoutName :: String
-    , layoutBranches :: [LayoutBranch]
-    , layoutParams :: [LocName]
+    { _layoutName :: String
+    , _layoutBranches :: [LayoutBranch]
+    , _layoutParams :: [LocName]
     }
 
 -- type Layout = Layout' Identity
 
 data LayoutBranch =
   LayoutBranch
-    { layoutPattern :: Pattern
-    , layoutBody :: LayoutBody
+    { _layoutPattern :: Pattern
+    , _layoutBody :: LayoutBody
     }
 
 -- instance Bound f => Functor (LayoutBranch f)
@@ -75,7 +79,7 @@ data LayoutBranch =
 --
 -- newtype LayoutBody operand a = LayoutBody [LayoutHeaplet operand a]
 newtype LayoutBody = LayoutBody [LayoutHeaplet]
-  deriving (Show)
+  deriving (Show, Generic)
 
 data LayoutHeaplet
   = LPointsTo (PointsTo Expr)
@@ -88,6 +92,12 @@ data LayoutHeaplet
 type LayoutVar = Name Void
 type PatternVar = Name Expr
 
+makeLenses ''Layout
+makeLenses ''LayoutBranch
+makeLenses ''LayoutBody
+makePrisms ''LayoutHeaplet
+
+
 -- instance Subst LayoutVar (f a) => Subst LayoutVar (LayoutHeaplet f a)
 
 -- instance Bound LayoutHeaplet where
@@ -98,24 +108,41 @@ type PatternVar = Name Expr
 lookupLayout :: [Layout] -> String -> Layout
 lookupLayout [] name = error $ "lookupLayout: Cannot find layout " ++ name
 lookupLayout (x:xs) name
-  | layoutName x == name = x
+  | _layoutName x == name = x
   | otherwise = lookupLayout xs name
---
--- lookupLayoutBranch :: Layout' operand a -> String -> LayoutBranch operand a
--- lookupLayoutBranch layout constructor = go $ layoutBranches layout
---   where
---     go [] = error $ "lookupLayoutBranch: Cannot find branch for constructor " ++ constructor
---     go (x:xs)
---       | patConstructor (layoutPattern x) == constructor = x
---       | otherwise = go xs
---
--- -- | Apply layout to a constructor value
--- applyLayout :: (Ppr (Expr a), Monad operand, Ppr (operand a), Ppr a, Eq a) => Layout' operand a -> String -> [operand a] -> operand (Expr a)
--- applyLayout layout constructor args =
---   let branch = lookupLayoutBranch layout constructor
---       body = layoutBody branch
---   in
---   patternMatch' (layoutPattern branch) body constructor (map (fmap V) args)
+
+lookupLayoutBranch :: Layout -> String -> Maybe LayoutBranch
+lookupLayoutBranch layout constructor = go $ _layoutBranches layout
+  where
+    go [] = Nothing
+    go (x:xs)
+      | _patConstructor (_layoutPattern x) == constructor = Just x
+      | otherwise = go xs
+
+lookupLayoutBranch' :: HasCallStack => Layout -> String -> LayoutBranch
+lookupLayoutBranch' layout c =
+  case lookupLayoutBranch layout c of
+    Nothing -> error $ "lookupLayoutBranch: Cannot find branch for constructor " ++ c
+    Just r -> r
+
+instance Subst Expr LayoutBody
+instance Subst Expr LayoutHeaplet
+instance Subst Expr Expr
+instance Subst Expr LayoutName
+
+-- | Apply layout to a constructor value
+applyLayout :: Layout -> String -> [Expr] -> Maybe LayoutBody
+applyLayout layout constructor args = do
+  branch <- lookupLayoutBranch layout constructor
+  let body = _layoutBody branch
+  pure $ patternMatch' (_layoutPattern branch) constructor args body
+
+applyLayout' :: Layout -> String -> [Expr] -> LayoutBody
+applyLayout' layout c args =
+  case applyLayout layout c args of
+    Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c
+    Just r -> r
+
 --
 -- -- applyLayout' :: (Ppr (Expr a), Show a, Ppr a, Eq a) => Layout' (Operand (LayoutBody a)) a -> String -> [Operand (LayoutBody a) a] -> Operand (LayoutBody a) (Expr a)
 -- -- applyLayout' = applyLayout

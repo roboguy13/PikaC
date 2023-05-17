@@ -1,4 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PikaC.Syntax.Pika.Pattern
   where
@@ -13,22 +15,30 @@ import Bound
 import Data.Functor.Compose
 import Control.Monad
 
+import Control.Lens
+import Control.Lens.TH
+
 import Unbound.Generics.LocallyNameless
 
-data Pattern =
-  Pattern
-    { patConstructor :: String
-    , patVars :: [ExprName]
-    }
+data Pattern
+  = PatternVar ExprName
+  | Pattern
+      { _patConstructor :: String
+      , _patVars :: [ExprName]
+      }
 
-patternMatch :: Pattern -> String -> [Expr] -> Maybe (Expr -> Expr)
+makeLenses ''Pattern
+
+-- patternMatch :: Pattern -> String -> [Expr] -> Maybe (Expr -> Expr)
+patternMatch :: Subst Expr a => Pattern -> String -> [Expr] -> Maybe (a -> a)
 patternMatch pat constructor xs
-  | patConstructor pat == constructor = Nothing
-  | otherwise = Just $ substs (zip (patVars pat) xs)
+  | _patConstructor pat == constructor = Nothing
+  | otherwise = Just $ substs (zip (_patVars pat) xs)
 
-patternMatch' :: Pattern -> String -> [Expr] -> Expr -> Expr
+-- patternMatch' :: Pattern -> String -> [Expr] -> Expr -> Expr
+patternMatch' :: Subst Expr a => Pattern -> String -> [Expr] -> a -> a
 patternMatch' pat constructor xs =
   case patternMatch pat constructor xs of
-    Nothing -> error $ "patternMatch': Pattern constructors do not match: Expected: " ++ patConstructor pat ++ ", found: " ++ constructor
+    Nothing -> error $ "patternMatch': Pattern constructors do not match: Expected: " ++ _patConstructor pat ++ ", found: " ++ constructor
     Just r -> r
 

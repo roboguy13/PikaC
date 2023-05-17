@@ -1,4 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module PikaC.Utils
   where
@@ -11,9 +13,17 @@ import Data.Bifunctor
 import Data.List
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
+import Unbound.Generics.LocallyNameless.Name
 import Unbound.Generics.PermM
 
 import Data.Typeable
+import Data.Data
+
+import Control.Lens
+
+-- rename :: forall a b. (Typeable a, Subst a b) => [(Name a, Name a)] -> b -> b
+-- rename = substs
 
 -- | Actually swaps the names in each pair
 rename :: forall a b. (Typeable a, Alpha b) => [(Name a, Name a)] -> b -> b
@@ -57,4 +67,9 @@ countOccurrences = Set.fromList . go []
       case lookupRemove x acc of
         Nothing -> go ((x, 1) : acc) xs
         Just (n, acc') -> go ((x, n+1) : acc') xs
+
+-- TODO: Deal with these orphan instances
+deriving instance (Data a, Data b) => Data (Bind a b)
+deriving instance Data a => Data (Name a)
+instance (Data a, Data b) => Plated (Bind a b)
 
