@@ -26,6 +26,7 @@ data Pattern
       { _patConstructor :: String
       , _patVars :: [ExprName]
       }
+  deriving (Show)
 
 makeLenses ''Pattern
 

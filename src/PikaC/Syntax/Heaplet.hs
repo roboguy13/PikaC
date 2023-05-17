@@ -70,7 +70,7 @@ instance (Ppr a) => Ppr (PointsTo a) where
   ppr (lhs :-> rhs) = hsep [ppr lhs, text ":->", ppr rhs]
 
 instance (Ppr a) => Ppr [PointsTo a] where
-  ppr xs = braces $ sep $ punctuate (text "**") (map ppr xs)
+  ppr xs = braces $ sep $ punctuate (text " **") (map ppr xs)
 
 pointsToLhs :: PointsTo a -> Loc
 pointsToLhs (lhs :-> _) = lhs

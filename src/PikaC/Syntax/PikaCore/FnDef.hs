@@ -13,6 +13,7 @@ data FnDef =
   , fnDefBranches :: [FnDefBranch]
   , fnDefParams :: [LocName]
   }
+  deriving (Show)
 
 data FnDefBranch =
   FnDefBranch
@@ -20,6 +21,7 @@ data FnDefBranch =
   , fnDefBranchInputAssertions :: [ExprAssertion]
   , fnDefBranchBody :: Expr
   }
+  deriving (Show)
 
 fnDefInputNames :: FnDef -> [LocName]
 fnDefInputNames = concatMap fnDefBranchInputNames . fnDefBranches
@@ -54,12 +56,12 @@ instance Ppr FnDef where
 instance Ppr FnDefBranch where
   ppr branch =
     sep
-      [ hsep $ punctuate (text " ") (map ppr (fnDefBranchInputAssertions branch))
-      , text "==>"
-      , ppr (fnDefOutputParams branch)
-      , text ":="
-      , nest 1 $ ppr (fnDefBranchBody branch)
-      , text ";"
+      [ hsep [hsep $ punctuate (text " ") (map ppr (fnDefBranchInputAssertions branch))
+              , text "==>"
+              , ppr (fnDefOutputParams branch)
+              , text ":="
+              ]
+      , nest 1 $ ppr (fnDefBranchBody branch) <> text ";"
       ]
 
 and' :: Base -> Base -> Base

@@ -11,10 +11,12 @@ data FnDef =
     , fnDefType :: Type
     , fnDefBranches :: [FnDefBranch]
     }
+  deriving (Show)
 
 data FnDefBranch =
   FnDefBranch
     { fnBranchPats :: [Pattern]
     , fnBranchBody :: Expr
     }
+  deriving (Show)
 

@@ -7,6 +7,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
+
 module PikaC.Syntax.PikaCore.Expr
   where
 
@@ -142,7 +144,7 @@ getPointsToExpr e = e ^.. (_SimpleExpr . _SslAssertion . _2 . traversed)
 instance Ppr Base where
   ppr (V x) = ppr x
   ppr (LocV x) = ppr x
-  -- ppr (LayoutV x) = ppr x
+  ppr (LayoutV x) = text "{" <+> hsep (punctuate (text ",") (map ppr x)) <+> text "}"
   ppr (IntLit i) = ppr i
   ppr (BoolLit b) = ppr b
   ppr (Add x y) = sep [pprP x, text "+", pprP y]
@@ -161,7 +163,7 @@ instance Ppr SimpleExpr where
 
 instance Ppr Expr where
   ppr (SimpleExpr e) = ppr e
-  ppr (App f x) = ppr f <+> hsep (map ppr x)
+  ppr (App f x) = ppr f <+> hsep (map pprP x)
 
 instance IsNested Expr where
   isNested (SimpleExpr e) = isNested e
@@ -175,7 +177,7 @@ instance IsNested SimpleExpr where
 instance IsNested Base where
   isNested (V _) = False
   isNested (LocV _) = False
-  -- isNested (LayoutV _) = False
+  isNested (LayoutV _) = False
   isNested (IntLit _) = False
   isNested (BoolLit _) = False
 

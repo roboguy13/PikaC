@@ -243,3 +243,52 @@ generateParams layouts (TyVar layoutName) =
   in
   mapM fresh $ _layoutParams layout
 
+exampleSll :: Layout
+exampleSll =
+  Layout
+  { _layoutName = "Sll"
+  , _layoutParams = [string2Name "x"]
+  , _layoutBranches =
+      [LayoutBranch
+        { _layoutPattern = Pattern "Nil" []
+        , _layoutBody =
+            LayoutBody
+              []
+        }
+      ,LayoutBranch
+        { _layoutPattern = Pattern "Cons" [s2n "head", s2n "tail"]
+        , _layoutBody =
+            LayoutBody
+              [ LPointsTo ((s2n "x" :+ 0) :-> Pika.V (s2n "head"))
+              , LPointsTo ((s2n "x" :+ 1) :-> Pika.V (s2n "nxt"))
+              , LApply "Sll" (Pika.V (s2n "tail")) [LocVar (s2n "nxt")]
+              ]
+        }
+      ]
+  }
+
+exampleAdd1Head :: Pika.FnDef
+exampleAdd1Head =
+  Pika.FnDef
+    { Pika.fnDefName = "add1Head"
+    , Pika.fnDefType = FnType (TyVar (s2n "Sll")) (TyVar (s2n "Sll"))
+    , Pika.fnDefBranches =
+        [Pika.FnDefBranch
+          { Pika.fnBranchPats = [Pattern "Nil" []]
+          , Pika.fnBranchBody =
+              (`ApplyLayout` TypeVar (s2n "Sll")) $
+                Pika.App "Nil" []
+          }
+
+        ,Pika.FnDefBranch
+          { Pika.fnBranchPats = [Pattern "Cons" [s2n "h", s2n "t"]]
+          , Pika.fnBranchBody =
+              (`ApplyLayout` TypeVar (s2n "Sll")) $
+                Pika.App "Cons"
+                  [Pika.Add (Pika.V (s2n "h")) (Pika.IntLit 1)
+                  ,Pika.V (s2n "t")
+                  ]
+          }
+        ]
+    }
+
