@@ -15,7 +15,6 @@ module PikaC.Syntax.Pika.Layout
 
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Pattern
-import PikaC.Syntax.Pika.Expr
 import PikaC.Ppr
 
 import Control.Monad.Identity
@@ -49,19 +48,19 @@ import GHC.Generics
 -- evalOperand (Operand (B x)) = x
 -- evalOperand (Operand (F y)) = V y
 
-data Layout =
+data Layout a =
   Layout
     { _layoutName :: String
-    , _layoutBranches :: [LayoutBranch]
+    , _layoutBranches :: [LayoutBranch a]
     , _layoutParams :: [LocName]
     }
 
 -- type Layout = Layout' Identity
 
-data LayoutBranch =
+data LayoutBranch a =
   LayoutBranch
-    { _layoutPattern :: Pattern
-    , _layoutBody :: LayoutBody
+    { _layoutPattern :: Pattern a
+    , _layoutBody :: LayoutBody a
     }
 
 -- instance Bound f => Functor (LayoutBranch f)
@@ -78,26 +77,23 @@ data LayoutBranch =
 -- type LayoutBranch = LayoutBranch' Identity
 --
 -- newtype LayoutBody operand a = LayoutBody [LayoutHeaplet operand a]
-newtype LayoutBody = LayoutBody { unLayoutBody :: [LayoutHeaplet] }
+newtype LayoutBody a = LayoutBody { unLayoutBody :: [LayoutHeaplet a] }
   deriving (Show, Generic, Semigroup, Monoid)
 
-data LayoutHeaplet
-  = LPointsTo (PointsTo Expr)
+data LayoutHeaplet a
+  = LPointsTo (PointsTo a)
   | LApply
       String -- Layout name
-      Expr    -- Pattern variable
+      a    -- Pattern variable
       [LocVar]    -- Layout variables
   deriving (Show, Generic)
 
-type PatternVar = Name Expr
+-- type PatternVar = Name Expr
 
 makeLenses ''Layout
 makeLenses ''LayoutBranch
 makeLenses ''LayoutBody
 makePrisms ''LayoutHeaplet
-
-instance Subst Expr LocVar
-
 
 -- instance Subst LayoutVar (f a) => Subst LayoutVar (LayoutHeaplet f a)
 
@@ -106,13 +102,13 @@ instance Subst Expr LocVar
 --   LApply name patVar layoutVars >>>= f =
 --     LApply name (patVar >>= f) (map (>>= f) layoutVars)
 
-lookupLayout :: [Layout] -> String -> Layout
+lookupLayout :: [Layout a] -> String -> Layout a
 lookupLayout [] name = error $ "lookupLayout: Cannot find layout " ++ name
 lookupLayout (x:xs) name
   | _layoutName x == name = x
   | otherwise = lookupLayout xs name
 
-lookupLayoutBranch :: Layout -> String -> Maybe LayoutBranch
+lookupLayoutBranch :: Layout a -> String -> Maybe (LayoutBranch a)
 lookupLayoutBranch layout constructor = go $ _layoutBranches layout
   where
     go [] = Nothing
@@ -120,24 +116,24 @@ lookupLayoutBranch layout constructor = go $ _layoutBranches layout
       | _patConstructor (_layoutPattern x) == constructor = Just x
       | otherwise = go xs
 
-lookupLayoutBranch' :: HasCallStack => Layout -> String -> LayoutBranch
+lookupLayoutBranch' :: HasCallStack => Layout a -> String -> LayoutBranch a
 lookupLayoutBranch' layout c =
   case lookupLayoutBranch layout c of
     Nothing -> error $ "lookupLayoutBranch: Cannot find branch for constructor " ++ c
     Just r -> r
 
-instance Subst Expr LayoutBody
-instance Subst Expr LayoutHeaplet
-instance Subst Expr a => Subst Expr (PointsTo a)
+-- instance Subst a a => Subst a (LayoutBody a)
+-- instance Subst a a => Subst a (LayoutHeaplet a)
+-- instance Subst Expr a => Subst Expr (PointsTo a)
 
 -- | Apply layout to a constructor value
-applyLayout :: Layout -> String -> [Expr] -> Maybe LayoutBody
+applyLayout :: Subst a (LayoutBody a) => Layout a -> String -> [a] -> Maybe (LayoutBody a)
 applyLayout layout constructor args = do
   branch <- lookupLayoutBranch layout constructor
   let body = _layoutBody branch
   pure $ patternMatch' (_layoutPattern branch) constructor args body
 
-applyLayout' :: Layout -> String -> [Expr] -> LayoutBody
+applyLayout' :: Subst a (LayoutBody a) => Layout a -> String -> [a] -> LayoutBody a
 applyLayout' layout c args =
   case applyLayout layout c args of
     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c

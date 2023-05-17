@@ -32,7 +32,7 @@ import Control.Lens hiding (simple)
 import Control.Applicative
 import Control.Arrow (second)
 
-toPikaCore :: [Layout] -> Pika.FnDef -> PikaCore.FnDef
+toPikaCore :: [Layout Pika.Expr] -> Pika.FnDef -> PikaCore.FnDef
 toPikaCore layouts fn = runFreshM $ do
   outParams <- generateParams layouts resultType
   inParams <- concat <$> mapM (generateParams layouts) argTypes
@@ -49,7 +49,7 @@ toPikaCore layouts fn = runFreshM $ do
   where
     (argTypes, resultType) = splitFnType (Pika.fnDefType fn)
 
-branchToPikaCore :: [Layout] -> [LocName] -> [Type] -> Pika.FnDefBranch -> FreshM PikaCore.FnDefBranch
+branchToPikaCore :: [Layout Pika.Expr] -> [LocName] -> [Type] -> Pika.FnDefBranch -> FreshM PikaCore.FnDefBranch
 branchToPikaCore layouts outParams argTypes branch = do
   -- params <- concat <$> mapM (generateParams layouts) (argTypes ++ [resultType])
   let tyPats = zip argTypes (Pika.fnBranchPats branch)
@@ -71,7 +71,7 @@ newtype LayoutVarSubst = LayoutVarSubst [(ExprName, (String, LayoutArg))]
 
 -- | Get location variables associated to expression variable, based on the
 -- LApply's in a LayoutBranch
-findLApplies :: LayoutBranch -> ExprName -> Maybe (String, [LocName])
+findLApplies :: LayoutBranch Pika.Expr -> ExprName -> Maybe (String, [LocName])
 findLApplies branch n =
     second (map undefined) <$> go' (unLayoutBody (_layoutBody branch))
   where
@@ -86,14 +86,14 @@ findLApplies branch n =
 lookupVSubst :: ExprName -> LayoutVarSubst -> Maybe (String, LayoutArg)
 lookupVSubst e (LayoutVarSubst s) = lookup e s
 
-mkVSubsts :: [Layout] -> [(Type, Pattern)] -> FreshM (LayoutVarSubst, [LayoutBody])
+mkVSubsts :: [Layout Pika.Expr] -> [(Type, Pattern Pika.Expr)] -> FreshM (LayoutVarSubst, [LayoutBody Pika.Expr])
 mkVSubsts layouts tyPats =
   fmap (go . unzip) (traverse (uncurry (mkVSubst layouts)) tyPats)
   where
-    go :: ([LayoutVarSubst], [LayoutBody]) -> (LayoutVarSubst, [LayoutBody])
+    go :: ([LayoutVarSubst], [LayoutBody Pika.Expr]) -> (LayoutVarSubst, [LayoutBody Pika.Expr])
     go = _1 %~ mconcat
 
-mkVSubst :: [Layout] -> Type -> Pattern -> FreshM (LayoutVarSubst, LayoutBody)
+mkVSubst :: [Layout Pika.Expr] -> Type -> Pattern Pika.Expr -> FreshM (LayoutVarSubst, LayoutBody Pika.Expr)
 mkVSubst _ IntType pat = do
   let [v] = _patVars pat
   v' <- fresh v
@@ -120,7 +120,7 @@ mkVSubst layouts t@(FnType {}) _ = error $ "mkVSubst: " ++ show t
 expr2LocName :: ExprName -> LocName
 expr2LocName = string2Name . name2String
 
-generatePatternAsn :: LayoutVarSubst -> [Layout] -> Type -> Pattern -> FreshM PikaCore.ExprAssertion
+generatePatternAsn :: LayoutVarSubst -> [Layout Pika.Expr] -> Type -> Pattern Pika.Expr -> FreshM PikaCore.ExprAssertion
 generatePatternAsn vsubst layouts IntType pat = pure []
 generatePatternAsn vsubst layouts BoolType pat = pure []
 generatePatternAsn _ _ (FnType {}) _ = error "generatePatternAsn: function type"
@@ -130,12 +130,12 @@ generatePatternAsn vsubst layouts (TyVar n) pat =
   in
   concat <$> mapM (toExprHeaplets vsubst layouts) z
 
-toExprAsn :: LayoutVarSubst -> [Layout] -> LayoutBody -> FreshM PikaCore.ExprAssertion
+toExprAsn :: LayoutVarSubst -> [Layout Pika.Expr] -> LayoutBody Pika.Expr -> FreshM PikaCore.ExprAssertion
 toExprAsn vsubst layouts (LayoutBody xs) =
   concat <$> mapM (toExprHeaplets vsubst layouts) xs
 
 -- | Precondition the expressions in 'LApply's should be fully reduced
-toExprHeaplets :: LayoutVarSubst -> [Layout] -> LayoutHeaplet -> FreshM [PikaCore.PointsToExpr]
+toExprHeaplets :: LayoutVarSubst -> [Layout Pika.Expr] -> LayoutHeaplet Pika.Expr -> FreshM [PikaCore.PointsToExpr]
 toExprHeaplets vsubst layouts (LPointsTo x) = do
     z <- mapM (fmap toBase . convertExpr vsubst layouts) x
     pure [z]
@@ -163,7 +163,15 @@ toBase :: HasCallStack => PikaCore.Expr -> PikaCore.Base
 toBase (PikaCore.SimpleExpr (PikaCore.BaseExpr e)) = e
 toBase e = error $ "toBase: " ++ ppr' e
 
-convertExpr :: LayoutVarSubst -> [Layout] -> Pika.Expr -> FreshM PikaCore.Expr
+-- applyLayoutOrNOP :: Layout -> String -> [Pika.Expr] -> PikaCore.Expr
+-- applyLayoutOrNOP layout constructor args =
+--   let params = _layoutParams layout
+--       LayoutBody asns = applyLayout layout constructor args
+--   in
+--   fromMaybe (App constructor args)
+--             (PikaCore.SimpleExpr $ SslAssertion undefined)
+
+convertExpr :: LayoutVarSubst -> [Layout Pika.Expr] -> Pika.Expr -> FreshM PikaCore.Expr
 convertExpr vsubst layouts = go . reduceLayouts
   where
     goBase :: Pika.Expr -> FreshM PikaCore.Base
@@ -215,14 +223,14 @@ convertExpr vsubst layouts = go . reduceLayouts
     -- go (Pika.Not x) =
     --   fmap base (PikaCore.Not <$> go x)
 
-isConstructor :: [Layout] -> String -> Bool
+isConstructor :: [Layout a] -> String -> Bool
 isConstructor layouts c =
   let constructors =
         layouts ^.. (traversed.layoutBranches.traversed.layoutPattern.patConstructor)
   in
   c `elem` constructors
 
-generatePatternParams :: [Layout] -> Type -> Pattern -> FreshM [LocName]
+generatePatternParams :: [Layout a] -> Type -> Pattern Pika.Expr -> FreshM [LocName]
 generatePatternParams layouts IntType pat = generateParams layouts IntType
 generatePatternParams layouts BoolType pat = generateParams layouts BoolType
 -- generatePatternParams layouts (TyVar v) pat = generateParams layouts (TyVar v)
@@ -233,7 +241,7 @@ generatePatternParams layouts (TyVar n) pat =
   mapM fresh $ _layoutParams layout
 generatePatternParams _ t@(FnType {}) pat = error $ "generatePatternParams: " ++ show t 
 
-generateParams :: [Layout] -> Type -> FreshM [LocName]
+generateParams :: [Layout a] -> Type -> FreshM [LocName]
 generateParams layouts IntType = (:[]) <$> fresh (string2Name "i")
 generateParams layouts BoolType = (:[]) <$> fresh (string2Name "b")
 generateParams layouts t@(FnType {}) = error $ "generateParams: " ++ show t
@@ -243,7 +251,7 @@ generateParams layouts (TyVar layoutName) =
   in
   mapM fresh $ _layoutParams layout
 
-exampleSll :: Layout
+exampleSll :: Layout Pika.Expr
 exampleSll =
   Layout
   { _layoutName = "Sll"

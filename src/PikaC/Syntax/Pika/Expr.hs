@@ -22,6 +22,7 @@ import Data.Void
 import GHC.Generics
 
 import PikaC.Syntax.Heaplet
+import PikaC.Syntax.Pika.Layout
 
 import Control.Lens
 import Control.Lens.TH
@@ -74,6 +75,11 @@ type LayoutName = TypeName
 
 instance Subst Expr TypeVar
   -- isvar = _
+
+instance Subst Expr (LayoutBody Expr)
+instance Subst Expr (LayoutHeaplet Expr)
+instance Subst Expr (PointsTo Expr)
+instance Subst Expr LocVar
 
 makePrisms ''Expr
 
