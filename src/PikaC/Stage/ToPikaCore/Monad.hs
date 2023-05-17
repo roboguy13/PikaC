@@ -19,7 +19,7 @@ import Control.Monad.State
 import GHC.Stack
 
 newtype LayoutVarSubst = LayoutVarSubst [(Pika.ExprName, (String, LayoutArg))]
-  deriving (Semigroup, Monoid)
+  deriving (Semigroup, Monoid, Show)
 
 type LayoutEnv = [Layout Pika.Expr]
 

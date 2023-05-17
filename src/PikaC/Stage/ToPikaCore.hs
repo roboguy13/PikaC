@@ -64,6 +64,8 @@ branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
   (vsubst, layoutBodies) <- mkVSubsts layouts tyPats
 
   runPikaConvert'' vsubst layouts $ do
+    -- traceM ("layoutBodies = " ++ show layoutBodies)
+    -- traceM ("vsubst = " ++ show vsubst)
     exprAsns <- mapM toExprAsn layoutBodies
 
     newBranchBody <- convertExpr (Pika.fnBranchBody branch)
@@ -77,9 +79,9 @@ branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
 
 -- | Get location variables associated to expression variable, based on the
 -- LApply's in a LayoutBranch
-findLApplies :: LayoutBranch Pika.Expr -> ExprName -> Maybe (String, [LocName])
-findLApplies branch n =
-    second (map unLocVar) <$> go' (unLayoutBody (_layoutBody branch))
+findLApplies :: LayoutBody Pika.Expr -> ExprName -> Maybe (String, [LocName])
+findLApplies body n =
+    second (map unLocVar) <$> go' (unLayoutBody body)
   where
     go' [] = Nothing
     go' (x:xs) = go x <|> go' xs
@@ -113,16 +115,17 @@ mkVSubst _ BoolType pat = do
 mkVSubst layouts (TyVar n) pat = do
   let layoutString = name2String n
       layout = lookupLayout layouts layoutString
-      branch = lookupLayoutBranch' layout (_patConstructor pat)
+      -- branch = lookupLayoutBranch' layout (_patConstructor pat)
       vars = _patVars pat
+  let body = applyLayout' layout (_patConstructor pat) (map Pika.V vars)
       go v = do
         v' <- internLocName v
-        pure $ fromMaybe (layoutString, [v']) (findLApplies branch v)
+        pure $ fromMaybe (layoutString, [v']) (findLApplies body v)
 
   locNameLists <- mapM go vars
 
   locs <- (traversed._2.traversed %%~ fresh) locNameLists
-  pure (LayoutVarSubst $ zip vars locs, _layoutBody branch)
+  pure (LayoutVarSubst $ zip vars locs, body) --_layoutBody branch)
 
 mkVSubst layouts t@(FnType {}) _ = error $ "mkVSubst: " ++ show t
 
