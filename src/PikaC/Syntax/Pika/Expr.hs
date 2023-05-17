@@ -44,13 +44,13 @@ data Expr
   -- | And Expr Expr
   deriving (Show, Generic)
 
--- example :: Expr
--- example =
---   ApplyLayout
---     (LayoutLambda (AdtName "A")
---       (bind (string2Name "alpha")
---         (ApplyLayout (IntLit 1) (LayoutName' "alpha"))))
---     (LayoutName' "TestLayout")
+example :: Expr
+example =
+  ApplyLayout
+    (LayoutLambda (AdtName "A")
+      (bind (string2Name "alpha")
+        (ApplyLayout (IntLit 1) (LayoutName' (string2Name "alpha")))))
+    (LayoutName' (string2Name "TestLayout"))
 
 -- instance Subst LayoutName Expr
 
@@ -67,8 +67,8 @@ instance Subst Expr AdtName
 
 instance Alpha Expr
 instance Subst Expr Expr where
-  isCoerceVar (V n) = Just $ SubstCoerce n Just
-  isCoerceVar _ = Nothing
+  isvar (V n) = Just $ SubstName n
+  isvar _ = Nothing
 -- instance Subst ExprName Expr where
 --   isCoerceVar (V n) = Just $ SubstCoerce _ _
   -- isvar (LName n) = Just $ SubstName n
@@ -94,7 +94,8 @@ instance Subst LocVar Expr where
 instance Subst LocVar LayoutName'
 
 instance Subst Expr LayoutName'
-instance Subst LayoutName' LayoutName'
+instance Subst LayoutName' LayoutName' where
+  isvar (LayoutName' v) = Just $ SubstName v
 
 type ExprName = Name Expr
 -- type LocName = Name 
@@ -120,12 +121,23 @@ isConcrete (ApplyLayout e _) = isConcrete e
 isConcrete (App f xs) = all isConcrete xs
 
 reduceLayouts :: Expr -> Expr
-reduceLayouts =
-  undefined
-  -- rewrite go
+reduceLayouts = go
   where
-    go :: Expr -> Maybe Expr
-    go (ApplyLayout (LayoutLambda _ (B p t)) arg) =
-      Just $ subst p arg t
-    go _ = Nothing
+    go :: Expr -> Expr
+    go (V x) = V x
+    go (LocV x) = LocV x
+    go (IntLit i) = IntLit i
+    go (BoolLit b) = BoolLit b
+    go (LayoutLambda a (B p t)) =
+      LayoutLambda a (B p (go t))
+    go (ApplyLayout e arg) =
+      case go e of
+        (LayoutLambda _ bnd) -> substBind bnd arg
+        e' -> ApplyLayout e' arg
+    go (App f args) =
+      App f (map go args)
+    go (Add x y) = Add (go x) (go y)
+    go (Sub x y) = Sub (go x) (go y)
+    go (Equal x y) = Equal (go x) (go y)
+    go (LName x) = LName x
 
