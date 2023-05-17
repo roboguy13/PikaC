@@ -44,13 +44,15 @@ data TypeSig =
 newtype AdtName = AdtName String
   deriving (Show, Eq, Ord, Generic, Data)
 
-newtype TypeVar = TypeVar TypeName deriving (Show, Generic)
+newtype TypeVar = TypeVar { unTypeVar :: TypeName } deriving (Show, Generic)
 type TypeName = Name TypeVar
 
 instance Alpha TypeVar
 
 instance Subst TypeVar TypeVar where
   isvar (TypeVar v) = Just $ SubstName v
+
+instance Subst TypeVar AdtName
 
 instance Ppr TypeVar where ppr (TypeVar v) = text $ show v
 

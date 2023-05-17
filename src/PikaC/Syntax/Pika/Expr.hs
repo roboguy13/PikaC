@@ -34,7 +34,7 @@ data Expr
   | IntLit Int
   | BoolLit Bool
   | LayoutLambda AdtName (Bind LayoutName Expr)
-  | ApplyLayout Expr LayoutName'
+  | ApplyLayout Expr TypeVar
   | App String [Expr]
   | Add Expr Expr
   | Sub Expr Expr
@@ -44,24 +44,13 @@ data Expr
   -- | And Expr Expr
   deriving (Show, Generic)
 
-example :: Expr
-example =
-  ApplyLayout
-    (LayoutLambda (AdtName "A")
-      (bind (string2Name "alpha")
-        (ApplyLayout (IntLit 1) (LayoutName' (string2Name "alpha")))))
-    (LayoutName' (string2Name "TestLayout"))
-
--- instance Subst LayoutName Expr
-
--- instance Plated Expr
-
--- instance Plated Expr where
---   plate f (V x) = pure $ V x
---   plate f (IntLit x) = pure $ IntLit x
---   plate f (BoolLit b) = pure $ BoolLit b
---   plate f (LayoutLambda adtName bnd) =
---     LayoutLambda adtName <$> _ (fmap f bnd)
+-- example :: Expr
+-- example =
+--   ApplyLayout
+--     (LayoutLambda (AdtName "A")
+--       (bind (string2Name "alpha")
+--         (ApplyLayout (IntLit 1) (LayoutName' (string2Name "alpha")))))
+--     (LayoutName' (string2Name "TestLayout"))
 
 instance Subst Expr AdtName
 
@@ -69,44 +58,21 @@ instance Alpha Expr
 instance Subst Expr Expr where
   isvar (V n) = Just $ SubstName n
   isvar _ = Nothing
--- instance Subst ExprName Expr where
---   isCoerceVar (V n) = Just $ SubstCoerce _ _
-  -- isvar (LName n) = Just $ SubstName n
-
--- instance Subst Expr a => Subst Expr (PointsTo a)
--- instance Subst Expr Loc
-
--- instance Subst LayoutName Expr where
---   isCoerceVar (LName n) = Just $ SubstCoerce _ undefined
-
-instance Subst LayoutName' AdtName
 
 instance Subst Expr Loc
 
-instance Subst LayoutName' Expr where
-  -- isCoerceVar (LName n) = Just $ SubstCoerce n (Just . LName . string2Name . unLayoutName')
-  -- isCoerceVar (ApplyLayout e n) = Just $ SubstCoerce (string2Name (unLayoutName' n)) (Just . ApplyLayout e)
-  -- isCoerceVar _ = Nothing
-
+instance Subst TypeVar Expr where
 instance Subst LocVar Expr where
-  -- isCoerceVar (LocV v) = Just $ SubstCoerce v (Just . LocV . string2Name . unLocVar)
-
-instance Subst LocVar LayoutName'
-
-instance Subst Expr LayoutName'
-instance Subst LayoutName' LayoutName' where
-  isvar (LayoutName' v) = Just $ SubstName v
 
 type ExprName = Name Expr
--- type LocName = Name 
 
-newtype LayoutName' = LayoutName' LayoutName
-  deriving (Eq, Ord, Show, Generic)
-type LayoutName = Name LayoutName'
+type LayoutName = TypeName
 
-instance Alpha LayoutName'
+-- newtype LayoutName' = LayoutName' LayoutName
+--   deriving (Eq, Ord, Show, Generic)
+-- type LayoutName = Name LayoutName'
 
-instance Subst ExprName LayoutName'
+instance Subst Expr TypeVar
   -- isvar = _
 
 makePrisms ''Expr

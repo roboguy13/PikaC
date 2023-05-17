@@ -24,6 +24,7 @@ import GHC.Stack
 import Debug.Trace
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
 
 type Outputs = LayoutArg
 
@@ -34,7 +35,7 @@ codeGenBase :: HasCallStack =>
   PikaCore.Base ->
   CExpr
 codeGenBase (PikaCore.V x) = C.LocValue (toCName x :+ 0)
-codeGenBase (PikaCore.LocV x) = C.LocValue (x :+ 0)
+codeGenBase (PikaCore.LocV x) = C.LocValue (unLocVar x :+ 0)
 codeGenBase (PikaCore.LayoutV xs) = error "codeGenBase: LayoutV"
 -- codeGenBase (PikaCore.LocValue x) = C.LocValue x
 codeGenBase (PikaCore.IntLit i) = C.IntLit i
@@ -47,10 +48,10 @@ codeGenBase (PikaCore.And x y) = C.And (codeGenBase x) (codeGenBase y)
 
 codeGenSimple :: HasCallStack => Outputs -> PikaCore.SimpleExpr -> [Command]
 codeGenSimple outputs (PikaCore.BaseExpr (PikaCore.LayoutV xs)) =
-  codeGenAsn $ connectLayoutArgs outputs xs
+  codeGenAsn $ connectLayoutArgs outputs (map unLocVar xs)
 
-codeGenSimple outputs (PikaCore.WithIn vars bnd body) =
-  codeGenExpr vars bnd ++ codeGenSimple outputs body
+codeGenSimple outputs (PikaCore.WithIn e bnd@(B vars body)) =
+  codeGenExpr vars e ++ codeGenSimple outputs body
 
 codeGenSimple outputs (PikaCore.SslAssertion params asn0) =
   let asn = fmap (rename (zip params outputs)) asn0
@@ -80,8 +81,10 @@ codeGenExpr outputs (PikaCore.SimpleExpr e) =
   codeGenSimple outputs e
 codeGenExpr outputs (PikaCore.App f xs) =
     -- TODO: Translate PikaCore function names into C function names
-  [C.Call f (convert (fold xs)) (convert outputs)]
+  [C.Call f (map (codeGenBase . getBase) xs) (convert outputs)]
   where
+    getBase (PikaCore.SimpleExpr (PikaCore.BaseExpr x)) = x
+    getBase e = error $ "codeGenExpr.getBase: " ++ show e
     convert :: Outputs -> [CExpr]
     convert = map C.V . toList
 
@@ -129,17 +132,18 @@ codeGenFn fn =
       [codeGenFnBranch fn x (go xs)]
 
 connectLayoutArgs :: LayoutArg -> LayoutArg -> PikaCore.ExprAssertion
-connectLayoutArgs xs ys = zipWith (:->) (map (:+ 0) xs) (map PikaCore.LocV ys)
+connectLayoutArgs xs ys = zipWith (:->) (map (:+ 0) xs) (map (PikaCore.LocV . LocVar) ys)
 
 example :: PikaCore.Expr
 example =
   PikaCore.SimpleExpr $
-  PikaCore.WithIn (map s2n ["r", "y"]) (PikaCore.App "convertList2" [[s2n "nxt"]])
-    $ PikaCore.SslAssertion (map s2n ["r", "z"])
-        [ (s2n "r" :+ 0) :-> PikaCore.V (s2n "h")
-        , (s2n "r" :+ 1) :-> PikaCore.V (s2n "y")
-        , (s2n "r" :+ 2) :-> PikaCore.V (s2n "w")
-        ]
+  PikaCore.WithIn (PikaCore.App "convertList2" [PikaCore.base $ PikaCore.V $ s2n "nxt"])
+    $ bind (map s2n ["r", "y"]) 
+      $ PikaCore.SslAssertion (map s2n ["r", "z"])
+          [ (s2n "r" :+ 0) :-> PikaCore.V (s2n "h")
+          , (s2n "r" :+ 1) :-> PikaCore.V (s2n "y")
+          , (s2n "r" :+ 2) :-> PikaCore.V (s2n "w")
+          ]
 
 exampleAsn :: PikaCore.ExprAssertion
 exampleAsn = 
@@ -170,12 +174,13 @@ exampleFn =
                ]]
           , fnDefBranchBody =
               PikaCore.SimpleExpr $
-              PikaCore.WithIn (map s2n ["r", "y"]) (PikaCore.App "convertList2" [map s2n ["nxt"]])
-                $ PikaCore.SslAssertion (map s2n ["r", "z"])
-                    [ (s2n "r" :+ 0) :-> PikaCore.V (s2n "h")
-                    , (s2n "r" :+ 1) :-> PikaCore.V (s2n "y")
-                    , (s2n "r" :+ 2) :-> PikaCore.V (s2n "w")
-                    ]
+              PikaCore.WithIn (PikaCore.App "convertList2" [PikaCore.base . PikaCore.V $ s2n "nxt"])
+                $ bind (map s2n ["r", "y"]) 
+                  $ PikaCore.SslAssertion (map s2n ["r", "z"])
+                      [ (s2n "r" :+ 0) :-> PikaCore.V (s2n "h")
+                      , (s2n "r" :+ 1) :-> PikaCore.V (s2n "y")
+                      , (s2n "r" :+ 2) :-> PikaCore.V (s2n "w")
+                      ]
           }
         ]
     }

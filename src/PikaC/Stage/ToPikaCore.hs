@@ -49,8 +49,8 @@ branchToPikaCore layouts outParams branch = runFreshM $ do
 
 mkVSubst :: [Layout] -> Type -> Pattern -> FreshM LayoutVarSubst
 mkVSubst _ IntType pat = undefined
-mkVSubst layouts (TyLayoutName n) pat =
-  let layout = lookupLayout layouts n
+mkVSubst layouts (TyVar n) pat =
+  let layout = lookupLayout layouts (name2String n)
       branch = lookupLayoutBranch' layout (_patConstructor pat)
   in
   undefined
@@ -58,10 +58,8 @@ mkVSubst layouts (TyLayoutName n) pat =
 generatePatternAsn :: LayoutVarSubst -> [Layout] -> Type -> Pattern -> FreshM PikaCore.ExprAssertion
 generatePatternAsn vsubst layouts IntType pat = pure []
 generatePatternAsn vsubst layouts BoolType pat = pure []
-generatePatternAsn vsubst layouts (TyVar v) pat =
-  error "generatePatternAsn"
-generatePatternAsn vsubst layouts (TyLayoutName n) pat =
-  let layout = lookupLayout layouts n
+generatePatternAsn vsubst layouts (TyVar n) pat =
+  let layout = lookupLayout layouts (name2String n)
       LayoutBody z = applyLayout' layout (_patConstructor pat) (map Pika.V (_patVars pat))
   in
   concat <$> mapM (toExprHeaplets vsubst layouts) z
@@ -78,7 +76,7 @@ toExprHeaplets vsubst layouts e0@(LApply layout (Pika.App f xs) params)
   | not (isConstructor layouts f) =
       error $ "toExprHeaplet: Got application that is not a constructor application" ++ show e0
   | otherwise =
-      generatePatternAsn vsubst layouts (TyLayoutName layout) 
+      generatePatternAsn vsubst layouts (TyVar (string2Name layout)) 
         Pattern
           { _patConstructor = f
           , _patVars = map toV xs
@@ -111,31 +109,31 @@ convertExpr vsubst layouts = go . reduceLayouts
 
     go :: Pika.Expr -> FreshM PikaCore.Expr
     go (Pika.V n) = pure . base $ PikaCore.V $ convertName n
-    go e0@(Pika.LayoutTypeArg {}) =
-      error $ "convertExpr: " ++ show e0
+    -- go e0@(Pika.LayoutTypeArg {}) =
+    --   error $ "convertExpr: " ++ show e0
     go (Pika.IntLit i) = pure . base $ PikaCore.IntLit i
     go (Pika.BoolLit b) = pure . base $ PikaCore.BoolLit b
     go e0@(Pika.LayoutLambda {}) =
       error $ "convertExpr: " ++ show e0
-    go e0@(Pika.ApplyLayout {}) =
-      error $ "convertExpr: " ++ show e0
-    go e0@(Pika.Lower e (LayoutNameB layout)) =
-      error $ "convertExpr: Free layout variable in: " ++ show e0
-    go e0@(Pika.Lower (Pika.V x) (LayoutNameF layout)) =
+    -- go e0@(Pika.Lower e (LayoutNameB layout)) =
+      -- error $ "convertExpr: Free layout variable in: " ++ show e0
+    go e0@(Pika.ApplyLayout (Pika.V x) layoutName) =
+      let layoutString = name2String (unTypeVar layoutName)
+      in
       case lookup x vsubst of
         Nothing -> error $ "convertExpr: Cannot find variable " ++ show x ++ " in variable -> layout variable list conversion table"
         Just (n, y)
-          | n == layout -> pure . base $ PikaCore.LayoutV y
+          | n == layoutString -> pure . base $ PikaCore.LayoutV (map LocVar y)
           | otherwise ->
-              error $ "convertExpr: layout " ++ layout ++ " does not match " ++ n ++ " in " ++ show e0
-    go e0@(Pika.Lower (Pika.App f xs) (LayoutNameF a)) = do
-      rs <- generateParams layouts (TyLayoutName a)
+              error $ "convertExpr: layout " ++ layoutString ++ " does not match " ++ n ++ " in " ++ show e0
+    go e0@(Pika.ApplyLayout (Pika.App f xs) layoutName) = do
+      rs <- generateParams layouts (TyVar (unTypeVar layoutName))
       ys <- mapM go xs
       pure $
         simple $ PikaCore.WithIn
-          rs
           (PikaCore.App f ys)
-          (PikaCore.BaseExpr (PikaCore.LayoutV rs))
+          $ bind rs
+              (PikaCore.BaseExpr (PikaCore.LayoutV (map LocVar rs)))
     go (Pika.Add x y) =
       fmap base (PikaCore.Add <$> goBase x <*> goBase y)
     go (Pika.Sub x y) =
@@ -155,9 +153,9 @@ isConstructor layouts c =
 generatePatternParams :: [Layout] -> Type -> Pattern -> FreshM [LocName]
 generatePatternParams layouts IntType pat = generateParams layouts IntType
 generatePatternParams layouts BoolType pat = generateParams layouts BoolType
-generatePatternParams layouts (TyVar v) pat = generateParams layouts (TyVar v)
-generatePatternParams layouts (TyLayoutName n) pat =
-  let layout = lookupLayout layouts n
+-- generatePatternParams layouts (TyVar v) pat = generateParams layouts (TyVar v)
+generatePatternParams layouts (TyVar n) pat =
+  let layout = lookupLayout layouts (name2String n)
       -- z = applyLayout layout (_patConstructor pat) (map Pika.V (_patVars pat))
   in
   mapM fresh $ _layoutParams layout
@@ -165,9 +163,9 @@ generatePatternParams layouts (TyLayoutName n) pat =
 generateParams :: [Layout] -> Type -> FreshM [LocName]
 generateParams layouts IntType = (:[]) <$> fresh (string2Name "i")
 generateParams layouts BoolType = (:[]) <$> fresh (string2Name "b")
-generateParams _ (TyVar v) = error $ "generateParams: Still has layout type variable " ++ show v
-generateParams layouts (TyLayoutName layoutName) =
-  let layout = lookupLayout layouts layoutName
+-- generateParams _ (TyVar v) = error $ "generateParams: Still has layout type variable " ++ show v
+generateParams layouts (TyVar layoutName) =
+  let layout = lookupLayout layouts (name2String layoutName)
   in
   mapM fresh $ _layoutParams layout
 

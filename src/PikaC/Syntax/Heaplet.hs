@@ -1,7 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -14,7 +13,7 @@ import Data.List
 import Data.Function
 
 import PikaC.Ppr
-import PikaC.Syntax.Type (AdtName)
+import PikaC.Syntax.Type (AdtName, TypeVar)
 
 import Data.Maybe
 import Control.Monad.Identity
@@ -38,7 +37,7 @@ data Loc = LocName :+ Int
 
 instance Alpha Loc
 
-newtype LocVar = LocVar LocName deriving (Show, Generic)
+newtype LocVar = LocVar { unLocVar :: LocName } deriving (Show, Generic)
 type LocName = Name LocVar
 
 instance Alpha LocVar
@@ -50,6 +49,7 @@ instance Subst LocVar LocVar where
   isvar (LocVar n) = Just $ SubstName n
 
 instance Subst LocVar AdtName
+instance Subst LocVar TypeVar
 
 instance Ppr LocVar where ppr (LocVar v) = text $ show v
 
