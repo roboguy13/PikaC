@@ -127,8 +127,7 @@ lookupLayoutBranch' layout c =
 
 instance Subst Expr LayoutBody
 instance Subst Expr LayoutHeaplet
-instance Subst Expr Expr
-instance Subst Expr LayoutName
+instance Subst Expr a => Subst Expr (PointsTo a)
 
 -- | Apply layout to a constructor value
 applyLayout :: Layout -> String -> [Expr] -> Maybe LayoutBody

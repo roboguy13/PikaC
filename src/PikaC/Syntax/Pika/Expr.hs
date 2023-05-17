@@ -30,60 +30,83 @@ import Data.Data
 
 data Expr
   = V ExprName
-  -- | LocV LocName
-  | LayoutTypeArg LocName
+  | LocV LocName
   | IntLit Int
   | BoolLit Bool
-  | LayoutLambda AdtName (String, Expr)
-  | ApplyLayout Expr LayoutName
-  | Lower Expr LayoutName
+  | LayoutLambda AdtName (Bind LayoutName Expr)
+  | ApplyLayout Expr LayoutName'
   | App String [Expr]
   | Add Expr Expr
   | Sub Expr Expr
   | Equal Expr Expr
+  | LName LayoutName
   -- | Not Expr
   -- | And Expr Expr
-  deriving (Show, Generic, Data, Eq)
+  deriving (Show, Generic)
 
-example :: Expr
-example =
-  ApplyLayout
-    (LayoutLambda (AdtName "A")
-      ("alpha",
-        Lower (IntLit 1) (LayoutNameB "alpha")))
-    (LayoutNameF "TestLayout")
+-- example :: Expr
+-- example =
+--   ApplyLayout
+--     (LayoutLambda (AdtName "A")
+--       (bind (string2Name "alpha")
+--         (ApplyLayout (IntLit 1) (LayoutName' "alpha"))))
+--     (LayoutName' "TestLayout")
 
 -- instance Subst LayoutName Expr
 
-instance Plated Expr
+-- instance Plated Expr
 
 -- instance Plated Expr where
 --   plate f (V x) = pure $ V x
---   plate f (LayoutTypeArg x) = pure $ LayoutTypeArg x
 --   plate f (IntLit x) = pure $ IntLit x
 --   plate f (BoolLit b) = pure $ BoolLit b
 --   plate f (LayoutLambda adtName bnd) =
---     LayoutLambda adtName <$> _ f bnd
+--     LayoutLambda adtName <$> _ (fmap f bnd)
+
+instance Subst Expr AdtName
 
 instance Alpha Expr
-instance Subst ExprName Expr
+instance Subst Expr Expr where
+  isCoerceVar (V n) = Just $ SubstCoerce n Just
+  isCoerceVar _ = Nothing
+-- instance Subst ExprName Expr where
+--   isCoerceVar (V n) = Just $ SubstCoerce _ _
+  -- isvar (LName n) = Just $ SubstName n
 
-instance Subst Expr a => Subst Expr (PointsTo a)
+-- instance Subst Expr a => Subst Expr (PointsTo a)
+-- instance Subst Expr Loc
+
+-- instance Subst LayoutName Expr where
+--   isCoerceVar (LName n) = Just $ SubstCoerce _ undefined
+
+instance Subst LayoutName' AdtName
+
 instance Subst Expr Loc
 
--- instance Subst LayoutName' Expr
+instance Subst LayoutName' Expr where
+  -- isCoerceVar (LName n) = Just $ SubstCoerce n (Just . LName . string2Name . unLayoutName')
+  -- isCoerceVar (ApplyLayout e n) = Just $ SubstCoerce (string2Name (unLayoutName' n)) (Just . ApplyLayout e)
+  -- isCoerceVar _ = Nothing
+
+instance Subst LocVar Expr where
+  -- isCoerceVar (LocV v) = Just $ SubstCoerce v (Just . LocV . string2Name . unLocVar)
+
+instance Subst LocVar LayoutName'
+
+instance Subst Expr LayoutName'
+instance Subst LayoutName' LayoutName'
 
 type ExprName = Name Expr
 -- type LocName = Name 
 
-data LayoutName =
-    LayoutNameF String
-  | LayoutNameB String
-  deriving (Show, Generic, Data, Eq)
--- type LayoutName = Name LayoutName'
+newtype LayoutName' = LayoutName' LayoutName
+  deriving (Eq, Ord, Show, Generic)
+type LayoutName = Name LayoutName'
 
-instance Alpha LayoutName
-instance Subst ExprName LayoutName
+instance Alpha LayoutName'
+
+instance Subst ExprName LayoutName'
+  -- isvar = _
 
 makePrisms ''Expr
 
@@ -98,27 +121,11 @@ isConcrete (App f xs) = all isConcrete xs
 
 reduceLayouts :: Expr -> Expr
 reduceLayouts =
-  rewrite go
+  undefined
+  -- rewrite go
   where
     go :: Expr -> Maybe Expr
-    go (ApplyLayout (LayoutLambda _ (v, e)) arg) =
-      Just $ substLayoutName v arg e
-      -- Just $ substBind e (LayoutName arg)
+    go (ApplyLayout (LayoutLambda _ (B p t)) arg) =
+      Just $ subst p arg t
     go _ = Nothing
-
--- NOTE: We are not careful about capture avoidance here.
-substLayoutName :: String -> LayoutName -> Expr -> Expr
-substLayoutName old new =
-  transform go
-  where
-    go (ApplyLayout f arg) =
-      ApplyLayout f (renameLayoutName old new arg)
-    go (Lower x layout) =
-      Lower x (renameLayoutName old new layout)
-    go e = e
-
-renameLayoutName :: String -> LayoutName -> LayoutName -> LayoutName
-renameLayoutName old new x0@(LayoutNameB x)
-  | x == old = new
-renameLayoutName _ _ x0 = x0
 

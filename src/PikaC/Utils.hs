@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 module PikaC.Utils
   where
@@ -69,7 +70,10 @@ countOccurrences = Set.fromList . go []
         Just (n, acc') -> go ((x, n+1) : acc') xs
 
 -- TODO: Deal with these orphan instances
-deriving instance (Data a, Data b) => Data (Bind a b)
-deriving instance Data a => Data (Name a)
-instance (Data a, Data b) => Plated (Bind a b)
+-- deriving instance (Data a, Data b) => Data (Bind a b)
+-- deriving instance Data a => Data (Name a)
+-- instance (Data a, Data b) => Plated (Bind a b)
+-- deriving instance Traversable (Bind a)
+-- deriving instance Functor (Bind a)
+-- deriving instance Foldable (Bind a)
 

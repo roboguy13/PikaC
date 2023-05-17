@@ -3,6 +3,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module PikaC.Syntax.Heaplet
   where
@@ -10,7 +12,9 @@ module PikaC.Syntax.Heaplet
 import Data.Semigroup
 import Data.List
 import Data.Function
+
 import PikaC.Ppr
+import PikaC.Syntax.Type (AdtName)
 
 import Data.Maybe
 import Control.Monad.Identity
@@ -34,8 +38,20 @@ data Loc = LocName :+ Int
 
 instance Alpha Loc
 
-newtype LocVar = LocVar String deriving (Show, Generic, Data)
+newtype LocVar = LocVar LocName deriving (Show, Generic)
 type LocName = Name LocVar
+
+instance Alpha LocVar
+
+instance Subst LocVar Loc
+instance Subst LocVar a => Subst LocVar (PointsTo a)
+
+instance Subst LocVar LocVar where
+  isvar (LocVar n) = Just $ SubstName n
+
+instance Subst LocVar AdtName
+
+instance Ppr LocVar where ppr (LocVar v) = text $ show v
 
 -- instance Ppr LocVar where ppr (LocVar v) = text v
 --
@@ -68,7 +84,7 @@ locBase (x :+ _) = x
 locIx :: Loc -> Int
 locIx (_ :+ i) = i
 
-pointsToNames :: Ord a => [PointsTo a] -> [LocName]
+pointsToNames :: [PointsTo a] -> [LocName]
 pointsToNames = nub . map (locBase . pointsToLhs)
 
 findSetToZero :: [LocName] -> [PointsTo a] -> [LocName]

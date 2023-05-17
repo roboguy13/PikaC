@@ -21,7 +21,6 @@ data Type
   | BoolType
   | FnType Type Type
   | TyVar TypeName
-  | TyLayoutName String
   deriving (Show, Generic)
 
 instance Alpha Type
@@ -45,13 +44,18 @@ data TypeSig =
 newtype AdtName = AdtName String
   deriving (Show, Eq, Ord, Generic, Data)
 
-newtype TypeVar = TypeVar String
+newtype TypeVar = TypeVar TypeName deriving (Show, Generic)
 type TypeName = Name TypeVar
 
-instance Ppr TypeVar where ppr (TypeVar v) = text v
+instance Alpha TypeVar
+
+instance Subst TypeVar TypeVar where
+  isvar (TypeVar v) = Just $ SubstName v
+
+instance Ppr TypeVar where ppr (TypeVar v) = text $ show v
 
 instance Alpha AdtName
-instance Subst a AdtName where isvar _ = Nothing -- We never replace a concrete layout name with anything else
+-- instance Subst a AdtName where isvar _ = Nothing -- We never replace a concrete layout name with anything else
 
 data LayoutConstraint = TypeName :~ AdtName
   deriving (Show)

@@ -100,6 +100,15 @@ type LayoutVarSubst = [(ExprName, (String, LayoutArg))]
 convertExpr :: LayoutVarSubst -> [Layout] -> Pika.Expr -> FreshM PikaCore.Expr
 convertExpr vsubst layouts = go . reduceLayouts
   where
+    goBase :: Pika.Expr -> FreshM PikaCore.Base
+    goBase (Pika.V n) = pure $ PikaCore.V $ convertName n
+    goBase (Pika.Add x y) = PikaCore.Add <$> goBase x <*> goBase y
+    goBase (Pika.Sub x y) = PikaCore.Sub <$> goBase x <*> goBase y
+    goBase (Pika.Equal x y) = PikaCore.Equal <$> goBase x <*> goBase y
+    goBase (Pika.IntLit i) = pure $ PikaCore.IntLit i
+    goBase (Pika.BoolLit b) = pure $ PikaCore.BoolLit b
+    goBase e = error $ "convertExpr.goBase: " ++ show e
+
     go :: Pika.Expr -> FreshM PikaCore.Expr
     go (Pika.V n) = pure . base $ PikaCore.V $ convertName n
     go e0@(Pika.LayoutTypeArg {}) =
@@ -128,11 +137,11 @@ convertExpr vsubst layouts = go . reduceLayouts
           (PikaCore.App f ys)
           (PikaCore.BaseExpr (PikaCore.LayoutV rs))
     go (Pika.Add x y) =
-      fmap base (PikaCore.Add <$> go x <*> go y)
+      fmap base (PikaCore.Add <$> goBase x <*> goBase y)
     go (Pika.Sub x y) =
-      fmap base (PikaCore.Sub <$> go x <*> go y)
+      fmap base (PikaCore.Sub <$> goBase x <*> goBase y)
     go (Pika.Equal x y) =
-      fmap base (PikaCore.Equal <$> go x <*> go y)
+      fmap base (PikaCore.Equal <$> goBase x <*> goBase y)
     -- go (Pika.Not x) =
     --   fmap base (PikaCore.Not <$> go x)
 

@@ -36,8 +36,8 @@ computeBranchCondition def branch = not' $ go allInputNames
 
     checkName name =
       if name `elem` branchNames
-        then Equal (base (LocV name)) (base (IntLit 0))
-        else Not (base (Equal (base (LocV name)) (base (IntLit 0))))
+        then Equal (LocV (LocVar name)) (IntLit 0)
+        else Not (Equal (LocV (LocVar name)) (IntLit 0))
 
     go [] = BoolLit True
     go [name] = checkName name
