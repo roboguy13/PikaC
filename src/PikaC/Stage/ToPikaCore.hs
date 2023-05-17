@@ -1,5 +1,7 @@
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
+
 module PikaC.Stage.ToPikaCore
   where
 
@@ -22,8 +24,12 @@ import Unbound.Generics.LocallyNameless
 import GHC.Stack
 
 import Data.Void
+import Data.List
+import Data.Maybe
 
 import Control.Lens hiding (simple)
+
+import Control.Applicative
 
 toPikaCore :: [Layout] -> Pika.FnDef -> PikaCore.FnDef
 toPikaCore layouts fn = runFreshM $ do
@@ -47,17 +53,42 @@ branchToPikaCore layouts outParams branch = runFreshM $ do
       { PikaCore.fnDefOutputParams = outParams
       }
 
-mkVSubst :: [Layout] -> Type -> Pattern -> FreshM LayoutVarSubst
-mkVSubst _ IntType pat = undefined
-mkVSubst layouts (TyVar n) pat =
-  let layout = lookupLayout layouts (name2String n)
+type LayoutVarSubst = [(ExprName, (String, LayoutArg))]
+
+-- | Get location variables associated to expression variable, based on the
+-- LApply's in a LayoutBranch
+findLApplies :: LayoutBranch -> ExprName -> Maybe [LocName]
+findLApplies branch n =
+    map unLocVar <$> go' (unLayoutBody (_layoutBody branch))
+  where
+    go' [] = Nothing
+    go' (x:xs) = go x <|> go' xs
+
+    go (LPointsTo {}) = Nothing
+    go (LApply _ (Pika.V n') vars)
+      | n' == n = Just vars
+    go _ = Nothing
+
+mkVSubst :: [Layout] -> Type -> Pattern -> FreshM [(ExprName, (String, LayoutArg))]
+mkVSubst _ IntType pat = undefined --zip (_patVars pat) $ zip 
+mkVSubst layouts (TyVar n) pat = do
+  let layoutString = name2String n
+      layout = lookupLayout layouts layoutString
       branch = lookupLayoutBranch' layout (_patConstructor pat)
-  in
-  undefined
+      vars = _patVars pat
+      go v = fromMaybe ((:[]) . expr2LocName $ v) (findLApplies branch v)
+      locNameLists = map go vars
+
+  locs <- mapM (mapM fresh) locNameLists
+  pure $ zip vars $ zip (repeat layoutString) locs
+  where
+    expr2LocName :: ExprName -> LocName
+    expr2LocName = string2Name . name2String
 
 generatePatternAsn :: LayoutVarSubst -> [Layout] -> Type -> Pattern -> FreshM PikaCore.ExprAssertion
 generatePatternAsn vsubst layouts IntType pat = pure []
 generatePatternAsn vsubst layouts BoolType pat = pure []
+generatePatternAsn _ _ (FnType {}) _ = error "generatePatternAsn: function type"
 generatePatternAsn vsubst layouts (TyVar n) pat =
   let layout = lookupLayout layouts (name2String n)
       LayoutBody z = applyLayout' layout (_patConstructor pat) (map Pika.V (_patVars pat))
@@ -92,8 +123,6 @@ toV e = error $ "toV: got " ++ show e
 toBase :: HasCallStack => PikaCore.Expr -> PikaCore.Base
 toBase (PikaCore.SimpleExpr (PikaCore.BaseExpr e)) = e
 toBase e = error $ "toBase: " ++ ppr' e
-
-type LayoutVarSubst = [(ExprName, (String, LayoutArg))]
 
 convertExpr :: LayoutVarSubst -> [Layout] -> Pika.Expr -> FreshM PikaCore.Expr
 convertExpr vsubst layouts = go . reduceLayouts

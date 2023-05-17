@@ -78,7 +78,7 @@ data LayoutBranch =
 -- type LayoutBranch = LayoutBranch' Identity
 --
 -- newtype LayoutBody operand a = LayoutBody [LayoutHeaplet operand a]
-newtype LayoutBody = LayoutBody [LayoutHeaplet]
+newtype LayoutBody = LayoutBody { unLayoutBody :: [LayoutHeaplet] }
   deriving (Show, Generic)
 
 data LayoutHeaplet
@@ -86,16 +86,17 @@ data LayoutHeaplet
   | LApply
       String -- Layout name
       Expr    -- Pattern variable
-      [LayoutVar]    -- Layout variables
+      [LocVar]    -- Layout variables
   deriving (Show, Generic)
 
-type LayoutVar = Name Void
 type PatternVar = Name Expr
 
 makeLenses ''Layout
 makeLenses ''LayoutBranch
 makeLenses ''LayoutBody
 makePrisms ''LayoutHeaplet
+
+instance Subst Expr LocVar
 
 
 -- instance Subst LayoutVar (f a) => Subst LayoutVar (LayoutHeaplet f a)
