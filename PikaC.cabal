@@ -1,0 +1,64 @@
+cabal-version:      2.4
+name:               PikaC
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             David Young
+maintainer:         roboguy06@gmail.com
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files:
+    CHANGELOG.md
+    README.md
+
+executable PikaC
+    main-is:          Main.hs
+
+    -- Modules included in this executable, other than Main.
+    other-modules:
+      PikaC.Backend.C.CodeGen
+      PikaC.Backend.C.Syntax
+      PikaC.Backend.C.DataDeps
+      PikaC.Ppr
+      PikaC.Preorder.Preorder
+      PikaC.Syntax.Expr
+      PikaC.Syntax.Heaplet
+      PikaC.Syntax.PikaCore.Expr
+      PikaC.Syntax.PikaCore.FnDef
+      PikaC.Syntax.Pika.Pattern
+      PikaC.Syntax.Pika.Layout
+      PikaC.Syntax.Pika.Expr
+      PikaC.Syntax.Pika.FnDef
+      PikaC.Syntax.Type
+      PikaC.Stage.ToPikaCore
+      PikaC.Utils
+      PikaC.Subst
+      PikaC.FreshGen
+
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    build-depends:    base ^>=4.16.4.0,
+                      containers,
+                      mtl,
+                      hedgehog,
+                      pretty,
+                      bound,
+                      unbound-generics,
+                      deriving-compat,
+                      mmorph,
+                      lens,
+    hs-source-dirs:   src
+    default-language: Haskell2010

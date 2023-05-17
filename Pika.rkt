@@ -11,7 +11,11 @@
   (Γ ::= [] ((x : τ) ...))
   (C ::= [] ((a ~ (Layout X)) ...))
 
+  (data-def ::= (data X := ctr-def ...))
+
   (layout-constraint ::= (a ~ (Layout X)))
+
+  (ctr-def ::= (Ctr τ ...))
 
   (layout-defs ::= (layout-def ...))
   (layout-def ::= ((A : (Layout X) [x ...]) layout-case ...))
@@ -21,21 +25,27 @@
   #;(E ::= [] ((A ~ (Layout X)) E))
   (T ::= ((loc : τ) ...))
   (loc ::= x (x + number))
+
   #:binding-forms
   (λ (x : τ) e #:refers-to x))
 
 (define-extended-language Pika
   Base-Pika
   (e ::= .... (e e) (apply α e) (Λ (α ~ (Layout X)) e))
+  (top-level-def ::= ((x : (layout-constraint ...) ⇒ τ) top-level-case ...))
+  (top-level-case ::= ((pat) := e))
   #:binding-forms
   (Λ (α ~ (Layout X)) e #:refers-to α)
-  ((α ~ (Layout X)) ⇒ τ #:refers-to α))
+  ((α ~ (Layout X)) ⇒ τ #:refers-to α)
+  ((Ctr x ...) := e #:refers-to (shadow x ...))
+  (x : ((α ~ (Layout X)) ...) ⇒ τ #:refers-to (shadow α ...)))
 
 (define-extended-language Pika-Core
   Base-Pika
   (e ::= .... (layout-arg x ...) (e arg ...) (layout (x ...) T (h ...))
          (with ((x ...) := e) e))
   (arg ::= (x ...) (integer) (bool))
+  (ρ ::= [(x (x ...)) ...])
   #:binding-forms
   (layout (x ...) ((l : τ) ...) (h ...) #:refers-to (shadow x ...))
   (with ((x ...) := e) e #:refers-to (shadow x ...)))
@@ -157,6 +167,19 @@
    (where #f ,(equal? (term A) (term A_2)))
    -----
    (get-layout  (((A_2 : (Layout α) [x ...]) layout-case ...) layout-def ...) A (layout-case_2 ...))])
+
+(define-judgment-form Base-Pika
+  #:mode (get-layout-params I I O)
+  #:contract (get-layout-params layout-defs A [x ...])
+
+  [
+   -----
+   (get-layout-params (((A : (Layout α) [x ...]) layout-case ...) layout-def ...) A [x ...])]
+
+  [(get-layout-params (layout-def ...) A (x_2 ...))
+   (where #f ,(equal? (term A) (term A_2)))
+   -----
+   (get-layout-params (((A_2 : (Layout α) [x ...]) layout-case ...) layout-def ...) A [x_2 ...])])
 
 (define-judgment-form Base-Pika
   #:mode (get-layout-branch-from-def I I O O)
@@ -301,8 +324,117 @@
    -----
    (get-loc-types Γ C ((loc ↦ e) h ...) ((loc : τ) . T))])
 
+(define-judgment-form Base-Pika
+  #:mode (lookup-ctr I I O)
+  #:contract (lookup-ctr (ctr-def ...) Ctr (τ ...))
 
-(define (-->PC defs Γ C)
+  [
+   -----
+   (lookup-ctr ((Ctr τ ...) ctr-def ...) Ctr (τ ...))]
+
+  [(lookup-ctr (ctr-def_2 ...) Ctr (τ ...))
+   (where #f ,(equal? (term Ctr_2) (term Ctr)))
+   -----
+   (lookup-ctr ((Ctr_2 τ_2 ...) ctr-def_2 ...) Ctr (τ ...))])
+
+(define-judgment-form Base-Pika
+  #:mode (data-name I O)
+  #:contract (data-name data-def X)
+
+  [
+   -----
+   (data-name (data X := ctr-def ...) X)])
+
+(define-judgment-form Base-Pika
+  #:mode (get-ctr-type I I O)
+  #:contract (get-ctr-type layout-constraint (τ ...) τ)
+
+  [
+   -----
+   (get-ctr-type (α ~ (Layout X)) [] α)]
+
+  [(where #f ,(equal? (term X) (term τ_2)))
+   (get-ctr-type (α ~ (Layout X)) (τ_3 ...) τ)
+   -----
+   (get-ctr-type (α ~ (Layout X)) (τ_2 τ_3 ...) (τ_2 → τ))]
+
+  [(get-ctr-type (α ~ (Layout X)) (τ_2 ...) τ)
+   -----
+   (get-ctr-type (α ~ (Layout X)) (X τ_2 ...) (α → τ))])
+
+(define-judgment-form Base-Pika
+  #:mode (get-data-type I I I O)
+  #:contract (get-data-type layout-constraint data-def Ctr τ)
+
+  [(lookup-ctr (ctr-def ...) Ctr (τ_2 ...))
+   #;(data-name (data X := ctr-def ...) X)
+   (get-ctr-type layout-constraint (τ_2 ...) τ)
+   -----
+   (get-data-type layout-constraint (data X := ctr-def ...) Ctr τ)])
+
+(define-judgment-form Base-Pika
+  #:mode (lookup-data-def I I O)
+  #:contract (lookup-data-def (data-def ...) X data-def)
+
+  [
+   -----
+   (lookup-data-def ((data X := ctr-def ...) data-def ...) X (data X := ctr-def ...))]
+
+  [(lookup-data-def (data-def_2 ...) X data-def)
+   (where #f ,(equal? (term X) (term X_2)))
+   -----
+   (lookup-data-def ((data X_2 := ctr-def ...) data-def_2 ...) X data-def)])
+
+
+
+;  [(lookup-ctr data-def Ctr (X_2 a ...))
+;   (data-name data-def X)
+;   (where #f ,(equal? (term X) (term X_2)))
+;   (get-data-type (α ~ (Layout X)) (data X := 
+;   -----
+;   (get-data-type (α ~ (Layout X)) data-def Ctr (X_2 → τ))])
+
+(define-judgment-form Full-Pika
+  #:mode (lookup-renaming I I O)
+  #:contract (lookup-renaming ρ x [x ...])
+
+  [
+   ----
+   (lookup-renaming ((x (x_2 ...)) (x_3 (x_4 ...)) ...) x (x_2 ...))]
+
+  [(lookup-renaming ((x_3 (x_4 ...)) ...) x (x_5 ...))
+   ----
+   (lookup-renaming ((x_0 (x_1 ...)) (x_3 (x_4 ...)) ...) x (x_5 ...))])
+
+(define-judgment-form Full-Pika
+  #:mode (==>PC I I I O)
+  #:contract (==>PC layout-defs ρ e e)
+
+  [(lookup-renaming ρ x [x_2 ...])
+   ----
+   (==>PC layout-defs ρ x (layout-arg x_2 ...))
+   ]
+
+  [(get-layout-params layout-defs A [x_2 ...])
+   (fresh ([x_3 ...] [x_2 ...]))
+   ----
+   (==>PC layout-defs ρ (apply A x) (with ([x_2 ...] := x) (layout-arg x_2 ...)))
+   ])
+
+#;(define (-->PC defs Γ ρ)
+  (reduction-relation
+   Full-Pika
+   #:domain e
+
+   (--> x (layout-arg ,(ρ (term x))))
+   
+   (--> (apply A x) (with ([x_2 ...] := x) (layout-arg x_2 ...))
+        (judgment-holds (get-layout-params ,defs A xs))
+        (where [x_0 ...] xs)
+        (fresh [[x_2 ...] [x_0 ...]])
+   )))
+
+#;(define (-->PC defs Γ C)
   (reduction-relation
    Full-Pika-Ctx
    #:domain e
@@ -348,7 +480,17 @@
         "PC-Apply")))
 
 
+
 ;;; Tests
+
+(define List
+  (term
+   (data List := (Nil) (Cons Int List))))
+
+(define Tree
+  (term
+   (data Tree := (Tip) (Node Int Tree Tree))))
+
 
 #;(layout-def ::= ((A : (Layout X) [x ...]) layout-case ...))
 #;(layout-case ::= (pat := (h ...)))
@@ -358,7 +500,15 @@
     ((Nil) := [])
     ((Cons head tail) := [(x ↦ head) ((x + 1) ↦ tail)]))))
 
+(define left-list
+  (term
+   ((left-list : ((α ~ (Layout Tree)) (β ~ (Layout List))) ⇒ (α → β))
+    ((Tip) := (apply β Nil))
+    ((Node x left right) := (apply β ((Cons x) ((apply β (apply α left-list)) left)))))))
+
 (define globals `[,Sll])
+
+(define global-data-defs `(,List ,Tree))
 
 #;(traces (-->PC globals (term [(f : ((a ~ (Layout List)) ⇒ (a → a))) (x : ((b ~ (Layout List)) ⇒ b))]) (term [(Sll ~ (Layout List))])) (term ((apply Sll f) (apply Sll x))))
 
