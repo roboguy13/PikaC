@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module PikaC.Syntax.Pika.Expr
   where
@@ -23,11 +24,14 @@ import GHC.Generics
 
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
+import PikaC.Syntax.Pika.Pattern
 
 import Control.Lens
 import Control.Lens.TH
 
 import Data.Data
+
+type instance PType Expr = Expr
 
 data Expr
   = V ExprName

@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
@@ -21,6 +22,8 @@ import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
 
 import PikaC.Syntax.Heaplet
+import PikaC.Syntax.Pika.Layout
+import PikaC.Syntax.Pika.Pattern
 
 import Control.Lens
 import Control.Lens.TH
@@ -28,6 +31,10 @@ import Control.Lens.TH
 import GHC.Generics
 
 type ExprName = Name Expr
+
+type instance PType Base = Expr
+type instance PType SimpleExpr = Expr
+type instance PType Expr = Expr
 
 -- type LocName = ExprName
 
@@ -125,6 +132,20 @@ instance Subst Expr Expr where
 instance Subst Expr a => Subst Expr (PointsTo a)
 instance Subst Expr Loc
 
+-- instance Subst Expr (LayoutBody Expr)
+instance Subst Expr a => Subst Expr (LayoutHeaplet a)
+instance Subst Base (LayoutBody Base)
+instance Subst Base (LayoutHeaplet Base)
+instance Subst Base (PointsTo Base)
+instance Subst Base Loc
+instance Subst Base LocVar
+
+instance Subst Base Base where
+  -- isvar (V x) = Just $ SubstName x
+  --
+
+instance Subst Expr a => Subst Expr (LayoutBody a)
+
 getPointsToExpr :: Expr -> [PointsToExpr]
 getPointsToExpr e = e ^.. (_SimpleExpr . _SslAssertion . _2 . traversed)
 
@@ -156,7 +177,9 @@ instance Ppr Base where
 instance Ppr SimpleExpr where
   ppr (BaseExpr e) = ppr e
   ppr (WithIn bnd (B vars body)) =
-    sep [text "with", hsep [ppr vars, text ":=", ppr bnd], text "in", ppr body]
+    sep [hsep [text "with {", hsep . punctuate (text ",") $ map go vars, text "} :=", ppr bnd], text "in", ppr body]
+      where
+        go x = text "<" <> ppr x <> text ">"
 
   ppr (SslAssertion vars heaplets) =
     sep [text "layout", ppr vars, ppr heaplets]

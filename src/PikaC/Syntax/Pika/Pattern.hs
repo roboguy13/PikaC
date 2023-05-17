@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module PikaC.Syntax.Pika.Pattern
   where
@@ -19,22 +20,24 @@ import Control.Lens.TH
 
 import Unbound.Generics.LocallyNameless
 
+type family PType a
+
 data Pattern a
-  = PatternVar (Name a)
+  = PatternVar (Name (PType a))
   | Pattern
       { _patConstructor :: String
-      , _patVars :: [Name a]
+      , _patVars :: [Name (PType a)]
       }
   deriving (Show)
 
 makeLenses ''Pattern
 
-patternMatch :: Subst a b => Pattern a -> String -> [a] -> Maybe (b -> b)
+patternMatch :: Subst (PType a) b => Pattern a -> String -> [PType a] -> Maybe (b -> b)
 patternMatch pat constructor xs
-  | _patConstructor pat == constructor = Nothing
+  | _patConstructor pat /= constructor = Nothing
   | otherwise = Just $ substs (zip (_patVars pat) xs)
 
-patternMatch' :: Subst a b => Pattern a -> String -> [a] -> b -> b
+patternMatch' :: Subst (PType a) b => Pattern a -> String -> [PType a] -> b -> b
 patternMatch' pat constructor xs =
   case patternMatch pat constructor xs of
     Nothing -> error $ "patternMatch': Pattern constructors do not match: Expected: " ++ _patConstructor pat ++ ", found: " ++ constructor

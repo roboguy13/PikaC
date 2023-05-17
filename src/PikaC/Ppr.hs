@@ -28,7 +28,7 @@ instance Ppr String where ppr = text
 instance Ppr Int where ppr = text . show
 instance Ppr Bool where ppr = text . show
 
-instance Ppr (Name a) where ppr = text . name2String
+instance Ppr (Name a) where ppr = text . show
 
 instance Ppr AnyName where ppr (AnyName n) = ppr n
 

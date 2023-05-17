@@ -127,13 +127,13 @@ lookupLayoutBranch' layout c =
 -- instance Subst Expr a => Subst Expr (PointsTo a)
 
 -- | Apply layout to a constructor value
-applyLayout :: Subst a (LayoutBody a) => Layout a -> String -> [a] -> Maybe (LayoutBody a)
+applyLayout :: Subst (PType a) (LayoutBody a) => Layout a -> String -> [PType a] -> Maybe (LayoutBody a)
 applyLayout layout constructor args = do
   branch <- lookupLayoutBranch layout constructor
   let body = _layoutBody branch
   pure $ patternMatch' (_layoutPattern branch) constructor args body
 
-applyLayout' :: Subst a (LayoutBody a) => Layout a -> String -> [a] -> LayoutBody a
+applyLayout' :: Subst (PType a) (LayoutBody a) => Layout a -> String -> [PType a] -> LayoutBody a
 applyLayout' layout c args =
   case applyLayout layout c args of
     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c
