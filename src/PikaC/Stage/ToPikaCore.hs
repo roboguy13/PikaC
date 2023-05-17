@@ -171,15 +171,18 @@ toBase :: HasCallStack => PikaCore.Expr -> PikaCore.Base
 toBase (PikaCore.SimpleExpr (PikaCore.BaseExpr e)) = e
 toBase e = error $ "toBase: " ++ ppr' e
 
-applyLayoutOrNOP :: Layout Pika.Expr -> String -> [PikaCore.Expr] -> PikaConvert PikaCore.Expr
-applyLayoutOrNOP layout constructor args = fmap (fromMaybe (PikaCore.App constructor args)) $ do
-  let params = _layoutParams layout
-  
-  layout' <- convertLayout layout
+applyLayoutOrNOP :: Layout Pika.Expr -> String -> [Pika.Expr] -> PikaConvert PikaCore.Expr
+applyLayoutOrNOP layout constructor args = do
+  args' <- mapM convertExpr args
+  fmap (fromMaybe (PikaCore.App constructor args')) $ do
+    let params = _layoutParams layout
+    
+    case applyLayout layout constructor args of
+      Nothing -> pure Nothing
+      Just asns -> do
+        asns' <- mapM convertExpr asns
 
-  pure $ do
-    asns <- applyLayout layout' constructor args
-    pure (PikaCore.SimpleExpr $ PikaCore.SslAssertion params (getPointsTos asns))
+        pure . pure . PikaCore.SimpleExpr $ PikaCore.SslAssertion params (map (fmap toBase) (getPointsTos asns'))
 
 getPointsTos :: LayoutBody a -> [PointsTo a]
 getPointsTos (LayoutBody xs0) = go xs0
@@ -188,15 +191,15 @@ getPointsTos (LayoutBody xs0) = go xs0
     go (LApply {} : xs) = go xs
     go (LPointsTo p : xs) = p : go xs
 
-convertLayout :: Layout Pika.Expr -> PikaConvert (Layout PikaCore.Base)
-convertLayout layout = do
-  branches <- mapM convertLayoutBranch (_layoutBranches layout)
-  pure $
-    Layout
-      { _layoutName = _layoutName layout
-      , _layoutParams = _layoutParams layout
-      , _layoutBranches = branches
-      }
+-- convertLayout :: Layout Pika.Expr -> PikaConvert (Layout PikaCore.Base)
+-- convertLayout layout = do
+--   branches <- mapM convertLayoutBranch (_layoutBranches layout)
+--   pure $
+--     Layout
+--       { _layoutName = _layoutName layout
+--       , _layoutParams = _layoutParams layout
+--       , _layoutBranches = branches
+--       }
 
 convertLayoutBranch :: LayoutBranch Pika.Expr -> PikaConvert (LayoutBranch PikaCore.Base)
 convertLayoutBranch branch = do
@@ -255,11 +258,10 @@ convertExpr = go . reduceLayouts
 
     go e0@(Pika.ApplyLayout (Pika.App f xs) layoutName) = do
       rs <- generateParamsM (TyVar (unTypeVar layoutName))
-      ys <- mapM go xs
 
       layout <- lookupLayoutM (name2String (unTypeVar layoutName))
 
-      app <- applyLayoutOrNOP layout f ys
+      app <- applyLayoutOrNOP layout f xs
 
       pure $
         simple $ PikaCore.WithIn

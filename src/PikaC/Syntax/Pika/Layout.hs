@@ -1,9 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -54,6 +53,7 @@ data Layout a =
     , _layoutBranches :: [LayoutBranch a]
     , _layoutParams :: [LocName]
     }
+    deriving (Show)
 
 -- type Layout = Layout' Identity
 
@@ -62,6 +62,7 @@ data LayoutBranch a =
     { _layoutPattern :: Pattern a
     , _layoutBody :: LayoutBody a
     }
+    deriving (Show)
 
 -- instance Bound f => Functor (LayoutBranch f)
 --
@@ -78,7 +79,7 @@ data LayoutBranch a =
 --
 -- newtype LayoutBody operand a = LayoutBody [LayoutHeaplet operand a]
 newtype LayoutBody a = LayoutBody { unLayoutBody :: [LayoutHeaplet a] }
-  deriving (Show, Generic, Semigroup, Monoid)
+  deriving (Show, Generic, Functor, Foldable, Traversable, Semigroup, Monoid)
 
 data LayoutHeaplet a
   = LPointsTo (PointsTo a)
@@ -86,7 +87,7 @@ data LayoutHeaplet a
       String -- Layout name
       a    -- Pattern variable
       [LocVar]    -- Layout variables
-  deriving (Show, Generic)
+  deriving (Show, Generic, Functor, Foldable, Traversable)
 
 -- type PatternVar = Name Expr
 
