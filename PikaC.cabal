@@ -44,6 +44,9 @@ executable PikaC
       PikaC.Syntax.Pika.FnDef
       PikaC.Syntax.Type
       PikaC.Stage.ToPikaCore
+      PikaC.Stage.ToPikaCore.Simplify
+      PikaC.Stage.ToPikaCore.SubstWithLayoutVar
+      PikaC.Stage.ToPikaCore.NestedCalls
       PikaC.Stage.ToPikaCore.Monad
       PikaC.Utils
       PikaC.Subst

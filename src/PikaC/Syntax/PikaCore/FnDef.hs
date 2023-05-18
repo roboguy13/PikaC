@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PikaC.Syntax.PikaCore.FnDef
   where
@@ -7,28 +8,33 @@ import PikaC.Syntax.PikaCore.Expr
 import PikaC.Syntax.Heaplet
 import PikaC.Ppr
 
+import Control.Lens.TH
+
 data FnDef =
   FnDef
-  { fnDefName :: String
-  , fnDefBranches :: [FnDefBranch]
-  , fnDefParams :: [ExprName]
+  { _fnDefName :: String
+  , _fnDefBranches :: [FnDefBranch]
+  , _fnDefParams :: [ExprName]
   }
   deriving (Show)
 
 data FnDefBranch =
   FnDefBranch
-  { fnDefOutputParams :: LayoutArg Expr
-  , fnDefBranchInputAssertions :: [ExprAssertion]
-  , fnDefBranchBody :: Expr
+  { _fnDefOutputParams :: LayoutArg Expr
+  , _fnDefBranchInputAssertions :: [ExprAssertion]
+  , _fnDefBranchBody :: Expr
   }
   deriving (Show)
 
+makeLenses ''FnDef
+makeLenses ''FnDefBranch
+
 fnDefInputNames :: FnDef -> [ExprName]
-fnDefInputNames = concatMap fnDefBranchInputNames . fnDefBranches
+fnDefInputNames = concatMap fnDefBranchInputNames . _fnDefBranches
 
 fnDefBranchInputNames :: FnDefBranch -> [ExprName]
 fnDefBranchInputNames =
-  concatMap pointsToNames . fnDefBranchInputAssertions
+  concatMap pointsToNames . _fnDefBranchInputAssertions
 
 computeBranchCondition :: FnDef -> FnDefBranch -> Expr
 computeBranchCondition def branch = not' $ go allInputNames
@@ -47,21 +53,21 @@ computeBranchCondition def branch = not' $ go allInputNames
       and' (checkName name) (go rest)
 
 instance Ppr FnDef where
-  ppr def = go (fnDefBranches def)
+  ppr def = go (_fnDefBranches def)
     where
       go :: [FnDefBranch] -> Doc
       go [] = mempty
-      go (branch : rest) = (ppr (fnDefName def) <+> ppr branch) $$ go rest
+      go (branch : rest) = (ppr (_fnDefName def) <+> ppr branch) $$ go rest
 
 instance Ppr FnDefBranch where
   ppr branch =
     sep
-      [ hsep [hsep $ punctuate (text " ") (map ppr (fnDefBranchInputAssertions branch))
+      [ hsep [hsep $ punctuate (text " ") (map ppr (_fnDefBranchInputAssertions branch))
               , text "==>"
-              , ppr (fnDefOutputParams branch)
+              , ppr (_fnDefOutputParams branch)
               , text ":="
               ]
-      , nest 1 $ ppr (fnDefBranchBody branch) <> text ";"
+      , nest 1 $ ppr (_fnDefBranchBody branch) <> text ";"
       ]
 
 and' :: Expr -> Expr -> Expr

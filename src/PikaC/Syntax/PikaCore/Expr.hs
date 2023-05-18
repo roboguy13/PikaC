@@ -75,7 +75,7 @@ instance Plated Expr where
   plate f (SslAssertion a b) =
     let z = plate (traverseOf (traversed.pointsToRhsLens) f) b
     in
-    pure $ SslAssertion a undefined
+    SslAssertion a <$> z
   plate f (App x ys) = App x <$> traverse f ys
 
 type PointsToExpr = PointsTo Expr

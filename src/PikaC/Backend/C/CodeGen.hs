@@ -42,18 +42,18 @@ type Outputs = LayoutArg CExpr
 
 codeGenFn :: PikaCore.FnDef -> C.CFunction
 codeGenFn fn = runGenC $ do
-  params <- mapM internExprName $ PikaCore.fnDefParams fn
-  body <- go (PikaCore.fnDefBranches fn)
+  params <- mapM internExprName $ PikaCore._fnDefParams fn
+  body <- go (PikaCore._fnDefBranches fn)
 
 
   pure $
     C.CFunction
-      { C.cfunctionName = PikaCore.fnDefName fn
+      { C.cfunctionName = PikaCore._fnDefName fn
       , C.cfunctionParams = params
       , C.cfunctionBody = body
       }
   where
-    pointsTos = toListOf (traversed.to fnDefBranchBody.to PikaCore.getPointsToExpr.traversed) (PikaCore.fnDefBranches fn)
+    pointsTos = toListOf (traversed . PikaCore.fnDefBranchBody . to PikaCore.getPointsToExpr . traversed) (PikaCore._fnDefBranches fn)
     possiblyWritten = locBase <$> locsPossiblyWrittenTo pointsTos
 
     go :: [PikaCore.FnDefBranch] -> GenC [Command]
@@ -65,17 +65,17 @@ codeGenFn fn = runGenC $ do
 codeGenFnBranch :: [PikaCore.ExprName] -> PikaCore.FnDef -> PikaCore.FnDefBranch -> [Command] -> GenC Command
 codeGenFnBranch possiblyWritten fn branch elseCmd = do
   cond <- codeGenBase (PikaCore.computeBranchCondition fn branch)
-  outputs <- mapM internExprName $ PikaCore.fnDefOutputParams branch
+  outputs <- mapM internExprName $ PikaCore._fnDefOutputParams branch
 
-  pointsTos <- mapM convertPointsTo (PikaCore.getPointsToExpr (PikaCore.fnDefBranchBody branch))
+  pointsTos <- mapM convertPointsTo (PikaCore.getPointsToExpr (PikaCore._fnDefBranchBody branch))
 
   possiblyWritten' <- mapM internExprName possiblyWritten
 
   let allocs = findAllocations outputs pointsTos
       zeros = C.findSetToZero possiblyWritten' outputs pointsTos
 
-  inputsCode <- concat <$> mapM codeGenInputs (PikaCore.fnDefBranchInputAssertions branch)
-  bodyCode <- codeGenExpr outputs (PikaCore.fnDefBranchBody branch)
+  inputsCode <- concat <$> mapM codeGenInputs (PikaCore._fnDefBranchInputAssertions branch)
+  bodyCode <- codeGenExpr outputs (PikaCore._fnDefBranchBody branch)
   pure $
     C.IfThenElse
       cond
@@ -258,23 +258,23 @@ exampleAsn =
 exampleFn :: FnDef
 exampleFn =
   FnDef
-    { fnDefName = "convertList2"
-    , fnDefParams = map s2n ["x", "w", "r"]
-    , fnDefBranches =
+    { _fnDefName = "convertList2"
+    , _fnDefParams = map s2n ["x", "w", "r"]
+    , _fnDefBranches =
         [FnDefBranch
-          { fnDefOutputParams = map s2n ["w", "r"]
-          , fnDefBranchInputAssertions = []
-          , fnDefBranchBody =
+          { _fnDefOutputParams = map s2n ["w", "r"]
+          , _fnDefBranchInputAssertions = []
+          , _fnDefBranchBody =
               PikaCore.SslAssertion (map s2n ["r"]) []
           }
 
         ,FnDefBranch
-          { fnDefOutputParams = map s2n ["w", "r"]
-          , fnDefBranchInputAssertions =
+          { _fnDefOutputParams = map s2n ["w", "r"]
+          , _fnDefBranchInputAssertions =
               [[(s2n "x" :+ 0) :->  (PikaCore.V (s2n "h"))
                ,(s2n "x" :+ 1) :->  (PikaCore.V (s2n "nxt"))
                ]]
-          , fnDefBranchBody =
+          , _fnDefBranchBody =
               PikaCore.WithIn (PikaCore.App "convertList2" [PikaCore.V $ s2n "nxt"])
                  (map s2n ["r", "b"])
                   $ PikaCore.SslAssertion (map s2n ["r", "w"])
