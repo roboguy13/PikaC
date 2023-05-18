@@ -30,7 +30,7 @@ fnDefBranchInputNames :: FnDefBranch -> [ExprName]
 fnDefBranchInputNames =
   concatMap pointsToNames . fnDefBranchInputAssertions
 
-computeBranchCondition :: FnDef -> FnDefBranch -> Base
+computeBranchCondition :: FnDef -> FnDefBranch -> Expr
 computeBranchCondition def branch = not' $ go allInputNames
   where
     allInputNames = fnDefInputNames def
@@ -64,11 +64,11 @@ instance Ppr FnDefBranch where
       , nest 1 $ ppr (fnDefBranchBody branch) <> text ";"
       ]
 
-and' :: Base -> Base -> Base
+and' :: Expr -> Expr -> Expr
 and' x (BoolLit True) = x
 and' x y = And x y
 
-not' :: Base -> Base
+not' :: Expr -> Expr
 not' (Not x) = x
 not' x = Not x
 

@@ -23,6 +23,8 @@ import Control.Monad.State
 import Control.Lens
 import Control.Lens.TH
 
+import GHC.Stack
+
 newtype GenCState =
   GenCState
     { _namePcToC :: [(PikaCore.ExprName, CName)]
@@ -47,13 +49,16 @@ scoped m = do
   pure r
 
 -- TODO: Does this obey scope properly?
-internExprName :: PikaCore.ExprName -> GenC CName
-internExprName n = do
-  assocs <- gets _namePcToC
-  case lookup n assocs of
-    Just n' -> pure n'
-    Nothing -> do
-      n' <- fresh (string2Name (name2String n))
-      namePcToC %= ((n, n') :)
-      pure n'
+internExprName :: HasCallStack => PikaCore.ExprName -> GenC CName
+internExprName n =
+  if not (isFreeName n)
+    then error "internExprName: Bound variable"
+    else do
+      assocs <- gets _namePcToC
+      case lookup n assocs of
+        Just n' -> pure n'
+        Nothing -> do
+          n' <- fresh (string2Name (name2String n))
+          namePcToC %= ((n, n') :)
+          pure n'
 
