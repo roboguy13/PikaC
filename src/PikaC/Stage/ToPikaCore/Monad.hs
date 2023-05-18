@@ -77,6 +77,15 @@ vsubstLookupM e = do
     Nothing -> error $ "vsubstLookupM: Cannot find variable " ++ show e ++ " in variable -> layout variable list conversion table"
     Just r -> pure r
 
+scoped :: MonadPikaIntern m => m a -> m a
+scoped m = do
+  state <- get
+  r <- m
+  put state
+  pure r
+
+-- TODO: Does this obey scope properly? Should we be using 'scoped' with
+-- this function?
 internExprName :: forall m. MonadPikaIntern m => Pika.ExprName -> m PikaCore.ExprName
 internExprName n = do
   assocs <- gets _pikaToPcExprNameMap

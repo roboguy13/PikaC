@@ -115,7 +115,7 @@ convertBase (Pika.BoolLit b) = pure $ PikaCore.BoolLit b
 convertBase e = error $ "convertBase: " ++ show e
 
 convertLayout :: forall m. MonadPikaIntern m => Layout Pika.Expr -> m (Layout PikaCore.Expr)
-convertLayout layout0 = do
+convertLayout layout0 = scoped $ do
   branches <- mapM convertLayoutBranch $ _layoutBranches layout0
   params <- mapM internExprName $ _layoutParams layout0
 
@@ -180,7 +180,7 @@ convertExpr = go . Pika.reduceLayouts
         then pure . base $ PikaCore.LayoutV y
         else error $ "convertExpr: layout " ++ layoutString ++ " does not match " ++ n ++ " in " ++ show e0
 
-    go e0@(Pika.ApplyLayout (Pika.App f xs) layoutName) = do
+    go e0@(Pika.ApplyLayout (Pika.App f xs) layoutName) = scoped $ do
       rs <- generateParamsM (TyVar (unTypeVar layoutName))
 
       layout <- lookupLayoutM (name2String (unTypeVar layoutName))
@@ -434,9 +434,6 @@ exampleMapAdd1 =
 -- toV (Pika.V x) = x
 -- toV e = error $ "toV: got " ++ show e
 --
--- toBase :: HasCallStack => PikaCore.Expr -> PikaCore.Base
--- toBase (PikaCore.SimpleExpr (PikaCore.BaseExpr e)) = e
--- toBase e = error $ "toBase: " ++ ppr' e
 --
 -- applyLayoutOrNOP :: Layout PikaCore.Expr -> String -> [Pika.Expr] -> PikaConvert PikaCore.Expr
 -- applyLayoutOrNOP layout constructor args = do

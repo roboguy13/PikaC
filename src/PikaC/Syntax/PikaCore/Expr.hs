@@ -29,6 +29,7 @@ import Control.Lens
 import Control.Lens.TH
 
 import GHC.Generics
+import GHC.Stack
 
 type ExprName = Name Expr
 
@@ -219,4 +220,8 @@ base = SimpleExpr . BaseExpr
 
 simple :: SimpleExpr -> Expr
 simple = SimpleExpr
+
+toBase :: HasCallStack => Expr -> Base
+toBase (SimpleExpr (BaseExpr e)) = e
+toBase e = error $ "toBase: " ++ ppr' e
 

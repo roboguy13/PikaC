@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric  #-}
+
 module PikaC.Backend.C.Syntax
   where
 
@@ -6,9 +8,14 @@ import PikaC.Ppr
 
 import Unbound.Generics.LocallyNameless
 
+import GHC.Generics
+
+type CName = Name CExpr
+type CLoc = Loc CExpr
+
 data CExpr
-  = V LocName
-  | LocValue Loc
+  = V CName
+  | LocValue CLoc
   | IntLit Int
   | BoolLit Bool
   | Add CExpr CExpr
@@ -16,28 +23,30 @@ data CExpr
   | Equal CExpr CExpr
   | And CExpr CExpr
   | Not CExpr
-  | Deref Loc
-  deriving (Show, Eq, Ord)
+  | Deref CLoc
+  deriving (Show, Eq, Ord, Generic)
 
 data Command
-  = Assign Loc CExpr
+  = Assign CLoc CExpr
   | IfThenElse CExpr [Command] [Command]
   | Call
       String
       [CExpr] -- Input parameters
       [CExpr] -- Output parameters
-  | IntoMalloc LocName Int
-  | Let LocName Loc
-  | Free LocName
+  | IntoMalloc CName Int
+  | Let CName CLoc
+  | Free CName
   | Nop
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Generic)
 
 data CFunction =
   CFunction
     { cfunctionName :: String
-    , cfunctionParams :: [LocName]
+    , cfunctionParams :: [CName]
     , cfunctionBody :: [Command]
     }
+
+instance Alpha CExpr
 
 instance Ppr Command where
   ppr (Assign loc e) =
@@ -67,11 +76,11 @@ instance Ppr Command where
   ppr (Let x y) = (text "loc" <+> ppr x <+> text "=" <+> readLoc y) <> text ";"
   ppr Nop = text ";"
 
-writeLoc :: Ppr b => Loc -> b -> Doc
+writeLoc :: Ppr b => CLoc -> b -> Doc
 writeLoc (x :+ i) y =
   text "WRITE_LOC(" <> hsep (punctuate (text ",") [ppr x , ppr i, ppr y]) <> text ")"
 
-readLoc :: Loc -> Doc
+readLoc :: CLoc -> Doc
 readLoc (x :+ i) =
   text "READ_LOC(" <> hsep (punctuate (text ",") [ppr x, ppr i]) <> text ")"
 
