@@ -222,7 +222,8 @@ applyLayoutOrNOP layout constructor args = do
         -- asns' <- convertLayoutBody asns
 
         -- trace ("args = " ++ show args ++ "; args' = " ++ show args' ++ "asns = " ++ show asns) .
-        pure . pure . PikaCore.SimpleExpr $ PikaCore.SslAssertion params (getPointsTos asns)
+        -- pure . pure . PikaCore.SimpleExpr $ PikaCore.SslAssertion params (getPointsTos asns)
+        pure . PikaCore.SimpleExpr <$> freshSslAssertion params (getPointsTos asns)
 
 getLApplies :: LayoutBody a -> [(String, a, [Name a])]
 getLApplies (LayoutBody x) =

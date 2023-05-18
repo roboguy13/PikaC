@@ -12,6 +12,7 @@ import qualified PikaC.Syntax.Pika.Expr as Pika
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Heaplet
+import PikaC.Utils
 
 import Unbound.Generics.LocallyNameless
 
@@ -85,6 +86,18 @@ internExprName n = do
       n' <- fresh (string2Name (name2String n))
       pikaToPcExprNameMap %= ((n, n') :)
       pure n'
+
+-- | Freshen the layout parameters
+freshSslAssertion :: Fresh m => LayoutArg PikaCore.Expr -> PikaCore.ExprAssertion -> m PikaCore.SimpleExpr
+freshSslAssertion params body = do
+  params' <- mapM fresh params
+  let body' = go (zip params params') body
+
+  pure $ PikaCore.SslAssertion params' body'
+  where
+    go [] z = z
+    go ((p, p'):xs) z =
+      rename [(p, p')] (go xs z)
 
 -- unintern :: forall m. MonadPikaIntern m => PikaCore.ExprName -> m Pika.ExprName
 -- unintern n =
