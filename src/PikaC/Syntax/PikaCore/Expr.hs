@@ -40,8 +40,7 @@ type instance PType Expr = Expr
 
 data Base
   = V ExprName
-  | LocV LocVar
-  | LayoutV [LocVar]    -- {x ...}
+  | LayoutV [ExprName]    -- {x ...}
   | IntLit Int -- TODO: Add output locations?
   | BoolLit Bool
 
@@ -56,11 +55,11 @@ data SimpleExpr
   = BaseExpr Base
   | WithIn                -- with
       Expr                --     := e
-      (Bind [LocName]     --   {x ...}
+      (Bind [ExprName]     --   {x ...}
         SimpleExpr)       -- in e
 
   | SslAssertion            -- layout
-      LayoutArg         --     {x ...}
+      (LayoutArg Expr)     --     {x ...}
       ExprAssertion     --   { (x+1) :-> e ** ... }
   deriving (Show, Generic)
 
@@ -70,7 +69,7 @@ data Expr
   | App String [Expr] -- | Fully saturated function application
   deriving (Show, Generic)
 
-type PointsToExpr = PointsTo Base
+type PointsToExpr = PointsTo Expr
 type ExprAssertion = [PointsToExpr]
 
 makePrisms ''Base
@@ -92,19 +91,26 @@ instance Alpha Base
 instance Alpha SimpleExpr
 instance Alpha Expr
 
-instance Subst Expr LocVar
+-- instance Subst Expr LocVar
 
-instance Subst LocVar Base where
+instance Subst ExprName (PointsTo Expr)
+
+instance Subst ExprName (Loc a)
+instance Subst ExprName Expr
+instance Subst ExprName SimpleExpr
+instance Subst ExprName Base
+
+-- instance Subst LocVar Base where
   -- isCoerceVar (LocV n) = Just $ SubstCoerce n (Just . LocV . string2Name . unLocVar)
   -- isCoerceVar _ = Nothing
 
-instance Subst LocVar SimpleExpr where
+-- instance Subst LocVar SimpleExpr where
   -- isCoerceVar (BaseExpr e) = do
   --   SubstCoerce x f <- isCoerceVar @LocVar @Base e
   --   pure $ SubstCoerce x (fmap BaseExpr . f)
   -- isCoerceVar _ = Nothing
 
-instance Subst LocVar Expr where
+-- instance Subst LocVar Expr where
   -- isCoerceVar (SimpleExpr e) = do
   --   SubstCoerce x f <- isCoerceVar @LocVar @SimpleExpr e
   --   pure $ SubstCoerce x (fmap SimpleExpr . f)
@@ -130,15 +136,15 @@ instance Subst Expr Expr where
   isvar (SimpleExpr (BaseExpr (V x))) = Just $ SubstName x
   isvar _ = Nothing
 instance Subst Expr a => Subst Expr (PointsTo a)
-instance Subst Expr Loc
+instance Subst Expr (Loc a)
 
 -- instance Subst Expr (LayoutBody Expr)
 instance Subst Expr a => Subst Expr (LayoutHeaplet a)
 instance Subst Base (LayoutBody Base)
 instance Subst Base (LayoutHeaplet Base)
 instance Subst Base (PointsTo Base)
-instance Subst Base Loc
-instance Subst Base LocVar
+instance Subst Base (Loc a)
+-- instance Subst Base LocVar
 
 instance Subst Base Base where
   -- isvar (V x) = Just $ SubstName x
@@ -164,7 +170,6 @@ getPointsToExpr e = e ^.. (_SimpleExpr . _SslAssertion . _2 . traversed)
 
 instance Ppr Base where
   ppr (V x) = ppr x
-  ppr (LocV x) = ppr x
   ppr (LayoutV x) = text "{" <+> hsep (punctuate (text ",") (map ppr x)) <+> text "}"
   ppr (IntLit i) = ppr i
   ppr (BoolLit b) = ppr b
@@ -199,7 +204,6 @@ instance IsNested SimpleExpr where
 
 instance IsNested Base where
   isNested (V _) = False
-  isNested (LocV _) = False
   isNested (LayoutV _) = False
   isNested (IntLit _) = False
   isNested (BoolLit _) = False

@@ -35,7 +35,6 @@ type instance PType Expr = Expr
 
 data Expr
   = V ExprName
-  | LocV LocName
   | IntLit Int
   | BoolLit Bool
   | LayoutLambda AdtName (Bind LayoutName Expr)
@@ -64,10 +63,10 @@ instance Subst Expr Expr where
   isvar (V n) = Just $ SubstName n
   isvar _ = Nothing
 
-instance Subst Expr Loc
+instance Subst Expr (Loc a)
 
 instance Subst TypeVar Expr where
-instance Subst LocVar Expr where
+-- instance Subst LocVar Expr where
 
 type ExprName = Name Expr
 
@@ -83,7 +82,7 @@ instance Subst Expr TypeVar
 instance Subst Expr (LayoutBody Expr)
 instance Subst Expr (LayoutHeaplet Expr)
 instance Subst Expr (PointsTo Expr)
-instance Subst Expr LocVar
+-- instance Subst Expr LocVar
 
 makePrisms ''Expr
 
@@ -101,7 +100,6 @@ reduceLayouts = go
   where
     go :: Expr -> Expr
     go (V x) = V x
-    go (LocV x) = LocV x
     go (IntLit i) = IntLit i
     go (BoolLit b) = BoolLit b
     go (LayoutLambda a (B p t)) =

@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PikaC.Stage.ToPikaCore.Monad
   where
@@ -16,12 +18,15 @@ import Unbound.Generics.LocallyNameless
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Control.Lens
+import Control.Lens.TH
+
 import GHC.Stack
 
-newtype LayoutVarSubst = LayoutVarSubst [(Pika.ExprName, (String, LayoutArg))]
+newtype LayoutVarSubst = LayoutVarSubst [(Pika.ExprName, (String, LayoutArg PikaCore.Expr))]
   deriving (Semigroup, Monoid, Show)
 
-type LayoutEnv = [Layout Pika.Expr]
+type LayoutEnv = [Layout PikaCore.Expr]
 
 data PikaConvertEnv =
   PikaConvertEnv
@@ -29,18 +34,19 @@ data PikaConvertEnv =
   , _layoutVarSubst :: LayoutVarSubst
   }
 
-data PikaConvertState =
+newtype PikaConvertState =
   PikaConvertState
-  { _pikaToPcExprNameMap :: [(Pika.ExprName, PikaCore.ExprName)]
-  , _pikaToPcLocNameMap :: [(Pika.ExprName, LocName)]
+  { _pikaToPcExprNameMap :: [(Pika.ExprName, PikaCore.ExprName)] -- TODO: Should we just use LayoutVarSubst instead of this? Probably not, since this could have local variables other than pattern variables.
   }
+
+makeLenses ''PikaConvertState
 
 newtype PikaIntern a = PikaIntern { getPikaIntern :: StateT PikaConvertState FreshM a }
   deriving (Functor, Applicative, Monad, MonadState PikaConvertState, Fresh)
 
 runPikaIntern' :: PikaIntern a -> FreshM a
 runPikaIntern' (PikaIntern m) =
-  evalStateT m (PikaConvertState mempty mempty)
+  evalStateT m (PikaConvertState mempty)
 
 type MonadPikaIntern m = (Fresh m, MonadState PikaConvertState m)
 
@@ -58,12 +64,12 @@ runPikaConvert' vsubst layouts =
 runPikaConvert'' :: LayoutVarSubst -> LayoutEnv -> PikaConvert a -> PikaIntern a
 runPikaConvert'' vsubst layouts (PikaConvert m) = runReaderT m (PikaConvertEnv layouts vsubst)
 
-lookupLayoutM :: String -> PikaConvert (Layout Pika.Expr)
+lookupLayoutM :: String -> PikaConvert (Layout PikaCore.Expr)
 lookupLayoutM layoutName = do
   layouts <- asks _layoutEnv
   pure $ lookupLayout layouts layoutName
 
-vsubstLookupM :: HasCallStack => Pika.ExprName -> PikaConvert (String, LayoutArg)
+vsubstLookupM :: HasCallStack => Pika.ExprName -> PikaConvert (String, LayoutArg PikaCore.Expr)
 vsubstLookupM e = do
   LayoutVarSubst assocs <- asks _layoutVarSubst
   case lookup e assocs of
@@ -75,12 +81,23 @@ internExprName n = do
   assocs <- gets _pikaToPcExprNameMap
   case lookup n assocs of
     Just n' -> pure n'
-    Nothing -> fresh (string2Name (name2String n))
+    Nothing -> do
+      n' <- fresh (string2Name (name2String n))
+      pikaToPcExprNameMap %= ((n, n') :)
+      pure n'
 
-internLocName :: forall m. MonadPikaIntern m => Pika.ExprName -> m LocName
-internLocName n = do
-  assocs <- gets _pikaToPcLocNameMap
-  case lookup n assocs of
-    Just n' -> pure n'
-    Nothing -> fresh (string2Name (name2String n))
+-- unintern :: forall m. MonadPikaIntern m => PikaCore.ExprName -> m Pika.ExprName
+-- unintern n =
+--   fmap (lookup n . map swap) (gets _pikaToPcExprNameMap) >>= \case
+--     Nothing -> error $ "unintern: The name " ++ show n ++ " was not interned"
+--     Just r -> pure r
+--   where
+--     swap (a, b) = (b, a)
+
+-- internLocName :: forall m. MonadPikaIntern m => Pika.ExprName -> m PikaCore.ExprName
+-- internLocName n = do
+--   assocs <- gets _pikaToPcLocNameMap
+--   case lookup n assocs of
+--     Just n' -> pure n'
+--     Nothing -> fresh (string2Name (name2String n))
 

@@ -1,7 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 
@@ -23,35 +22,35 @@ import Unbound.Generics.LocallyNameless
 import GHC.Generics
 import Data.Data
 
-type LayoutArg = [LocName]
+type LayoutArg a = [Name a]
 
-instance Ppr LayoutArg where
+instance Ppr a => Ppr (LayoutArg a) where
   ppr xs =  text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
-data PointsTo a = Loc :-> a
-  deriving (Show, Foldable, Functor, Generic, Eq, Ord, Traversable)
+data PointsTo a = Loc a :-> a
+  deriving (Show, Generic, Eq, Ord)
 
 -- data Loc = LocName :+ Int
-data Loc = LocName :+ Int
+data Loc a = Name a :+ Int
   deriving (Show, Eq, Ord, Generic)
 
-instance Alpha Loc
+instance (Typeable a, Alpha a) => Alpha (Loc a)
 
-newtype LocVar = LocVar { unLocVar :: LocName } deriving (Show, Generic)
-type LocName = Name LocVar
+-- newtype LocVar = LocVar { unLocVar :: LocName } deriving (Show, Generic)
+-- type LocName = Name LocVar
 
-instance Alpha LocVar
-
-instance Subst LocVar Loc
-instance Subst LocVar a => Subst LocVar (PointsTo a)
-
-instance Subst LocVar LocVar where
-  isvar (LocVar n) = Just $ SubstName n
-
-instance Subst LocVar AdtName
-instance Subst LocVar TypeVar
-
-instance Ppr LocVar where ppr (LocVar v) = text $ show v
+-- instance Alpha LocVar
+--
+-- instance Subst LocVar Loc
+-- instance Subst LocVar a => Subst LocVar (PointsTo a)
+--
+-- instance Subst LocVar LocVar where
+--   isvar (LocVar n) = Just $ SubstName n
+--
+-- instance Subst LocVar AdtName
+-- instance Subst LocVar TypeVar
+--
+-- instance Ppr LocVar where ppr (LocVar v) = text $ show v
 
 -- instance Ppr LocVar where ppr (LocVar v) = text v
 --
@@ -60,9 +59,9 @@ instance Ppr LocVar where ppr (LocVar v) = text $ show v
 class HasPointsTo a where
   getPointsTo :: a -> [PointsTo a]
 
-instance (Alpha a, Show a) => Alpha (PointsTo a)
+instance (Typeable a, Alpha a, Show a) => Alpha (PointsTo a)
 
-instance Ppr Loc where
+instance Ppr a => Ppr (Loc a) where
   ppr (x :+ 0) = ppr x
   ppr (x :+ i) = parens $ hsep [ppr x, text "+", ppr i]
 
@@ -72,22 +71,22 @@ instance (Ppr a) => Ppr (PointsTo a) where
 instance (Ppr a) => Ppr [PointsTo a] where
   ppr xs = braces $ sep $ punctuate (text " **") (map ppr xs)
 
-pointsToLhs :: PointsTo a -> Loc
+pointsToLhs :: PointsTo a -> Loc a
 pointsToLhs (lhs :-> _) = lhs
 
 pointsToRhs :: PointsTo a -> a
 pointsToRhs (_ :-> rhs) = rhs
 
-locBase :: Loc -> LocName
+locBase :: Loc a -> Name a
 locBase (x :+ _) = x
 
-locIx :: Loc -> Int
+locIx :: Loc a -> Int
 locIx (_ :+ i) = i
 
-pointsToNames :: [PointsTo a] -> [LocName]
+pointsToNames :: [PointsTo a] -> [Name a]
 pointsToNames = nub . map (locBase . pointsToLhs)
 
-findSetToZero :: [LocName] -> [PointsTo a] -> [LocName]
+findSetToZero :: [Name a] -> [PointsTo a] -> [Name a]
 findSetToZero names xs =
     let modified = go xs
     in
@@ -96,23 +95,23 @@ findSetToZero names xs =
     go [] = []
     go ((x :-> y):rest) = locBase x : go rest
 
-data Allocation = Alloc LocName Int
+data Allocation a = Alloc (Name a) Int
   deriving (Show)
 
-findAllocations :: forall a. [LocName] -> [PointsTo a] -> [Allocation]
+findAllocations :: forall a. [Name a] -> [PointsTo a] -> [Allocation a]
 findAllocations names xs = map toAlloc locMaximums
   where
       -- Grouped by base name. Only include locations that have base names
       -- included in the 'names' argument
-    locGroups :: [[Loc]]
+    locGroups :: [[Loc a]]
     locGroups = groupBy ((==) `on` locBase) . filter ((`elem` names) . locBase) $ map pointsToLhs xs
 
-    locMaximums :: [Loc]
+    locMaximums :: [Loc a]
     locMaximums = map (foldr1 go) locGroups
 
-    go :: Loc -> Loc -> Loc
+    go :: Loc a -> Loc a -> Loc a
     go (name :+ i) (_ :+ j) = name :+ max i j
 
-    toAlloc :: Loc -> Allocation
+    toAlloc :: Loc a -> Allocation a
     toAlloc (x :+ i) = Alloc x i
 

@@ -51,7 +51,7 @@ data Layout a =
   Layout
     { _layoutName :: String
     , _layoutBranches :: [LayoutBranch a]
-    , _layoutParams :: [LocName]
+    , _layoutParams :: [Name a]
     }
     deriving (Show)
 
@@ -78,16 +78,17 @@ data LayoutBranch a =
 -- type LayoutBranch = LayoutBranch' Identity
 --
 -- newtype LayoutBody operand a = LayoutBody [LayoutHeaplet operand a]
-newtype LayoutBody a = LayoutBody { unLayoutBody :: [LayoutHeaplet a] }
-  deriving (Show, Generic, Functor, Foldable, Traversable, Semigroup, Monoid)
+newtype LayoutBody a = LayoutBody { _unLayoutBody :: [LayoutHeaplet a] }
+  deriving (Show, Generic, Semigroup, Monoid)
 
 data LayoutHeaplet a
   = LPointsTo (PointsTo a)
   | LApply
       String -- Layout name
       a    -- Pattern variable
-      [LocVar]    -- Layout variables
-  deriving (Show, Generic, Functor, Foldable, Traversable)
+      [Name a]    -- Layout variables
+      -- [LocVar]    -- Layout variables
+  deriving (Show, Generic)
 
 -- type PatternVar = Name Expr
 
@@ -95,6 +96,10 @@ makeLenses ''Layout
 makeLenses ''LayoutBranch
 makeLenses ''LayoutBody
 makePrisms ''LayoutHeaplet
+
+-- updateLayoutParams :: Fresh m =>
+--   (Name a -> m (Name b)) -> [LayoutBranches
+-- updateLayoutParams = undefined
 
 -- instance Subst LayoutVar (f a) => Subst LayoutVar (LayoutHeaplet f a)
 

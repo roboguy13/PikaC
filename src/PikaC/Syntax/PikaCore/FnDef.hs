@@ -11,22 +11,22 @@ data FnDef =
   FnDef
   { fnDefName :: String
   , fnDefBranches :: [FnDefBranch]
-  , fnDefParams :: [LocName]
+  , fnDefParams :: [ExprName]
   }
   deriving (Show)
 
 data FnDefBranch =
   FnDefBranch
-  { fnDefOutputParams :: LayoutArg
+  { fnDefOutputParams :: LayoutArg Expr
   , fnDefBranchInputAssertions :: [ExprAssertion]
   , fnDefBranchBody :: Expr
   }
   deriving (Show)
 
-fnDefInputNames :: FnDef -> [LocName]
+fnDefInputNames :: FnDef -> [ExprName]
 fnDefInputNames = concatMap fnDefBranchInputNames . fnDefBranches
 
-fnDefBranchInputNames :: FnDefBranch -> [LocName]
+fnDefBranchInputNames :: FnDefBranch -> [ExprName]
 fnDefBranchInputNames =
   concatMap pointsToNames . fnDefBranchInputAssertions
 
@@ -38,8 +38,8 @@ computeBranchCondition def branch = not' $ go allInputNames
 
     checkName name =
       if name `elem` branchNames
-        then Equal (LocV (LocVar name)) (IntLit 0)
-        else Not (Equal (LocV (LocVar name)) (IntLit 0))
+        then Equal (V name) (IntLit 0)
+        else Not (Equal (V name) (IntLit 0))
 
     go [] = BoolLit True
     go [name] = checkName name
