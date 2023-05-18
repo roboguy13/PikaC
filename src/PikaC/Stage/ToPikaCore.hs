@@ -68,7 +68,14 @@ branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
 
 
   runPikaConvert'' mempty layouts $ do
-    let exprAsns = map truncatedLayoutBody $ concatMap (map _layoutBody . _layoutBranches) layouts
+    let exprAsns = -- TODO: Handle base types
+          map getPointsTos $
+          zipWith3 applyLayout'
+            layouts
+            (map _patConstructor pats)
+            (map (map (PikaCore.base . PikaCore.V) . _patVars) pats)
+    -- let exprAsns = map truncatedLayoutBody $ concatMap (map _layoutBody . _layoutBranches) layouts
+
 
     newBranchBody <- convertExpr (Pika.fnBranchBody branch)
 
@@ -241,7 +248,6 @@ substWithLApplies = go . getSingletonLApplies
       -- subst (unLocVar x) y (go xs p)
     -- go (_:xs) p = go xs p
 
--- TODO: This needs to actually substitute the LApply's in
 getPointsTos :: LayoutBody PikaCore.Expr -> [PointsTo PikaCore.Expr]
 getPointsTos b@(LayoutBody xs0) = substWithLApplies (getLApplies b) $ go xs0
   where
