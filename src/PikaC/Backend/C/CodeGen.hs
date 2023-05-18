@@ -63,7 +63,7 @@ codeGenFnBranch fn branch elseCmd = do
   pointsTos <- mapM convertPointsTo (PikaCore.getPointsToExpr (PikaCore.fnDefBranchBody branch))
 
   let allocs = findAllocations outputs pointsTos
-      zeros = findSetToZero outputs pointsTos
+      zeros = C.findSetToZero outputs pointsTos
 
   inputsCode <- concat <$> mapM codeGenInputs (PikaCore.fnDefBranchInputAssertions branch)
   bodyCode <- codeGenExpr outputs (PikaCore.fnDefBranchBody branch)
@@ -253,14 +253,14 @@ exampleFn =
     , fnDefParams = map s2n ["x", "w", "r"]
     , fnDefBranches =
         [FnDefBranch
-          { fnDefOutputParams = map s2n ["r"]
+          { fnDefOutputParams = map s2n ["w", "r"]
           , fnDefBranchInputAssertions = []
           , fnDefBranchBody =
               PikaCore.SslAssertion (map s2n ["r"]) []
           }
 
         ,FnDefBranch
-          { fnDefOutputParams = map s2n ["r"]
+          { fnDefOutputParams = map s2n ["w", "r"]
           , fnDefBranchInputAssertions =
               [[(s2n "x" :+ 0) :->  (PikaCore.V (s2n "h"))
                ,(s2n "x" :+ 1) :->  (PikaCore.V (s2n "nxt"))

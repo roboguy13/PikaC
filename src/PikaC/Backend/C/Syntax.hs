@@ -55,7 +55,7 @@ instance Ppr Command where
 
   ppr (IfThenElse c t f) =
     foldr1 ($$) [hsep [text "if (" <> ppr c <> text ")", text "{"]
-        ,nest 1 (sep (map ppr t))
+        ,nest 1 (vcat (map ppr t))
         ,hsep [text "}", text "else", text "{"]
         ,nest 1 (hsep (map ppr f))
         ,text "}"
@@ -78,11 +78,11 @@ instance Ppr Command where
 
 writeLoc :: Ppr b => CLoc -> b -> Doc
 writeLoc (x :+ i) y =
-  text "WRITE_LOC(" <> hsep (punctuate (text ",") [ppr x , ppr i, ppr y]) <> text ")"
+  text "WRITE_LOC(" <> hsep (punctuate (text ",") [ppr x , ppr i, ppr y]) <> text ");"
 
 readLoc :: CLoc -> Doc
 readLoc (x :+ i) =
-  text "READ_LOC(" <> hsep (punctuate (text ",") [ppr x, ppr i]) <> text ")"
+  text "READ_LOC(" <> hsep (punctuate (text ",") [ppr x, ppr i]) <> text ");"
 
 instance Ppr CFunction where
   ppr fn =
@@ -117,4 +117,15 @@ instance IsNested CExpr where
   isNested (Not {}) = True
   isNested (And {}) = True
   isNested (Deref {}) = False
+
+findSetToZero :: [CName] -> [PointsTo CExpr] -> [CName]
+findSetToZero names xs =
+    let modified = go xs
+    in
+    filter (`notElem` modified) names
+  where
+    go [] = []
+    go ((x :-> V y):rest) = locBase x : y : go rest
+    go ((x :-> LocValue y):rest) = locBase x : locBase y : go rest
+    go ((x :-> y):rest) = locBase x : go rest
 

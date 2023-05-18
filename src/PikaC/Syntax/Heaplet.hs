@@ -22,6 +22,9 @@ import Unbound.Generics.LocallyNameless
 import GHC.Generics
 import Data.Data
 
+import Control.Lens.Plated
+import Control.Lens
+
 type LayoutArg a = [Name a]
 
 instance Ppr a => Ppr (LayoutArg a) where
@@ -30,9 +33,21 @@ instance Ppr a => Ppr (LayoutArg a) where
 data PointsTo a = Loc a :-> a
   deriving (Show, Generic, Eq, Ord)
 
+pointsToRhsLens :: Lens' (PointsTo a) a
+pointsToRhsLens =
+  lens (\(_ :-> y) -> y)
+       (\(x :-> y) z -> x :-> z)
+
 -- data Loc = LocName :+ Int
 data Loc a = Name a :+ Int
   deriving (Show, Eq, Ord, Generic)
+
+instance Plated (PointsTo a) where
+  plate _ = pure
+
+instance Plated (Loc a) where
+  plate _ = pure
+  -- plate f (x :-> y) = plate f x :-> undefined
 
 instance (Typeable a, Alpha a) => Alpha (Loc a)
 
@@ -86,15 +101,6 @@ locIx (_ :+ i) = i
 pointsToNames :: [PointsTo a] -> [Name a]
 pointsToNames = nub . map (locBase . pointsToLhs)
 
-findSetToZero :: [Name a] -> [PointsTo a] -> [Name a]
-findSetToZero names xs =
-    let modified = go xs
-    in
-    filter (`notElem` modified) names
-  where
-    go [] = []
-    go ((x :-> y):rest) = locBase x : go rest
-
 data Allocation a = Alloc (Name a) Int
   deriving (Show)
 
@@ -113,5 +119,5 @@ findAllocations names xs = map toAlloc locMaximums
     go (name :+ i) (_ :+ j) = name :+ max i j
 
     toAlloc :: Loc a -> Allocation a
-    toAlloc (x :+ i) = Alloc x i
+    toAlloc (x :+ i) = Alloc x (i + 1)
 

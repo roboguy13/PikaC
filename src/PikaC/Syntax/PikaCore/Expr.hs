@@ -61,6 +61,23 @@ data Expr
   | App String [Expr] -- | Fully saturated function application
   deriving (Show, Generic)
 
+instance Plated Expr where
+  plate f (V x) = pure $ V x
+  plate f (LayoutV x) = pure $ LayoutV x
+  plate f (IntLit i) = pure $ IntLit i
+  plate f (BoolLit b) = pure $ BoolLit b
+  plate f (Add x y) = Add <$> f x <*> f y
+  plate f (Sub x y) = Sub <$> f x <*> f y
+  plate f (Equal x y) = Equal <$> f x <*> f y
+  plate f (Not x) = Not <$> f x
+  plate f (And x y) = And <$> f x <*> f y
+  plate f (WithIn x y z) = WithIn <$> f x <*> pure y <*> f z
+  plate f (SslAssertion a b) =
+    let z = plate (traverseOf (traversed.pointsToRhsLens) f) b
+    in
+    pure $ SslAssertion a undefined
+  plate f (App x ys) = App x <$> traverse f ys
+
 type PointsToExpr = PointsTo Expr
 type ExprAssertion = [PointsToExpr]
 
@@ -125,7 +142,7 @@ instance Subst Expr a => Subst Expr (LayoutBody a)
 instance Subst Expr a => Subst Expr (LayoutHeaplet a)
 
 getPointsToExpr :: Expr -> [PointsToExpr]
-getPointsToExpr e = e ^.. (_SslAssertion . _2 . traversed)
+getPointsToExpr e = e ^.. (cosmos . _SslAssertion . _2 . traversed)
 
 -- instance HasPointsTo SimpleExpr Base where
 --   getPointsTo (BaseExpr {}) = []
