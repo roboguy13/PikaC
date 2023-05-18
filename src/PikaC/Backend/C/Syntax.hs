@@ -73,8 +73,8 @@ instance Ppr Command where
     hsep [text "free(", ppr x, text ");"]
 
   -- ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr (Deref y)) <> ";"
-  ppr (Let x y) = (text "loc" <+> ppr x <+> text "=" <+> readLoc y) <> text ";"
-  ppr Nop = text ";"
+  ppr (Let x y) = text "loc" <+> ppr x <+> text "=" <+> readLoc y
+  ppr Nop = mempty --text ";"
 
 writeLoc :: Ppr b => CLoc -> b -> Doc
 writeLoc (x :+ i) y =
