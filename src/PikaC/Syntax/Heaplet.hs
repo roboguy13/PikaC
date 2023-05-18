@@ -104,6 +104,9 @@ pointsToNames = nub . map (locBase . pointsToLhs)
 data Allocation a = Alloc (Name a) Int
   deriving (Show)
 
+locsPossiblyWrittenTo :: [PointsTo a] -> [Loc a]
+locsPossiblyWrittenTo = map pointsToLhs
+
 findAllocations :: forall a. [Name a] -> [PointsTo a] -> [Allocation a]
 findAllocations names xs = map toAlloc locMaximums
   where

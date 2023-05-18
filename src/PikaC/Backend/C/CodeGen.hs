@@ -33,6 +33,8 @@ import Debug.Trace
 import Unbound.Generics.LocallyNameless.Bind
 import Unbound.Generics.LocallyNameless
 
+import Control.Lens
+
 type Outputs = LayoutArg CExpr
 
 -- toCName :: PikaCore.ExprName -> LocName
@@ -42,6 +44,8 @@ codeGenFn :: PikaCore.FnDef -> C.CFunction
 codeGenFn fn = runGenC $ do
   params <- mapM internExprName $ PikaCore.fnDefParams fn
   body <- go (PikaCore.fnDefBranches fn)
+
+
   pure $
     C.CFunction
       { C.cfunctionName = PikaCore.fnDefName fn
@@ -49,21 +53,26 @@ codeGenFn fn = runGenC $ do
       , C.cfunctionBody = body
       }
   where
+    pointsTos = toListOf (traversed.to fnDefBranchBody.to PikaCore.getPointsToExpr.traversed) (PikaCore.fnDefBranches fn)
+    possiblyWritten = locBase <$> locsPossiblyWrittenTo pointsTos
+
     go :: [PikaCore.FnDefBranch] -> GenC [Command]
     go [] = pure [C.Nop]
     go (x:xs) = do
-      c <- codeGenFnBranch fn x =<< go xs
+      c <- codeGenFnBranch possiblyWritten fn x =<< go xs
       pure [c]
 
-codeGenFnBranch :: PikaCore.FnDef -> PikaCore.FnDefBranch -> [Command] -> GenC Command
-codeGenFnBranch fn branch elseCmd = do
+codeGenFnBranch :: [PikaCore.ExprName] -> PikaCore.FnDef -> PikaCore.FnDefBranch -> [Command] -> GenC Command
+codeGenFnBranch possiblyWritten fn branch elseCmd = do
   cond <- codeGenBase (PikaCore.computeBranchCondition fn branch)
   outputs <- mapM internExprName $ PikaCore.fnDefOutputParams branch
 
   pointsTos <- mapM convertPointsTo (PikaCore.getPointsToExpr (PikaCore.fnDefBranchBody branch))
 
+  possiblyWritten' <- mapM internExprName possiblyWritten
+
   let allocs = findAllocations outputs pointsTos
-      zeros = C.findSetToZero outputs pointsTos
+      zeros = C.findSetToZero possiblyWritten' outputs pointsTos
 
   inputsCode <- concat <$> mapM codeGenInputs (PikaCore.fnDefBranchInputAssertions branch)
   bodyCode <- codeGenExpr outputs (PikaCore.fnDefBranchBody branch)

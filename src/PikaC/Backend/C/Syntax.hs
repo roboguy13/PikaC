@@ -118,14 +118,15 @@ instance IsNested CExpr where
   isNested (And {}) = True
   isNested (Deref {}) = False
 
-findSetToZero :: [CName] -> [PointsTo CExpr] -> [CName]
-findSetToZero names xs =
+findSetToZero :: [CName] -> [CName] -> [PointsTo CExpr] -> [CName]
+findSetToZero possiblyUpdated names xs =
     let modified = go xs
     in
-    filter (`notElem` modified) names
+    filter (`elem` possiblyUpdated) $ filter (`notElem` modified) names
+    -- filter (`notElem` modified) names
   where
     go [] = []
-    go ((x :-> V y):rest) = locBase x : y : go rest
-    go ((x :-> LocValue y):rest) = locBase x : locBase y : go rest
+    -- go ((x :-> V y):rest) = locBase x : y : go rest
+    -- go ((x :-> LocValue y):rest) = locBase x : locBase y : go rest
     go ((x :-> y):rest) = locBase x : go rest
 
