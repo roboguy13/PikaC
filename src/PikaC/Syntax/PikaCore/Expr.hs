@@ -52,8 +52,8 @@ data Expr
   -- | App (Expr a) (LayoutArg a)
   | WithIn                -- with
       Expr                --     := e
-      (Bind [ExprName]     --   {x ...}
-        Expr)       -- in e
+      [ExprName]     --   {x ...}
+      Expr       -- in e
 
   | SslAssertion            -- layout
       (LayoutArg Expr)     --     {x ...}
@@ -141,7 +141,7 @@ getPointsToExpr e = e ^.. (_SslAssertion . _2 . traversed)
 --   ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
 instance Ppr Expr where
-  ppr (WithIn bnd (B vars body)) =
+  ppr (WithIn bnd vars body) =
     sep [hsep [text "with {", hsep . punctuate (text ",") $ map go vars, text "} :=", ppr bnd], text "in", ppr body]
       where
         go x = text "<" <> ppr x <> text ">"
