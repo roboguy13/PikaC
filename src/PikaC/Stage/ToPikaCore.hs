@@ -11,7 +11,6 @@ import qualified PikaC.Syntax.Pika.Expr as Pika
 import qualified PikaC.Syntax.Pika.FnDef as Pika
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
-import PikaC.Syntax.PikaCore.Expr (base, simple)
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 
 import PikaC.Syntax.Pika.Layout
@@ -21,6 +20,8 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Ppr
 
 import PikaC.Stage.ToPikaCore.Monad
+
+import PikaC.Utils
 
 import Unbound.Generics.LocallyNameless
 
@@ -44,15 +45,16 @@ toPikaCore layouts0 fn = runFreshM $ do
   layouts <- runPikaIntern' $ mapM convertLayout layouts0
 
   outParams <- generateParams layouts resultType
-  -- inParams <- concat <$> mapM (generateParams layouts) argTypes
-  -- let params = inParams ++ outParams
 
   newBranches <- mapM (branchToPikaCore layouts outParams argTypes) (Pika.fnDefBranches fn)
+
+  let inParams = map (locBase . pointsToLhs) $ concat $ concatMap PikaCore.fnDefBranchInputAssertions newBranches
+  let params = fastNub inParams ++ outParams
 
   pure $
     PikaCore.FnDef
       { PikaCore.fnDefName = Pika.fnDefName fn
-      , PikaCore.fnDefParams = [] --params -- TODO: Implement this
+      , PikaCore.fnDefParams = params
       , PikaCore.fnDefBranches = newBranches
       }
   where
@@ -73,7 +75,7 @@ branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
           zipWith3 applyLayout'
             layouts
             (map _patConstructor pats)
-            (map (map (PikaCore.base . PikaCore.V) . _patVars) pats)
+            (map (map PikaCore.V . _patVars) pats)
     -- let exprAsns = map truncatedLayoutBody $ concatMap (map _layoutBody . _layoutBranches) layouts
 
 
@@ -104,7 +106,7 @@ convertPattern pat@(Pattern {}) = do
     , _patVars = vars
     }
 
-convertBase :: (MonadPikaIntern m, HasCallStack) => Pika.Expr -> m PikaCore.Base
+convertBase :: (MonadPikaIntern m, HasCallStack) => Pika.Expr -> m PikaCore.Expr
 convertBase (Pika.V n) = PikaCore.V <$> internExprName n
 -- convertBase (Pika.LocV n) = pure $ PikaCore.LocV (LocVar n)
 convertBase (Pika.Add x y) = PikaCore.Add <$> convertBase x <*> convertBase y
@@ -141,13 +143,13 @@ convertLayoutBranch branch0 = do
 
     go' :: LayoutHeaplet Pika.Expr -> m (LayoutHeaplet PikaCore.Expr)
     go' (LApply layoutName patVar vs) = do
-      patVar' <- PikaCore.base <$> convertBase patVar
+      patVar' <- convertBase patVar
       vs' <- mapM internExprName vs
       pure $ LApply layoutName patVar' vs'
 
     go' (LPointsTo ((a :+ i) :-> b)) = do
       a' <- internExprName a
-      b' <- PikaCore.base <$> convertBase b
+      b' <- convertBase b
       pure (LPointsTo ((a' :+ i) :-> b'))
 
 generateParams :: Fresh m => [Layout PikaCore.Expr] -> Type -> m [PikaCore.ExprName]
@@ -164,11 +166,11 @@ convertExpr = go . Pika.reduceLayouts
     go :: Pika.Expr -> PikaConvert PikaCore.Expr
     -- go (Pika.LocV x) = pure . base $ PikaCore.LocV $ LocVar x
     go e0@(Pika.LName x) = error $ "convertExpr.go: " ++ show e0
-    go (Pika.V n) = base . PikaCore.V <$> internExprName n
+    go (Pika.V n) = PikaCore.V <$> internExprName n
     -- go e0@(Pika.LayoutTypeArg {}) =
     --   error $ "convertExpr: " ++ show e0
-    go (Pika.IntLit i) = pure . base $ PikaCore.IntLit i
-    go (Pika.BoolLit b) = pure . base $ PikaCore.BoolLit b
+    go (Pika.IntLit i) = pure $ PikaCore.IntLit i
+    go (Pika.BoolLit b) = pure $ PikaCore.BoolLit b
     go e0@(Pika.LayoutLambda {}) =
       error $ "convertExpr: " ++ show e0
     -- go e0@(Pika.Lower e (LayoutNameB layout)) =
@@ -177,7 +179,7 @@ convertExpr = go . Pika.reduceLayouts
       let layoutString = name2String (unTypeVar layoutName)
       (n, y) <- vsubstLookupM x
       if n == layoutString
-        then pure . base $ PikaCore.LayoutV y
+        then pure $ PikaCore.LayoutV y
         else error $ "convertExpr: layout " ++ layoutString ++ " does not match " ++ n ++ " in " ++ show e0
 
     go e0@(Pika.ApplyLayout (Pika.App f xs) layoutName) = scoped $ do
@@ -190,10 +192,10 @@ convertExpr = go . Pika.reduceLayouts
 
       -- trace ("args = " ++ show xs ++ "; app = " ++ show app) $
       pure $
-        simple $ PikaCore.WithIn
+        PikaCore.WithIn
           app
-          $ bind rs
-              (PikaCore.BaseExpr (PikaCore.LayoutV rs))
+          rs
+           (PikaCore.LayoutV rs)
     go e0@(Pika.ApplyLayout {}) = error $ "convertExpr.go: " ++ show e0
     go e0@(Pika.App f xs) = do
       -- traceM $ "Translating apply: " ++ show e0
@@ -201,11 +203,11 @@ convertExpr = go . Pika.reduceLayouts
       -- traceM $ "Got: " ++ show r
     -- go e0@(Pika.App {}) = error $ "convertExpr.go: " ++ show e0 -- TODO: Is this right?
     go (Pika.Add x y) =
-      fmap base (PikaCore.Add <$> convertBase x <*> convertBase y)
+      PikaCore.Add <$> convertBase x <*> convertBase y
     go (Pika.Sub x y) =
-      fmap base (PikaCore.Sub <$> convertBase x <*> convertBase y)
+      PikaCore.Sub <$> convertBase x <*> convertBase y
     go (Pika.Equal x y) =
-      fmap base (PikaCore.Equal <$> convertBase x <*> convertBase y)
+      PikaCore.Equal <$> convertBase x <*> convertBase y
     -- go (Pika.Not x) =
     --   fmap base (PikaCore.Not <$> go x)
 applyLayoutOrNOP :: Layout PikaCore.Expr -> String -> [Pika.Expr] -> PikaConvert PikaCore.Expr
@@ -223,7 +225,7 @@ applyLayoutOrNOP layout constructor args = do
 
         -- trace ("args = " ++ show args ++ "; args' = " ++ show args' ++ "asns = " ++ show asns) .
         -- pure . pure . PikaCore.SimpleExpr $ PikaCore.SslAssertion params (getPointsTos asns)
-        pure . PikaCore.SimpleExpr <$> freshSslAssertion params (getPointsTos asns)
+        Just <$> freshSslAssertion params (getPointsTos asns)
 
 getLApplies :: LayoutBody a -> [(String, a, [Name a])]
 getLApplies (LayoutBody x) =

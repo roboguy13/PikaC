@@ -97,7 +97,7 @@ internExprName n = do
       pure n'
 
 -- | Freshen the layout parameters
-freshSslAssertion :: Fresh m => LayoutArg PikaCore.Expr -> PikaCore.ExprAssertion -> m PikaCore.SimpleExpr
+freshSslAssertion :: Fresh m => LayoutArg PikaCore.Expr -> PikaCore.ExprAssertion -> m PikaCore.Expr
 freshSslAssertion params body = do
   params' <- mapM fresh params
   let body' = go (zip params params') body

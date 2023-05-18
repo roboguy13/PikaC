@@ -31,7 +31,7 @@ executable PikaC
       PikaC.Backend.C.CodeGen
       PikaC.Backend.C.Monad
       PikaC.Backend.C.Syntax
-      PikaC.Backend.C.DataDeps
+      -- PikaC.Backend.C.DataDeps
       PikaC.Ppr
       PikaC.Preorder.Preorder
       PikaC.Syntax.Expr
