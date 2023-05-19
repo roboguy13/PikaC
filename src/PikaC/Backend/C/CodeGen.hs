@@ -168,24 +168,18 @@ codeGenExpr outputs = go
   where
     go :: PikaCore.Expr -> GenC [Command]
     go e | PikaCore.isBase e = codeGenBaseCmd outputs e
+
     go (PikaCore.LayoutV xs) = do
       xs' <- mapM internExprName xs
       pure . codeGenAsn $ connectLayoutArgs outputs (map C.V xs')
+
     go (PikaCore.App f xs) = do
       xs' <- mapM codeGenBase xs
       pure [C.Call f xs' (map C.V outputs)]
-    go (PikaCore.WithIn e0 vars body0) = do
-      vars' <- mapM fresh vars :: GenC [Name PikaCore.Expr]
-      -- vars' <- mapM fresh (replicate (length vars) (string2Name "p"))
 
-      -- let body = instantiate b (map PikaCore.V vars') -- Make bound variables free
-
-      vars'' <- mapM internExprName vars
-      let body = rename (zip vars (map (string2Name . name2String) vars'')) body0
-      let e = rename (zip vars (map (string2Name . name2String) vars'')) e0
-      -- let vars'' = map (string2Name . name2String) vars' :: [C.CName] -- TODO: Is this safe?
-
-      liftA2 (++) (codeGenExpr vars'' e) (codeGenExpr outputs body)
+    go (PikaCore.WithIn e vars body) = do
+      vars' <- mapM internExprName vars -- TODO: Is this correct?
+      liftA2 (++) (codeGenExpr vars' e) (codeGenExpr outputs body)
 
     go (PikaCore.SslAssertion params asn0) = do
       -- let asn = fmap (rename (zip params outputs)) asn0
@@ -206,23 +200,7 @@ codeGenInputs =
       y' <- internExprName y
       C.Let y' <$> convertLoc x
     go _ = Nothing
---
--- codeGenPointsTo :: PointsToExpr -> Command
--- codeGenPointsTo (lhs :-> rhs) =
---   C.Assign lhs (codeGenBase rhs)
---
--- codeGenExpr :: HasCallStack => Outputs -> PikaCore.Expr -> [Command]
--- codeGenExpr outputs (PikaCore.SimpleExpr e) =
---   codeGenSimple outputs e
--- codeGenExpr outputs (PikaCore.App f xs) =
---     -- TODO: Translate PikaCore function names into C function names
---   [C.Call f (map (codeGenBase . getBase) xs) (convert outputs)]
---   where
---     getBase (PikaCore.SimpleExpr (PikaCore.BaseExpr x)) = x
---     getBase e = error $ "codeGenExpr.getBase: " ++ show e
---     convert :: Outputs -> [CExpr]
---     convert = map C.V . toList
---
+
 codeGenAllocation :: Allocation CExpr -> Command
 codeGenAllocation (Alloc x sz) =
   C.IntoMalloc x sz
@@ -231,28 +209,22 @@ setToZero :: [C.CName] -> [Command]
 setToZero = map go
   where
     go x = C.Assign (x :+ 0) (C.IntLit 0)
---
--- -- sortedCodeGen :: (Ord a, Show a) => Outputs a -> PikaCore.Expr a -> [Command a]
--- -- sortedCodeGen outputs = topologicalSortCommands . codeGenExpr outputs
---
---
---
---
+
 example :: PikaCore.Expr
 example =
   PikaCore.WithIn (PikaCore.App "convertList2" [ PikaCore.V $ s2n "nxt"])
      (map s2n ["r", "y"])
       $ PikaCore.SslAssertion (map s2n ["r", "z"])
-          [ (s2n "r" :+ 0) :-> (PikaCore.V (s2n "h"))
-          , (s2n "r" :+ 1) :-> (PikaCore.V (s2n "y"))
-          , (s2n "r" :+ 2) :-> (PikaCore.V (s2n "w"))
+          [ (s2n "r" :+ 0) :-> PikaCore.V (s2n "h")
+          , (s2n "r" :+ 1) :-> PikaCore.V (s2n "y")
+          , (s2n "r" :+ 2) :-> PikaCore.V (s2n "w")
           ]
 
 exampleAsn :: PikaCore.ExprAssertion
 exampleAsn = 
-        [ (s2n "r" :+ 0) :->  (PikaCore.V (s2n "h"))
-        , (s2n "r" :+ 1) :->  (PikaCore.V (s2n "y"))
-        , (s2n "r" :+ 2) :->  (PikaCore.V (s2n "w"))
+        [ (s2n "r" :+ 0) :-> PikaCore.V (s2n "h")
+        , (s2n "r" :+ 1) :-> PikaCore.V (s2n "y")
+        , (s2n "r" :+ 2) :-> PikaCore.V (s2n "w")
         ]
 
 exampleFn :: FnDef
@@ -271,16 +243,16 @@ exampleFn =
         ,FnDefBranch
           { _fnDefOutputParams = map s2n ["w", "r"]
           , _fnDefBranchInputAssertions =
-              [[(s2n "x" :+ 0) :->  (PikaCore.V (s2n "h"))
-               ,(s2n "x" :+ 1) :->  (PikaCore.V (s2n "nxt"))
+              [[(s2n "x" :+ 0) :-> PikaCore.V (s2n "h")
+               ,(s2n "x" :+ 1) :-> PikaCore.V (s2n "nxt")
                ]]
           , _fnDefBranchBody =
               PikaCore.WithIn (PikaCore.App "convertList2" [PikaCore.V $ s2n "nxt"])
                  (map s2n ["r", "b"])
                   $ PikaCore.SslAssertion (map s2n ["r", "w"])
-                      [ (s2n "r" :+ 0) :->  (PikaCore.V (s2n "h"))
-                      , (s2n "r" :+ 1) :->  (PikaCore.V (s2n "b"))
-                      , (s2n "r" :+ 2) :->  (PikaCore.V (s2n "w"))
+                      [ (s2n "r" :+ 0) :-> PikaCore.V (s2n "h")
+                      , (s2n "r" :+ 1) :-> PikaCore.V (s2n "b")
+                      , (s2n "r" :+ 2) :-> PikaCore.V (s2n "w")
                       ]
           }
         ]
