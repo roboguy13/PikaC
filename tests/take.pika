@@ -1,0 +1,22 @@
+%generate take
+
+Sll : layout[x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+NatLayout : layout[x](Nat);
+NatLayout Z := emp;
+NatLayout (S n) :=
+  x :-> nxt **
+  NatLayout n [nxt];
+
+take : NatLayout -> Sll -> Sll;
+take Z Nil := Nil [Sll];
+take (S n) Nil := Nil [Sll];
+take Z (Cons h t) := Cons h t [Sll];
+take (S n) (Cons h t) :=
+  Cons h (take n t) [Sll];
+
