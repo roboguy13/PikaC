@@ -72,6 +72,7 @@ codeGenFnBranch possiblyWritten fn branch elseCmd = do
   possiblyWritten' <- mapM internExprName possiblyWritten
 
   let allocs = findAllocations outputs pointsTos
+      -- zeros = C.findSetToZero possiblyWritten' outputs pointsTos
       zeros = C.findSetToZero possiblyWritten' outputs pointsTos
 
   inputsCode <- concat <$> mapM codeGenInputs (PikaCore._fnDefBranchInputAssertions branch)
@@ -185,6 +186,8 @@ codeGenExpr outputs = go
       -- let asn = fmap (rename (zip params outputs)) asn0
       asn <- freshDestructSslAssertion params asn0 outputs
       pure $ codeGenAsn asn
+
+    go e = error $ "codeGenExpr.go: " ++ show e
 
 -- codeGenAsn asn =
 --   -- let sorted = topologicalSortPointsTo asn
