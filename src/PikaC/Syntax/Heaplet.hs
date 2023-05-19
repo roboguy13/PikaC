@@ -12,7 +12,7 @@ import Data.List
 import Data.Function
 
 import PikaC.Ppr
-import PikaC.Syntax.Type (AdtName, TypeVar)
+import PikaC.Syntax.Type (AdtName)
 
 import Data.Maybe
 import Control.Monad.Identity

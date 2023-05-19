@@ -34,15 +34,18 @@ executable PikaC
       -- PikaC.Backend.C.DataDeps
       PikaC.Ppr
       PikaC.Preorder.Preorder
-      PikaC.Syntax.Expr
+      PikaC.Syntax.ParserUtils
       PikaC.Syntax.Heaplet
       PikaC.Syntax.PikaCore.Expr
       PikaC.Syntax.PikaCore.FnDef
+      PikaC.Syntax.PikaCore.Parser
       PikaC.Syntax.Pika.Pattern
       PikaC.Syntax.Pika.Layout
       PikaC.Syntax.Pika.Expr
       PikaC.Syntax.Pika.FnDef
+      PikaC.Syntax.Pika.Parser
       PikaC.Syntax.Type
+      PikaC.Syntax.Type.Parser
       PikaC.Stage.ToPikaCore
       PikaC.Stage.ToPikaCore.Simplify
       PikaC.Stage.ToPikaCore.SubstWithLayoutVar
@@ -67,5 +70,7 @@ executable PikaC
                       deriving-compat,
                       mmorph,
                       lens,
+                      megaparsec,
+                      text,
     hs-source-dirs:   src
     default-language: Haskell2010

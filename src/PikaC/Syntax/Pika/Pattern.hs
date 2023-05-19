@@ -24,29 +24,34 @@ type family PType a
 
 data Pattern a
   = PatternVar (Name (PType a))
-  | Pattern
-      { _patConstructor :: String
-      , _patVars :: [Name (PType a)]
-      }
+  | Pattern String [Name (PType a)]
+      -- { _patConstructor :: String
+      -- , _patVars :: [Name (PType a)]
+      -- }
   deriving (Show)
 
 makeLenses ''Pattern
 
+class HasApp a where
+  mkApp :: String -> [a] -> a
+
 instance Ppr a => Ppr (Pattern a) where
   ppr (PatternVar x) = ppr x
-  ppr pat@(Pattern {})
-    | [] <- _patVars pat = text (_patConstructor pat)
-  ppr pat@(Pattern {}) =
-    text "(" <> hsep (text (_patConstructor pat) : map ppr (_patVars pat)) <> text ")"
+  ppr (Pattern constructor []) = text constructor
+  ppr (Pattern constructor vars) =
+    text "(" <> hsep (text constructor : map ppr vars) <> text ")"
 
-patternMatch :: Subst (PType a) b => Pattern a -> String -> [PType a] -> Maybe (b -> b)
-patternMatch pat constructor xs
-  | _patConstructor pat /= constructor = Nothing
-  | otherwise = Just $ substs (zip (_patVars pat) xs)
+patternMatch :: (HasApp (PType a), Subst (PType a) b) => Pattern a -> String -> [PType a] -> Either String (b -> b)
+patternMatch (PatternVar v) constructor xs =
+  Right (subst v (mkApp constructor xs))
+patternMatch (Pattern constructorP vars) constructor xs
+  | constructorP /= constructor =
+      Left $ "patternMatch: Pattern constructors do not match: Expected: "++ constructorP ++ ", found: " ++ constructor
+  | otherwise = Right $ substs (zip vars xs)
 
-patternMatch' :: Subst (PType a) b => Pattern a -> String -> [PType a] -> b -> b
+patternMatch' :: (HasApp (PType a), Subst (PType a) b) => Pattern a -> String -> [PType a] -> b -> b
 patternMatch' pat constructor xs =
   case patternMatch pat constructor xs of
-    Nothing -> error $ "patternMatch': Pattern constructors do not match: Expected: " ++ _patConstructor pat ++ ", found: " ++ constructor
-    Just r -> r
+    Left err -> error err
+    Right r -> r
 

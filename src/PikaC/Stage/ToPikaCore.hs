@@ -59,7 +59,7 @@ toPikaCore layouts0 fn = runFreshM $ do
       , PikaCore._fnDefBranches = newBranches
       }
   where
-    (argTypes, resultType) = splitFnType (Pika.fnDefType fn)
+    (argTypes, resultType) = splitFnType (_typeSigTy (Pika.fnDefTypeSig fn))
 
 branchToPikaCore :: [Layout PikaCore.Expr] -> [PikaCore.ExprName] -> [Type] -> Pika.FnDefBranch -> FreshM PikaCore.FnDefBranch
 branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
@@ -71,12 +71,13 @@ branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
 
 
   runPikaConvert'' mempty layouts $ do
-    let exprAsns = -- TODO: Handle base types
+    let exprAsns =
           map getPointsTos $
-          zipWith3 applyLayout'
-            layouts
-            (map _patConstructor pats)
-            (map (map PikaCore.V . _patVars) pats)
+          zipWith handlePattern layouts pats
+          -- zipWith3 applyLayout'
+          --   layouts
+          --   (map _patConstructor pats)
+          --   (map (map PikaCore.V . _patVars) pats)
     -- let exprAsns = map truncatedLayoutBody $ concatMap (map _layoutBody . _layoutBranches) layouts
 
 
@@ -89,6 +90,13 @@ branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
         , PikaCore._fnDefBranchBody = newBranchBody
         }
 
+ -- TODO: Handle base types
+handlePattern :: Layout PikaCore.Expr -> Pattern PikaCore.Expr -> LayoutBody PikaCore.Expr
+handlePattern layout (PatternVar v) =
+  error $ "handlePattern: pattern variable " ++ show v ++ ", for layout " ++ show layout
+handlePattern layout (Pattern c vars) =
+  applyLayout' layout c (map PikaCore.V vars)
+
 -- | Remove all LApply's. NOTE: Does not substitute using LApply's
 truncatedLayoutBody :: LayoutBody a -> [PointsTo a]
 truncatedLayoutBody (LayoutBody xs0) = go xs0
@@ -99,13 +107,9 @@ truncatedLayoutBody (LayoutBody xs0) = go xs0
 
 convertPattern :: MonadPikaIntern m => Pattern Pika.Expr -> m (Pattern PikaCore.Expr)
 convertPattern (PatternVar v) = PatternVar <$> internExprName v
-convertPattern pat@(Pattern {}) = do
-  vars <- mapM internExprName $ _patVars pat
-  pure $
-    Pattern
-    { _patConstructor = _patConstructor pat
-    , _patVars = vars
-    }
+convertPattern (Pattern constructor vars) = do
+  vars <- mapM internExprName vars
+  pure $ Pattern constructor vars
 
 convertBase :: (MonadPikaIntern m, HasCallStack) => Pika.Expr -> m PikaCore.Expr
 convertBase (Pika.V n) = PikaCore.V <$> internExprName n
@@ -120,13 +124,14 @@ convertBase e = error $ "convertBase: " ++ show e
 convertLayout :: forall m. MonadPikaIntern m => Layout Pika.Expr -> m (Layout PikaCore.Expr)
 convertLayout layout0 = scoped $ do
   branches <- mapM convertLayoutBranch $ _layoutBranches layout0
-  params <- mapM internExprName $ _layoutParams layout0
+  params <- mapM internExprName $ _layoutSigParams $ _layoutSig layout0
 
   pure $
     Layout
     { _layoutName = _layoutName layout0
     , _layoutBranches = branches
-    , _layoutParams = params
+    -- , _layoutParams = params
+    , _layoutSig = (_layoutSig layout0) { _layoutSigParams = params }
     }
 
 convertLayoutBranch :: forall m. MonadPikaIntern m => LayoutBranch Pika.Expr -> m (LayoutBranch PikaCore.Expr)
@@ -159,7 +164,7 @@ generateParams layouts BoolType = (:[]) <$> fresh (string2Name "b")
 generateParams layouts t@(FnType {}) = error $ "generateParams: " ++ show t
 generateParams layouts (TyVar layoutName) = do
   let layout = lookupLayout layouts (name2String layoutName)
-  mapM fresh $ _layoutParams layout
+  mapM fresh $ _layoutSigParams $ _layoutSig layout
 
 convertExpr :: Pika.Expr -> PikaConvert PikaCore.Expr
 convertExpr = go . Pika.reduceLayouts
@@ -177,16 +182,16 @@ convertExpr = go . Pika.reduceLayouts
     -- go e0@(Pika.Lower e (LayoutNameB layout)) =
       -- error $ "convertExpr: Free layout variable in: " ++ show e0
     go e0@(Pika.ApplyLayout (Pika.V x) layoutName) = do
-      let layoutString = name2String (unTypeVar layoutName)
+      let layoutString = name2String layoutName
       (n, y) <- vsubstLookupM x
       if n == layoutString
         then pure $ PikaCore.LayoutV y
         else error $ "convertExpr: layout " ++ layoutString ++ " does not match " ++ n ++ " in " ++ show e0
 
     go e0@(Pika.ApplyLayout (Pika.App f xs) layoutName) = scoped $ do
-      rs <- generateParamsM (TyVar (unTypeVar layoutName))
+      rs <- generateParamsM (TyVar layoutName)
 
-      layout <- lookupLayoutM (name2String (unTypeVar layoutName))
+      layout <- lookupLayoutM (name2String layoutName)
 
 
       app <- applyLayoutOrNOP layout f xs
@@ -215,7 +220,7 @@ applyLayoutOrNOP :: Layout PikaCore.Expr -> String -> [Pika.Expr] -> PikaConvert
 applyLayoutOrNOP layout constructor args = do
   args' <- mapM convertExpr args
   fmap (fromMaybe (PikaCore.App constructor args')) $ do
-    let params = _layoutParams layout
+    let params = _layoutSigParams $ _layoutSig layout
     -- layout' <- convertLayout layout
     let xs = applyLayout layout constructor args'
 
@@ -268,7 +273,11 @@ exampleSll :: Layout Pika.Expr
 exampleSll =
   Layout
   { _layoutName = "Sll"
-  , _layoutParams = [string2Name "x"]
+  , _layoutSig =
+      LayoutSig
+        { _layoutSigAdt = AdtName "List"
+        , _layoutSigParams = [s2n "x"]
+        }
   , _layoutBranches =
       [LayoutBranch
         { _layoutPattern = Pattern "Nil" []
@@ -292,19 +301,23 @@ exampleAdd1Head :: Pika.FnDef
 exampleAdd1Head =
   Pika.FnDef
     { Pika.fnDefName = "add1Head"
-    , Pika.fnDefType = FnType (TyVar (s2n "Sll")) (TyVar (s2n "Sll"))
+    , Pika.fnDefTypeSig =
+        TypeSig
+          { _typeSigLayoutConstraints = []
+          , _typeSigTy = FnType (TyVar (s2n "Sll")) (TyVar (s2n "Sll"))
+          }
     , Pika.fnDefBranches =
         [Pika.FnDefBranch
           { Pika.fnBranchPats = [Pattern "Nil" []]
           , Pika.fnBranchBody =
-              (`Pika.ApplyLayout` TypeVar (s2n "Sll")) $
+              (`Pika.ApplyLayout` (s2n "Sll")) $
                 Pika.App "Nil" []
           }
 
         ,Pika.FnDefBranch
           { Pika.fnBranchPats = [Pattern "Cons" [s2n "h", s2n "t"]]
           , Pika.fnBranchBody =
-              (`Pika.ApplyLayout` TypeVar (s2n "Sll")) $
+              (`Pika.ApplyLayout` (s2n "Sll")) $
                 Pika.App "Cons"
                   [Pika.Add (Pika.V (s2n "h")) (Pika.IntLit 1)
                   ,Pika.V (s2n "t")
@@ -317,19 +330,23 @@ exampleMapAdd1 :: Pika.FnDef
 exampleMapAdd1 =
   Pika.FnDef
     { Pika.fnDefName = "mapAdd1"
-    , Pika.fnDefType = FnType (TyVar (s2n "Sll")) (TyVar (s2n "Sll"))
+    , Pika.fnDefTypeSig =
+        TypeSig
+          { _typeSigLayoutConstraints = []
+          , _typeSigTy = FnType (TyVar (s2n "Sll")) (TyVar (s2n "Sll"))
+          }
     , Pika.fnDefBranches =
         [Pika.FnDefBranch
           { Pika.fnBranchPats = [Pattern "Nil" []]
           , Pika.fnBranchBody =
-              (`Pika.ApplyLayout` TypeVar (s2n "Sll")) $
+              (`Pika.ApplyLayout` (s2n "Sll")) $
                 Pika.App "Nil" []
           }
 
         ,Pika.FnDefBranch
           { Pika.fnBranchPats = [Pattern "Cons" [s2n "h", s2n "t"]]
           , Pika.fnBranchBody =
-              (`Pika.ApplyLayout` TypeVar (s2n "Sll")) $
+              (`Pika.ApplyLayout` (s2n "Sll")) $
                 Pika.App "Cons"
                   [Pika.Add (Pika.V (s2n "h")) (Pika.IntLit 1)
                   ,Pika.App "mapAdd1" [Pika.V (s2n "t")]

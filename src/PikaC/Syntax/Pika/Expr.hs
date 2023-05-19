@@ -40,15 +40,18 @@ data Expr
   | IntLit Int
   | BoolLit Bool
   | LayoutLambda AdtName (Bind LayoutName Expr)
-  | ApplyLayout Expr TypeVar
+  | ApplyLayout Expr TypeName
   | App String [Expr]
   | Add Expr Expr
   | Sub Expr Expr
   | Equal Expr Expr
-  | LName LayoutName
+  | LName LayoutName -- TODO: Remove?
   -- | Not Expr
   -- | And Expr Expr
   deriving (Show, Generic)
+
+instance HasApp Expr where
+  mkApp = App
 
 instance Ppr Expr where
   ppr (V x) = ppr x
@@ -91,9 +94,6 @@ instance Subst Expr Expr where
 
 instance Subst Expr (Loc a)
 
-instance Subst TypeVar Expr where
--- instance Subst LocVar Expr where
-
 type ExprName = Name Expr
 
 type LayoutName = TypeName
@@ -101,9 +101,6 @@ type LayoutName = TypeName
 -- newtype LayoutName' = LayoutName' LayoutName
 --   deriving (Eq, Ord, Show, Generic)
 -- type LayoutName = Name LayoutName'
-
-instance Subst Expr TypeVar
-  -- isvar = _
 
 instance Subst Expr (LayoutBody Expr)
 instance Subst Expr (LayoutHeaplet Expr)
@@ -132,7 +129,9 @@ reduceLayouts = go
       LayoutLambda a (B p (go t))
     go (ApplyLayout e arg) =
       case go e of
-        (LayoutLambda _ bnd) -> substBind bnd arg
+        (LayoutLambda _ (B p e)) ->
+          rename [(p, arg)] e
+          -- substBind bnd arg
         e' -> ApplyLayout e' arg
     go (App f args) =
       App f (map go args)

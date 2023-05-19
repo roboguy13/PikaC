@@ -10,7 +10,7 @@ import PikaC.Ppr
 data FnDef =
   FnDef
     { fnDefName :: String
-    , fnDefType :: Type
+    , fnDefTypeSig :: TypeSig
     , fnDefBranches :: [FnDefBranch]
     }
   deriving (Show)
@@ -25,7 +25,7 @@ data FnDefBranch =
 instance Ppr FnDef where
   ppr fn =
     sep
-      (hsep [text (fnDefName fn), text ":", ppr (fnDefType fn)] <> text ";"
+      (hsep [text (fnDefName fn), text ":", ppr (fnDefTypeSig fn)] <> text ";"
         :
         map (\branch -> text (fnDefName fn) <+> ppr branch) (fnDefBranches fn)
       )

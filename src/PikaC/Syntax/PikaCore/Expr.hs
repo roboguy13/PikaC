@@ -83,6 +83,9 @@ type ExprAssertion = [PointsToExpr]
 
 makePrisms ''Expr
 
+instance HasApp Expr where
+  mkApp = App
+
 -- example :: SimpleExpr
 -- example =
 --   WithIn

@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PikaC.Syntax.Type
   where
@@ -15,6 +16,8 @@ import Unbound.Generics.LocallyNameless
 import Control.Monad.Trans
 import GHC.Generics
 import Data.Data
+
+import Control.Lens.TH
 
 data Type
   = IntType
@@ -36,25 +39,36 @@ splitFnType x = ([], x)
 --     (a :~ layout(Adt2), b :~ layout(Adt2)) => a -> b
 data TypeSig =
   TypeSig
-  { typeSigLayoutConstraints :: [LayoutConstraint]
-  , typeSigTy :: Type
+  { _typeSigLayoutConstraints :: [LayoutConstraint]
+  , _typeSigTy :: Type
   }
   deriving (Show)
+
+instance Ppr TypeSig where
+  ppr (TypeSig [] ty) = ppr ty
+  ppr (TypeSig xs ty) =
+    hsep
+      [text "(" <>
+         hsep (punctuate (text ",") (map ppr xs)) <>
+         text ")"
+      ,text "=>"
+      ,ppr ty
+      ]
 
 newtype AdtName = AdtName String
   deriving (Show, Eq, Ord, Generic, Data)
 
-newtype TypeVar = TypeVar { unTypeVar :: TypeName } deriving (Show, Generic)
-type TypeName = Name TypeVar
+-- newtype TypeVar = TypeVar { unTypeVar :: TypeName } deriving (Show, Generic)
+type TypeName = Name Type
 
-instance Alpha TypeVar
+-- instance Alpha TypeVar
 
-instance Subst TypeVar TypeVar where
-  isvar (TypeVar v) = Just $ SubstName v
+-- instance Subst TypeVar TypeVar where
+--   isvar (TypeVar v) = Just $ SubstName v
 
-instance Subst TypeVar AdtName
+-- instance Subst TypeVar AdtName
 
-instance Ppr TypeVar where ppr (TypeVar v) = text $ show v
+-- instance Ppr TypeVar where ppr (TypeVar v) = text $ show v
 
 instance Alpha AdtName
 -- instance Subst a AdtName where isvar _ = Nothing -- We never replace a concrete layout name with anything else
@@ -80,4 +94,6 @@ instance IsNested Type where
   isNested IntType = False
   isNested BoolType = False
   isNested (TyVar x) = False
+
+makeLenses ''TypeSig
 

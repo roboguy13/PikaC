@@ -14,6 +14,8 @@ module PikaC.Syntax.Pika.Layout
 
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Pattern
+import PikaC.Syntax.Type
+
 import PikaC.Ppr
 
 import Control.Monad.Identity
@@ -50,8 +52,16 @@ import GHC.Generics
 data Layout a =
   Layout
     { _layoutName :: String
+    , _layoutSig :: LayoutSig a
     , _layoutBranches :: [LayoutBranch a]
-    , _layoutParams :: [Name a]
+    -- , _layoutParams :: [Name a]
+    }
+    deriving (Show)
+
+data LayoutSig a =
+  LayoutSig
+    { _layoutSigAdt :: AdtName
+    , _layoutSigParams :: [Name a]
     }
     deriving (Show)
 
@@ -114,15 +124,21 @@ lookupLayout (x:xs) name
   | _layoutName x == name = x
   | otherwise = lookupLayout xs name
 
-lookupLayoutBranch :: Layout a -> String -> Maybe (LayoutBranch a)
+lookupLayoutBranch :: HasApp a => Layout a -> String -> Maybe (LayoutBranch a)
 lookupLayoutBranch layout constructor = go $ _layoutBranches layout
   where
     go [] = Nothing
-    go (x:xs)
-      | _patConstructor (_layoutPattern x) == constructor = Just x
-      | otherwise = go xs
+    go (x:xs) =
+      case _layoutPattern x of
+        PatternVar _ -> Just x
+        Pattern c _
+          | c == constructor -> Just x
+          | otherwise -> go xs
+    -- go (x:xs)
+    --   | _patConstructor (_layoutPattern x) == constructor = Just x
+    --   | otherwise = go xs
 
-lookupLayoutBranch' :: HasCallStack => Layout a -> String -> LayoutBranch a
+lookupLayoutBranch' :: (HasCallStack, HasApp a) => Layout a -> String -> LayoutBranch a
 lookupLayoutBranch' layout c =
   case lookupLayoutBranch layout c of
     Nothing -> error $ "lookupLayoutBranch: Cannot find branch for constructor " ++ c
@@ -133,13 +149,13 @@ lookupLayoutBranch' layout c =
 -- instance Subst Expr a => Subst Expr (PointsTo a)
 
 -- | Apply layout to a constructor value
-applyLayout :: Subst (PType a) (LayoutBody a) => Layout a -> String -> [PType a] -> Maybe (LayoutBody a)
+applyLayout :: (HasApp a, HasApp (PType a), Subst (PType a) (LayoutBody a)) => Layout a -> String -> [PType a] -> Maybe (LayoutBody a)
 applyLayout layout constructor args = do
   branch <- lookupLayoutBranch layout constructor
   let body = _layoutBody branch
   pure $ patternMatch' (_layoutPattern branch) constructor args body
 
-applyLayout' :: Subst (PType a) (LayoutBody a) => Layout a -> String -> [PType a] -> LayoutBody a
+applyLayout' :: (HasApp a, HasApp (PType a), Subst (PType a) (LayoutBody a)) => Layout a -> String -> [PType a] -> LayoutBody a
 applyLayout' layout c args =
   case applyLayout layout c args of
     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c
