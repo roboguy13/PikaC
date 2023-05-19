@@ -5,6 +5,8 @@ import PikaC.Syntax.Type
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.Expr
 
+import PikaC.Ppr
+
 data FnDef =
   FnDef
     { fnDefName :: String
@@ -19,4 +21,19 @@ data FnDefBranch =
     , fnBranchBody :: Expr
     }
   deriving (Show)
+
+instance Ppr FnDef where
+  ppr fn =
+    sep
+      (hsep [text (fnDefName fn), text ":", ppr (fnDefType fn)] <> text ";"
+        :
+        map (\branch -> text (fnDefName fn) <+> ppr branch) (fnDefBranches fn)
+      )
+
+instance Ppr FnDefBranch where
+  ppr branch =
+    sep
+      [ hsep (map ppr (fnBranchPats branch) ++ [text ":="])
+      , nest 1 $ ppr (fnBranchBody branch) <> text ";"
+      ]
 

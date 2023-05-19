@@ -67,7 +67,7 @@ data LayoutConstraint = TypeName :~ AdtName
 instance Ppr Type where
   ppr IntType = text "Int"
   ppr BoolType = text "Bool"
-  ppr (FnType src tgt) = hsep [pprP src, text " -> ", ppr tgt]
+  ppr (FnType src tgt) = hsep [pprP src, text "->", ppr tgt]
   ppr (TyVar x) = ppr x
 
 instance Ppr AdtName where ppr (AdtName n) = text n

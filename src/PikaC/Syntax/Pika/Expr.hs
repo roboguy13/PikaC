@@ -26,6 +26,8 @@ import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
 
+import PikaC.Ppr
+
 import Control.Lens
 import Control.Lens.TH
 
@@ -47,6 +49,30 @@ data Expr
   -- | Not Expr
   -- | And Expr Expr
   deriving (Show, Generic)
+
+instance Ppr Expr where
+  ppr (V x) = ppr x
+  ppr (IntLit i) = ppr i
+  ppr (BoolLit b) = ppr b
+  ppr (LayoutLambda a (B v p)) = hsep [text "/\\(" <> ppr v <> text " :~ " <> ppr a <> text ").", ppr p]
+  ppr (ApplyLayout e ty) = hsep [ppr e, text "[" <> ppr ty <> text "]"]
+  ppr (App f xs) = hsep (ppr f : map pprP xs)
+  ppr (Add x y) = hsep [pprP x, text "+", pprP y]
+  ppr (Sub x y) = hsep [pprP x, text "-", pprP y]
+  ppr (Equal x y) = hsep [pprP x, text "==", pprP y]
+  ppr (LName x) = ppr x
+
+instance IsNested Expr where
+  isNested (V _) = False
+  isNested (IntLit _) = False
+  isNested (BoolLit _) = False
+  isNested (LayoutLambda {}) = True
+  isNested (ApplyLayout {}) = True
+  isNested (App {}) = True
+  isNested (Add {}) = True
+  isNested (Sub {}) = True
+  isNested (Equal {}) = True
+  isNested (LName {}) = False
 
 -- example :: Expr
 -- example =

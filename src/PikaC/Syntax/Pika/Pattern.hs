@@ -32,6 +32,13 @@ data Pattern a
 
 makeLenses ''Pattern
 
+instance Ppr a => Ppr (Pattern a) where
+  ppr (PatternVar x) = ppr x
+  ppr pat@(Pattern {})
+    | [] <- _patVars pat = text (_patConstructor pat)
+  ppr pat@(Pattern {}) =
+    text "(" <> hsep (text (_patConstructor pat) : map ppr (_patVars pat)) <> text ")"
+
 patternMatch :: Subst (PType a) b => Pattern a -> String -> [PType a] -> Maybe (b -> b)
 patternMatch pat constructor xs
   | _patConstructor pat /= constructor = Nothing
