@@ -1,0 +1,14 @@
+%generate add1Head
+
+Sll : layout[x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+add1Head : Sll -> Sll;
+add1Head Nil := Nil [Sll];
+add1Head (Cons h t) :=
+  Cons (h + 1) t [Sll];
+

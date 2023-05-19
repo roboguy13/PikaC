@@ -155,10 +155,10 @@ applyLayout layout constructor args = do
   let body = _layoutBody branch
   pure $ patternMatch' (_layoutPattern branch) constructor args body
 
-applyLayout' :: (HasApp a, HasApp (PType a), Subst (PType a) (LayoutBody a)) => Layout a -> String -> [PType a] -> LayoutBody a
+applyLayout' :: (Show a, HasApp a, HasApp (PType a), Subst (PType a) (LayoutBody a)) => Layout a -> String -> [PType a] -> LayoutBody a
 applyLayout' layout c args =
   case applyLayout layout c args of
-    Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c
+    Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c ++ " in " ++ show layout
     Just r -> r
 
 --

@@ -57,11 +57,17 @@ moduleLookupFn pikaModule name = go (moduleFnDefs pikaModule)
       | otherwise           = go xs
 
 parsePikaModule :: Parser PikaModule
-parsePikaModule =
-  fmap mconcat $ some $
-    try (singleGenerate <$> parseGenerate) <|>
-    try (singleLayout <$> parseLayout) <|>
-    (singleFnDef <$> parseFnDef)
+parsePikaModule = do
+  generates <- mconcat . map singleGenerate <$> some parseGenerate
+  layouts <- mconcat . map singleLayout <$> some parseLayout
+  fnDefs <- mconcat . map singleFnDef <$> some parseFnDef
+
+  pure (generates <> layouts <> fnDefs)
+
+  -- fmap mconcat $ some $
+  --   try (singleGenerate <$> parseGenerate) <|>
+  --   try (singleLayout <$> parseLayout) <|>
+  --   (singleFnDef <$> parseFnDef)
 
 parseGenerate :: Parser String
 parseGenerate = label "generate directive" $ lexeme $ do
@@ -151,7 +157,7 @@ parseBinOp op p = do
   p x <$> parseExpr'
 
 parseLayout :: Parser (Layout Expr)
-parseLayout = do
+parseLayout = label "layout definition" $ lexeme $ do
   layoutName <- parseLayoutName
   keyword ":"
   sig <- parseLayoutSig
@@ -160,7 +166,7 @@ parseLayout = do
   pure $ Layout layoutName sig branches
 
 parseLayoutSig :: Parser (LayoutSig Expr)
-parseLayoutSig = do
+parseLayoutSig = lexeme $ do
   keyword "layout"
   symbol "["
   params <- some parseLayoutVar
@@ -172,7 +178,7 @@ parseLayoutSig = do
 
 
 parseLayoutBranch :: String -> Parser (LayoutBranch Expr)
-parseLayoutBranch layoutName = do
+parseLayoutBranch layoutName = lexeme $ try $ do
   nameHere <- parseLayoutName
   parserGuard (nameHere == layoutName) (Just nameHere) layoutName
 

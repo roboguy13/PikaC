@@ -1,0 +1,23 @@
+%generate leftList
+
+Sll : layout[x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+TreeLayout : layout[x](Tree);
+TreeLayout Leaf := emp;
+TreeLayout (Node payload left right) :=
+  x :-> payload **
+  (x+1) :-> p **
+  (x+2) :-> q **
+  TreeLayout left [p] **
+  TreeLayout right [q];
+
+leftList : TreeLayout -> Sll;
+leftList Leaf := Nil [Sll];
+leftList (Node a b c) :=
+  Cons a (leftList b) [Sll];
+

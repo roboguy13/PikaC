@@ -73,7 +73,7 @@ branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
   runPikaConvert'' mempty layouts $ do
     let exprAsns =
           map getPointsTos $
-          zipWith handlePattern layouts pats
+          zipWith (handlePattern layouts) argTypes pats
           -- zipWith3 applyLayout'
           --   layouts
           --   (map _patConstructor pats)
@@ -91,11 +91,17 @@ branchToPikaCore layouts outParams argTypes branch = runPikaIntern' $ do
         }
 
  -- TODO: Handle base types
-handlePattern :: Layout PikaCore.Expr -> Pattern PikaCore.Expr -> LayoutBody PikaCore.Expr
-handlePattern layout (PatternVar v) =
-  error $ "handlePattern: pattern variable " ++ show v ++ ", for layout " ++ show layout
-handlePattern layout (Pattern c vars) =
+handlePattern :: [Layout PikaCore.Expr] -> Type -> Pattern PikaCore.Expr -> LayoutBody PikaCore.Expr
+-- handlePattern IntType (PatternVar v) =
+-- handlePattern BoolType (PatternVar v) =
+handlePattern layouts ty (PatternVar v) =
+  error $ "handlePattern: pattern variable " ++ show v ++ ", for type " ++ show ty
+handlePattern layouts (TyVar n) (Pattern c vars) =
+  let layout = lookupLayout layouts (name2String n)
+  in
   applyLayout' layout c (map PikaCore.V vars)
+handlePattern _ ty pat@(Pattern {}) =
+  error $ "handlePattern: Trying to match with pattern " ++ ppr' pat ++ " on type " ++ ppr' ty
 
 -- | Remove all LApply's. NOTE: Does not substitute using LApply's
 truncatedLayoutBody :: LayoutBody a -> [PointsTo a]
