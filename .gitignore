@@ -8,6 +8,9 @@ dist
 **/*~
 **/*.agdai
 
+**/*.gch
+
+**/a.out.dSYM
 
 ## Core latex/pdflatex auxiliary files:
 **/*.aux
