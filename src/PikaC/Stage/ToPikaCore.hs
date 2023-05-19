@@ -20,6 +20,7 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Ppr
 
 import PikaC.Stage.ToPikaCore.Monad
+import PikaC.Stage.ToPikaCore.Simplify
 
 import PikaC.Utils
 
@@ -51,7 +52,7 @@ toPikaCore layouts0 fn = runFreshM $ do
   let inParams = map (locBase . pointsToLhs) $ concat $ concatMap PikaCore._fnDefBranchInputAssertions newBranches
   let params = fastNub inParams ++ outParams
 
-  pure $
+  simplifyFnDef $
     PikaCore.FnDef
       { PikaCore._fnDefName = Pika.fnDefName fn
       , PikaCore._fnDefParams = params
