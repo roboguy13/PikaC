@@ -26,7 +26,6 @@ main = do
       fileData <- readFile fileName
 
       let pikaModule = parse'' fileName parsePikaModule fileData
-      print pikaModule
 
       withModule pikaModule
     _ -> error "Wrong number of arguments. Expected 1"
