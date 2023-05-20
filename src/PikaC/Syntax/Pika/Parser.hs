@@ -84,7 +84,7 @@ parseFnDef = label "function definition" $ lexeme $ do
   FnDef fnName sig <$> some (parseFnDefBranch fnName)
 
 parseFnDefBranch :: String -> Parser FnDefBranch
-parseFnDefBranch fnName = label "function branch" $ lexeme $ do
+parseFnDefBranch fnName = label "function branch" $ lexeme $ try $ do
   nameHere <- parseFnName
   parserGuard (nameHere == fnName) (Just nameHere) fnName
 
