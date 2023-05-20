@@ -12,6 +12,17 @@ void print_NatLayout(loc x) {
   printf("%d", i);
 }
 
+/*
+take {}  {} ==> { x7 } := layout { x7 } {};
+take {x4 :-> n10}  {} ==> { x7 } := layout { x7 } {};
+take {}  {x :-> h13 ** (x + 1) :-> t14} ==> { x7 } :=
+      layout { x7 } {x7 :-> h13 ** (x7 + 1) :-> t14};
+take {x4 :-> n17}  {x :-> h18 ** (x + 1) :-> t19} ==> { x7 } :=
+      with { <zz25> } := take n17 t19
+      in
+      layout { x7 } {x7 :-> h18 ** (x7 + 1) :-> zz25};
+*/
+
 void generate_NatLayout(int num, loc x) {
   loc head = malloc(sizeof(loc));
 

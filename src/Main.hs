@@ -5,6 +5,8 @@ import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Parser
 
+import PikaC.Syntax.PikaCore.FnDef
+
 import PikaC.Syntax.ParserUtils
 
 import PikaC.Stage.ToPikaCore
@@ -26,7 +28,6 @@ main = do
       fileData <- readFile fileName
 
       let pikaModule = parse'' fileName parsePikaModule fileData
-
       withModule pikaModule
     _ -> error "Wrong number of arguments. Expected 1"
 

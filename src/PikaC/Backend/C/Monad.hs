@@ -61,7 +61,6 @@ internExprName n =
         Just n' -> pure n'
         Nothing -> do
           n' <- fresh (string2Name (name2String n))
-          -- traceM $ "(interning " ++ show n ++ " as " ++ show n' ++ ")"
           namePcToC %= ((n, n') :)
           pure n'
 

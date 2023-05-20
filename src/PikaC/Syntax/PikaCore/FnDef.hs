@@ -10,6 +10,8 @@ import PikaC.Ppr
 
 import Control.Lens.TH
 
+import Debug.Trace
+
 data FnDef =
   FnDef
   { _fnDefName :: String
@@ -35,22 +37,6 @@ fnDefInputNames = concatMap fnDefBranchInputNames . _fnDefBranches
 fnDefBranchInputNames :: FnDefBranch -> [ExprName]
 fnDefBranchInputNames =
   concatMap pointsToNames . _fnDefBranchInputAssertions
-
-computeBranchCondition :: FnDef -> FnDefBranch -> Expr
-computeBranchCondition def branch = not' $ go allInputNames
-  where
-    allInputNames = fnDefInputNames def
-    branchNames = fnDefBranchInputNames branch
-
-    checkName name =
-      if name `elem` branchNames
-        then Equal (V name) (IntLit 0)
-        else Not (Equal (V name) (IntLit 0))
-
-    go [] = BoolLit True
-    go [name] = checkName name
-    go (name:rest) =
-      and' (checkName name) (go rest)
 
 instance Ppr FnDef where
   ppr def = go (_fnDefBranches def)

@@ -16,7 +16,7 @@ NatLayout (S n) :=
 take : NatLayout -> Sll -> Sll;
 take Z Nil := Nil [Sll];
 take (S n) Nil := Nil [Sll];
-take Z (Cons h t) := Cons h t [Sll];
+take Z (Cons h t) := Nil [Sll];
 take (S n) (Cons h t) :=
   Cons h (take n t) [Sll];
 

@@ -50,8 +50,7 @@ codeGenFn fn = runGenC $ do
   -- let allocs = findAllocations params pointsTos
   -- paramWriter <- writeParams allocs
 
-  body <- go (PikaCore._fnDefBranches fn)
-
+  body <- go params (PikaCore._fnDefBranches fn)
 
   pure $
     C.CFunction
@@ -63,16 +62,20 @@ codeGenFn fn = runGenC $ do
     pointsTos = toListOf (traversed . PikaCore.fnDefBranchBody . to PikaCore.getPointsToExpr . traversed) (PikaCore._fnDefBranches fn)
     possiblyWritten = locBase <$> locsPossiblyWrittenTo pointsTos
 
-    go :: [PikaCore.FnDefBranch] -> GenC [Command]
-    go [] = pure [C.Nop]
-    go (x:xs) = do
-      c <- codeGenFnBranch possiblyWritten fn x =<< go xs
+    go :: [C.CName] -> [PikaCore.FnDefBranch] -> GenC [Command]
+    go _params [] = pure [C.Nop]
+    go params (x:xs) = do
+      c <- codeGenFnBranch params possiblyWritten fn x =<< go params xs
       pure [c]
 
-codeGenFnBranch :: [PikaCore.ExprName] -> PikaCore.FnDef -> PikaCore.FnDefBranch -> [Command] -> GenC Command
-codeGenFnBranch possiblyWritten fn branch elseCmd = do
-  cond <- codeGenBase (PikaCore.computeBranchCondition fn branch)
+codeGenFnBranch :: [C.CName] -> [PikaCore.ExprName] -> PikaCore.FnDef -> PikaCore.FnDefBranch -> [Command] -> GenC Command
+codeGenFnBranch params possiblyWritten fn branch elseCmd = do
   outputs <- mapM internExprName $ PikaCore._fnDefOutputParams branch
+
+  fnNames <- mapM internExprName $ fastNub $ PikaCore.fnDefInputNames fn
+  branchNames <- mapM internExprName $ fastNub $ PikaCore.fnDefBranchInputNames branch
+
+  let cond = C.computeBranchCondition fnNames branchNames
 
   pointsTos <- mapM convertPointsTo (PikaCore.getPointsToExpr (PikaCore._fnDefBranchBody branch))
 
@@ -89,10 +92,6 @@ codeGenFnBranch possiblyWritten fn branch elseCmd = do
 
   let branchBody =
         rename (zip allocNames newNames) (PikaCore._fnDefBranchBody branch)
-
-  -- traceM $ "renaming: " ++ show (zip allocNames newNames)
-  -- traceM $ "branchBody: " ++ show branchBody
-  -- traceM $ "outputs: " ++ show outputs
 
   let outputs' = rename (zip allocNames newNames) outputs
 
@@ -226,9 +225,10 @@ codeGenInputs =
   sequenceA . mapMaybe go
   where
     go :: PikaCore.PointsToExpr -> Maybe (GenC Command)
-    go (x :-> PikaCore.V y) = Just $ do
+    go p@(x :-> PikaCore.V y) = Just $ do
       y' <- internExprName y
-      C.Let y' <$> convertLoc x
+      cmd <- C.Let y' <$> convertLoc x
+      pure cmd
     go _ = Nothing
 
 codeGenAllocation :: Allocation CExpr -> Command

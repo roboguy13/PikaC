@@ -24,6 +24,8 @@ import Control.Lens.TH
 
 import GHC.Stack
 
+import Debug.Trace
+
 newtype LayoutVarSubst = LayoutVarSubst [(Pika.ExprName, (String, LayoutArg PikaCore.Expr))]
   deriving (Semigroup, Monoid, Show)
 
@@ -107,6 +109,20 @@ freshSslAssertion params body = do
     go [] z = z
     go ((p, p'):xs) z =
       rename [(p, p')] (go xs z)
+
+type Rename a = [(a, a)]
+
+-- | For freshening layout pattern variables in function definitions
+layoutParamRename :: forall m. Fresh m => Layout PikaCore.Expr -> m (Rename PikaCore.ExprName)
+layoutParamRename layout =
+    let params = _layoutSigParams (_layoutSig layout)
+    in
+    mapM go params
+  where
+    go :: PikaCore.ExprName -> m (PikaCore.ExprName, PikaCore.ExprName)
+    go x = do
+      x' <- fresh x
+      pure (x, x')
 
 -- unintern :: forall m. MonadPikaIntern m => PikaCore.ExprName -> m Pika.ExprName
 -- unintern n =

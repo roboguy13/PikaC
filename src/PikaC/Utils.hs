@@ -35,6 +35,10 @@ rename pairs = swaps (go pairs)
     go ((x, y) : rest) =
       single (AnyName x) (AnyName y) <> go rest
 
+renameMaybe :: forall a b. (Typeable a, Alpha b) => Maybe [(Name a, Name a)] -> b -> b
+renameMaybe Nothing = id
+renameMaybe (Just rho) = rename rho
+
 fastNub :: Ord a => [a] -> [a]
 fastNub = Set.toList . Set.fromList
 

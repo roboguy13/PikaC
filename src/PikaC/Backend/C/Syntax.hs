@@ -103,7 +103,7 @@ instance Ppr CExpr where
   ppr (Add x y) = sep [intCast (pprP x), text "+", intCast (pprP y)]
   ppr (Sub x y) = sep [intCast (pprP x), text "-", intCast (pprP y)]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
-  ppr (Not x) = sep [text "!", pprP x]
+  ppr (Not x) = text "!" <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
   ppr (Deref x) = text "*" <> ppr x
 
@@ -134,4 +134,20 @@ findSetToZero possiblyUpdated names xs =
     -- go ((x :-> V y):rest) = locBase x : y : go rest
     -- go ((x :-> LocValue y):rest) = locBase x : locBase y : go rest
     go ((x :-> y):rest) = locBase x : go rest
+
+computeBranchCondition :: [CName] -> [CName] -> CExpr
+computeBranchCondition defNames branchNames =
+    go allInputNames
+  where
+    allInputNames = defNames --fnDefInputNames def
+
+    checkName name =
+      if name `elem` branchNames
+        then Not (Equal (V name) (IntLit 0))
+        else Equal (V name) (IntLit 0)
+
+    go [] = BoolLit True
+    go [name] = checkName name
+    go (name:rest) =
+      And (checkName name) (go rest)
 
