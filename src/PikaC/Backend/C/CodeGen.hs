@@ -43,6 +43,13 @@ type Outputs = LayoutArg CExpr
 codeGenFn :: PikaCore.FnDef -> C.CFunction
 codeGenFn fn = runGenC $ do
   params <- mapM internExprName $ PikaCore._fnDefParams fn
+
+  -- let (firstBranch:_) = PikaCore._fnDefBranches fn
+  -- pointsTos <- mapM convertPointsTo (PikaCore.getPointsToExpr (PikaCore._fnDefBranchBody firstBranch))
+  --
+  -- let allocs = findAllocations params pointsTos
+  -- paramWriter <- writeParams allocs
+
   body <- go (PikaCore._fnDefBranches fn)
 
 
@@ -72,16 +79,29 @@ codeGenFnBranch possiblyWritten fn branch elseCmd = do
   possiblyWritten' <- mapM internExprName possiblyWritten
 
   let allocs = findAllocations outputs pointsTos
+      allocNames = map (\(Alloc x _) -> x) allocs
       -- zeros = C.findSetToZero possiblyWritten' outputs pointsTos
       zeros = C.findSetToZero possiblyWritten' outputs pointsTos
 
+  (newNames, indirectWriter) <- writeIndirects allocs
+
   inputsCode <- concat <$> mapM codeGenInputs (PikaCore._fnDefBranchInputAssertions branch)
-  bodyCode <- codeGenExpr outputs (PikaCore._fnDefBranchBody branch)
+
+  let branchBody =
+        rename (zip allocNames newNames) (PikaCore._fnDefBranchBody branch)
+
+  -- traceM $ "renaming: " ++ show (zip allocNames newNames)
+  -- traceM $ "branchBody: " ++ show branchBody
+  -- traceM $ "outputs: " ++ show outputs
+
+  let outputs' = rename (zip allocNames newNames) outputs
+
+  bodyCode <- indirectWriter <$> codeGenExpr outputs' branchBody
   pure $
     C.IfThenElse
       cond
       (setToZero zeros
-        <> map codeGenAllocation allocs
+        -- <> map codeGenAllocation allocs
         <> inputsCode
         <> bodyCode
       )
@@ -176,7 +196,14 @@ codeGenExpr outputs = go
 
     go (PikaCore.App f xs) = do
       xs' <- mapM codeGenBase xs
-      pure [C.Call f xs' (map C.V outputs)]
+
+      tempOuts <- mapM fresh outputs
+      pure $
+        map (`C.IntoMalloc` 1) tempOuts
+          ++
+          [C.Call f xs' (map C.V tempOuts)]
+          ++
+        zipWith (\temp orig -> C.Let orig (temp :+ 0)) tempOuts outputs
 
     go (PikaCore.WithIn e vars body) = do
       vars' <- mapM internExprName vars -- TODO: Is this correct?
@@ -212,6 +239,55 @@ setToZero :: [C.CName] -> [Command]
 setToZero = map go
   where
     go x = C.Assign (x :+ 0) (C.IntLit 0)
+
+-- writeIndirect :: Allocation CExpr -> GenC (C.CName, [Command] -> [Command])
+-- writeIndirect (Alloc origName sz) = do
+--   newName <- fresh origName
+--   pure
+--     (newName
+--     ,\cmds -> C.IntoMalloc newName sz
+--                 : cmds ++
+--                [C.Let origName (newName :+ 0)
+--                ]
+--     )
+
+getDeclarations :: [Command] -> [C.CName]
+getDeclarations = mapMaybe go
+  where
+    go (C.IntoMalloc n _) = Just n
+    go (C.Let n _) = Just n
+    go _ = Nothing
+
+-- getNames :: [C.Command] -> [C.CName]
+-- getNames = toListOf fv
+
+-- addDecls :: [C.CName] -> [C.Command] -> [C.Command]
+-- addDecls params cmds =
+--   map (C.Decl . string2Name) names ++ cmds
+--   where
+--     existingDecls = map name2String $ getDeclarations cmds ++ params
+--     names = fastNub $ filter p $ map name2String $ getNames cmds
+--     p x = x `notElem` existingDecls
+
+freshAllocs :: [Allocation CExpr] -> GenC ([C.CName], [Command])
+freshAllocs allocs = do
+  freshNames <- mapM (\(Alloc n _) -> fresh n) allocs
+  pure (freshNames, zipWith (\n (Alloc _ sz) -> C.IntoMalloc n sz) freshNames allocs)
+
+-- | Remove one layer of indirection in preparation for a function
+-- call that will write.
+-- Create a fresh name that is a dereferenced version of the
+-- argument name. Then, after the commands run, write back the contents of the fresh name into the original name.
+
+writeIndirects :: [Allocation CExpr] -> GenC ([C.CName], [Command] -> [Command])
+writeIndirects origAllocs = do
+  (freshNames, allocCmds) <- freshAllocs origAllocs
+  let writeBack =
+        zipWith (\(Alloc x _) y -> C.Assign (x :+ 0) (C.V y)) origAllocs freshNames
+  pure
+    (freshNames
+    ,\cmds -> allocCmds ++ cmds ++ writeBack
+    )
 
 example :: PikaCore.Expr
 example =

@@ -36,6 +36,7 @@ data Command
   | IntoMalloc CName Int
   | Let CName CLoc
   | Free CName
+  | Decl CName
   | Nop
   deriving (Show, Eq, Ord, Generic)
 
@@ -46,9 +47,12 @@ data CFunction =
     , cfunctionBody :: [Command]
     }
 
+instance Alpha Command
+
 instance Alpha CExpr
 
 instance Ppr Command where
+  ppr (Decl n) = hsep [text "loc", ppr n <> text " = NULL;"]
   ppr (Assign loc e) =
     writeLoc loc e
     -- hsep [text "*" <> ppr loc, text "=", ppr e] <> text ";"
@@ -62,12 +66,10 @@ instance Ppr Command where
         ]
 
   ppr (Call f inArgs outArgs) =
-    let args = inArgs <> outArgs
-    in
-    text f <> text "(" <> hsep (punctuate (text ",") (map ppr args)) <> text ");"
+    text f <> text "(" <> hsep (punctuate (text ",") (map ppr inArgs ++ map ppr outArgs)) <> text ");"
 
   ppr (IntoMalloc target size) =
-    hsep [ppr target, text "=", text "(loc)malloc(" <> ppr size <> text " * sizeof(loc));"]
+    hsep [text "loc", ppr target, text "=", text "(loc)malloc(" <> ppr size <> text " * sizeof(loc));"]
 
   ppr (Free x) =
     hsep [text "free(", ppr x, text ");"]
@@ -98,12 +100,15 @@ instance Ppr CExpr where
   ppr (IntLit i) = ppr i
   ppr (BoolLit True) = text "true"
   ppr (BoolLit False) = text "false"
-  ppr (Add x y) = sep [pprP x, text "+", pprP y]
-  ppr (Sub x y) = sep [pprP x, text "-", pprP y]
+  ppr (Add x y) = sep [intCast (pprP x), text "+", intCast (pprP y)]
+  ppr (Sub x y) = sep [intCast (pprP x), text "-", intCast (pprP y)]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
   ppr (Not x) = sep [text "!", pprP x]
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
   ppr (Deref x) = text "*" <> ppr x
+
+intCast :: Doc -> Doc
+intCast d = text "(int)" <> d
 
 instance IsNested CExpr where
   isNested (V _) = False
