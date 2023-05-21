@@ -1,4 +1,5 @@
 %generate mapAdd1
+%generate mapAdd1Dll
 
 Sll : layout[x](List);
 Sll Nil := emp;
@@ -7,8 +8,21 @@ Sll (Cons head tail) :=
   (x+1) :-> nxt **
   Sll tail [nxt];
 
+Dll : layout[x z](List);
+Dll Nil := emp;
+Dll (Cons head tail) :=
+  x :-> head **
+  (x+1) :-> w **
+  (x+2) :-> z **
+  Dll tail [w] [x];
+
 mapAdd1 : Sll -> Sll;
 mapAdd1 Nil := Nil [Sll];
 mapAdd1 (Cons h t) :=
   Cons (h + 1) (mapAdd1 t) [Sll];
+
+mapAdd1Dll : Dll -> Dll;
+mapAdd1Dll Nil := Nil [Dll];
+mapAdd1Dll (Cons h t) :=
+  Cons (h + 1) (mapAdd1Dll t) [Dll];
 

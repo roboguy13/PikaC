@@ -5,9 +5,10 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module PikaC.Syntax.Pika.Layout
   where
@@ -28,6 +29,7 @@ import GHC.Stack
 import Unbound.Generics.LocallyNameless
 
 import Data.Void
+import Data.Typeable
 
 import Control.Lens
 import Control.Lens.TH
@@ -56,14 +58,14 @@ data Layout a =
     , _layoutBranches :: [LayoutBranch a]
     -- , _layoutParams :: [Name a]
     }
-    deriving (Show)
+    deriving (Show, Generic)
 
 data LayoutSig a =
   LayoutSig
     { _layoutSigAdt :: AdtName
     , _layoutSigParams :: [Name a]
     }
-    deriving (Show)
+    deriving (Show, Generic)
 
 -- type Layout = Layout' Identity
 
@@ -72,7 +74,7 @@ data LayoutBranch a =
     { _layoutPattern :: Pattern a
     , _layoutBody :: LayoutBody a
     }
-    deriving (Show)
+    deriving (Show, Generic)
 
 -- instance Bound f => Functor (LayoutBranch f)
 --
@@ -106,6 +108,9 @@ makeLenses ''Layout
 makeLenses ''LayoutBranch
 makeLenses ''LayoutBody
 makePrisms ''LayoutHeaplet
+
+instance (a ~ PType a, Alpha a, Typeable a) => Alpha (Layout a)
+instance (a ~ PType a, Alpha a, Typeable a) => Alpha (LayoutSig a)
 
 -- updateLayoutParams :: Fresh m =>
 --   (Name a -> m (Name b)) -> [LayoutBranches
@@ -160,6 +165,17 @@ applyLayout' layout c args =
   case applyLayout layout c args of
     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c ++ " in " ++ show layout
     Just r -> r
+
+instance (Typeable a, Show a, Alpha a) => Alpha (LayoutHeaplet a)
+
+instance (Show a, Typeable a, Alpha a) => Alpha (LayoutBody a)
+instance (Show a, Typeable (PType a), Typeable a, Alpha a) => Alpha (LayoutBranch a)
+
+-- | Includes parameters, excludes pattern variables
+layoutBranchFVs :: (Show a, Typeable a, a ~ PType a, Alpha a) => LayoutBranch a -> [Name a]
+layoutBranchFVs branch =
+  filter (`notElem` getPatternNames (_layoutPattern branch))
+    $ toListOf fv branch
 
 --
 -- -- applyLayout' :: (Ppr (Expr a), Show a, Ppr a, Eq a) => Layout' (Operand (LayoutBody a)) a -> String -> [Operand (LayoutBody a) a] -> Operand (LayoutBody a) (Expr a)

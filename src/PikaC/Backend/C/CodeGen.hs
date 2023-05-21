@@ -35,6 +35,8 @@ import Unbound.Generics.LocallyNameless
 
 import Control.Lens
 
+import Control.Arrow
+
 type Outputs = LayoutArg CExpr
 
 -- toCName :: PikaCore.ExprName -> LocName
@@ -129,7 +131,7 @@ codeGenBase e = error $ "codeGenBase: " ++ show e
 --   e' <- codeGenBase e
 --   pure . codeGenAsn $ connectLayoutArgs outputs [e']
 
-codeGenBaseCmd :: Outputs -> PikaCore.Expr -> GenC [Command]
+codeGenBaseCmd :: HasCallStack => Outputs -> PikaCore.Expr -> GenC [Command]
 codeGenBaseCmd outputs = connectToExpr outputs <=< codeGenBase
 
 connectToExpr :: Outputs -> CExpr -> GenC [Command]
@@ -183,6 +185,18 @@ convertPointsTo ((x :+ i) :-> y) = do
   y' <- codeGenBase y
   pure ((x' :+ i) :-> y')
 
+-- | Like codeGenBase, but handle LayoutV's
+codeGenArg :: PikaCore.Expr -> GenC ([C.CExpr], [Command])
+codeGenArg (PikaCore.LayoutV vs) = do
+  vs' <- mapM internExprName vs
+  pure (map C.V vs', [])
+codeGenArg e = do
+  e' <- codeGenBase e
+  pure ([e'], [])
+  -- tempVars <- mapM (\_ -> fresh (string2Name "vv")) xs
+  -- cmds <- concat <$> zipWithM codeGenExpr (map (:[]) tempVars) xs
+
+
 codeGenExpr :: HasCallStack => Outputs -> PikaCore.Expr -> GenC [Command]
 codeGenExpr outputs = go
   where
@@ -194,10 +208,16 @@ codeGenExpr outputs = go
       pure . codeGenAsn $ connectLayoutArgs outputs (map C.V xs')
 
     go (PikaCore.App f xs) = do
-      xs' <- mapM codeGenBase xs
+      -- tempVars <- mapM (\_ -> fresh (string2Name "vv")) xs
+      -- cmds <- concat <$> zipWithM codeGenExpr (map (:[]) tempVars) xs
+      -- let xs' = map C.V tempVars
+      -- xs' <- mapM codeGenBase xs
+
+      (xs', cmds) <- (concat *** concat) <$> mapAndUnzipM codeGenArg xs
 
       tempOuts <- mapM fresh outputs
       pure $
+        -- cmds ++
         map (`C.IntoMalloc` 1) tempOuts
           ++
           [C.Call f xs' (map C.V tempOuts)]

@@ -15,10 +15,16 @@ import PikaC.Stage.ToPikaCore.RenameResultLayout
 
 import Unbound.Generics.LocallyNameless
 
+import PikaC.Ppr
+
+import Debug.Trace
+
 simplifyFnDef :: Fresh m => FnDef -> m FnDef
-simplifyFnDef =
-  (pure . renameResultLayout) <=<
+simplifyFnDef fn =
+  trace ("simplifying " ++ ppr' fn) $
+
+  ((pure . renameResultLayout) <=<
   (pure . substWithLayoutVar) <=<
   withOfWith <=<
-  simplifyNestedCalls
+  simplifyNestedCalls) fn
 

@@ -11,10 +11,13 @@ module PikaC.Stage.ToPikaCore.Monad
 import qualified PikaC.Syntax.Pika.Expr as Pika
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import PikaC.Syntax.Pika.Layout
+import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Heaplet
 import PikaC.Utils
 
 import Unbound.Generics.LocallyNameless
+
+import Data.List
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -34,7 +37,7 @@ type LayoutEnv = [Layout PikaCore.Expr]
 data PikaConvertEnv =
   PikaConvertEnv
   { _layoutEnv :: LayoutEnv
-  , _layoutVarSubst :: LayoutVarSubst
+  -- , _layoutVarSubst :: LayoutVarSubst
   }
 
 newtype PikaConvertState =
@@ -56,28 +59,28 @@ type MonadPikaIntern m = (Fresh m, MonadState PikaConvertState m)
 newtype PikaConvert a = PikaConvert (ReaderT PikaConvertEnv PikaIntern a)
   deriving (Functor, Applicative, Monad, MonadState PikaConvertState, MonadReader PikaConvertEnv, Fresh)
 
-runPikaConvert :: LayoutVarSubst -> LayoutEnv -> PikaConvert a -> a
-runPikaConvert vsubst layouts =
-  runFreshM . runPikaConvert' vsubst layouts
+runPikaConvert :: LayoutEnv -> PikaConvert a -> a
+runPikaConvert layouts =
+  runFreshM . runPikaConvert' layouts
 
-runPikaConvert' :: LayoutVarSubst -> LayoutEnv -> PikaConvert a -> FreshM a
-runPikaConvert' vsubst layouts =
-  runPikaIntern' . runPikaConvert'' vsubst layouts
+runPikaConvert' :: LayoutEnv -> PikaConvert a -> FreshM a
+runPikaConvert' layouts =
+  runPikaIntern' . runPikaConvert'' layouts
 
-runPikaConvert'' :: LayoutVarSubst -> LayoutEnv -> PikaConvert a -> PikaIntern a
-runPikaConvert'' vsubst layouts (PikaConvert m) = runReaderT m (PikaConvertEnv layouts vsubst)
+runPikaConvert'' :: LayoutEnv -> PikaConvert a -> PikaIntern a
+runPikaConvert'' layouts (PikaConvert m) = runReaderT m (PikaConvertEnv layouts)
 
 lookupLayoutM :: String -> PikaConvert (Layout PikaCore.Expr)
 lookupLayoutM layoutName = do
   layouts <- asks _layoutEnv
   pure $ lookupLayout layouts layoutName
 
-vsubstLookupM :: HasCallStack => Pika.ExprName -> PikaConvert (String, LayoutArg PikaCore.Expr)
-vsubstLookupM e = do
-  LayoutVarSubst assocs <- asks _layoutVarSubst
-  case lookup e assocs of
-    Nothing -> error $ "vsubstLookupM: Cannot find variable " ++ show e ++ " in variable -> layout variable list conversion table"
-    Just r -> pure r
+-- vsubstLookupM :: HasCallStack => Pika.ExprName -> PikaConvert (String, LayoutArg PikaCore.Expr)
+-- vsubstLookupM e = do
+--   LayoutVarSubst assocs <- asks _layoutVarSubst
+--   case lookup e assocs of
+--     Nothing -> error $ "vsubstLookupM: Cannot find variable " ++ show e ++ " in variable -> layout variable list conversion table"
+--     Just r -> pure r
 
 scoped :: MonadPikaIntern m => m a -> m a
 scoped m = do
@@ -116,6 +119,7 @@ type Rename a = [(a, a)]
 layoutParamRename :: forall m. Fresh m => Layout PikaCore.Expr -> m (Rename PikaCore.ExprName)
 layoutParamRename layout =
     let params = _layoutSigParams (_layoutSig layout)
+                  `union` foldr (union . layoutBranchFVs) [] (_layoutBranches layout)
     in
     mapM go params
   where
