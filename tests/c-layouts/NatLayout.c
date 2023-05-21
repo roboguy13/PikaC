@@ -1,6 +1,5 @@
 #include "NatLayout.h"
 #include "Sll.h"
-
 void take(loc x, loc x1, loc x2) {
  if ((x == 0) && (x1 == 0)) {
   WRITE_LOC(x2, 0, 0);
@@ -31,6 +30,37 @@ void take(loc x, loc x1, loc x2) {
   }
  }
 }
+
+/* void take(loc x, loc x1, loc x2) { */
+/*  if ((x == 0) && (x1 == 0)) { */
+/*   WRITE_LOC(x2, 0, 0); */
+/*  } else { */
+/*   if ((!(x == 0)) && (x1 == 0)) { */
+/*    WRITE_LOC(x2, 0, 0); */
+/*    loc nxt6 = READ_LOC(x, 0); */
+/*   } else { */
+/*    if ((x == 0) && (!(x1 == 0))) { */
+/*     WRITE_LOC(x2, 0, 0); */
+/*     loc h9 = READ_LOC(x1, 0); */
+/*     loc nxt7 = READ_LOC(x1, 1); */
+/*    } else { */
+/*     if ((!(x == 0)) && (!(x1 == 0))) { */
+/*      loc nxt6 = READ_LOC(x, 0); */
+/*      loc h3 = READ_LOC(x1, 0); */
+/*      loc nxt7 = READ_LOC(x1, 1); */
+/*      loc x5 = (loc)malloc(2 * sizeof(loc)); */
+/*      loc x8 = (loc)malloc(1 * sizeof(loc)); */
+/*      take(nxt6, nxt7, x8); */
+/*      loc x4 = READ_LOC(x8, 0); */
+/*      WRITE_LOC(x5, 0, h3); */
+/*      WRITE_LOC(x5, 1, x4); */
+/*      WRITE_LOC(x2, 0, x5); */
+/*     } else { */
+/*     } */
+/*    } */
+/*   } */
+/*  } */
+/* } */
 
 
 /* void take(loc x, loc x1) { */

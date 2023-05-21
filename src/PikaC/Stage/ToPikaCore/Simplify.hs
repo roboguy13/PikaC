@@ -24,14 +24,18 @@ import Debug.Trace
 
 simplifyFnDef :: Fresh m => FnDef -> m FnDef
 simplifyFnDef =
-  -- trace ("simplifying " ++ ppr' fn) $
 
+  (pure . renameResultLayout) <=<
   fixedPoint
     (onFnDef layoutToWith <=<
-    (pure . renameResultLayout) <=<
     (pure . substWithLayoutVar) <=<
     withOfWith <=<
     simplifyNestedCalls)
+    .
+  myTraceWith (("simplifying " ++) . ppr')
+
+myTraceWith :: (a -> String) -> a -> a
+myTraceWith f x = trace (f x) x
 
 fixedPoint :: Fresh m => (FnDef -> m FnDef) -> FnDef -> m FnDef
 fixedPoint f x = do

@@ -9,8 +9,8 @@ Sll (Cons head tail) :=
 
 append : Sll -> Sll -> Sll;
 append Nil Nil := Nil [Sll];
-append Nil (Cons y ys) := Cons y ys [Sll];
-append (Cons x xs) Nil := Cons x xs [Sll];
-append (Cons x xs) (Cons y ys) :=
-  Cons x (append xs (Cons y ys [Sll])) [Sll];
+append Nil (Cons h t) := Cons h t [Sll];
+append (Cons h t) Nil := Cons h t [Sll];
+append (Cons h t) (Cons h2 t2) :=
+  Cons h (append t (Cons h2 t2 [Sll])) [Sll];
 

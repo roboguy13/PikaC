@@ -41,11 +41,11 @@ withOfWithBranch =
 
 withOfWithOne :: Fresh m => Expr -> m (Maybe Expr)
 withOfWithOne (WithIn (WithIn e1 vars1 e2) vars2 e3) = do
-  -- vars1' <- mapM fresh vars1
-  -- let e3' = rename (zip vars1 vars1') e3
+  vars2' <- mapM fresh vars2
+  let e3' = rename (zip vars2 vars2') e3
 
   pure $ Just $ WithIn e1 vars1
-              $ WithIn e2 vars2 e3
+              $ WithIn e2 vars2' e3'
 
 withOfWithOne _ = pure Nothing
 
