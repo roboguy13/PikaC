@@ -1,0 +1,16 @@
+%generate append
+
+Sll : layout[x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+append : Sll -> Sll -> Sll;
+append Nil Nil := Nil [Sll];
+append Nil (Cons y ys) := Cons y ys [Sll];
+append (Cons x xs) Nil := Cons x xs [Sll];
+append (Cons x xs) (Cons y ys) :=
+  Cons x (append xs (Cons y ys [Sll])) [Sll];
+

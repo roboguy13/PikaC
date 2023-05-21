@@ -52,6 +52,7 @@ executable PikaC
       PikaC.Stage.ToPikaCore.NestedCalls
       PikaC.Stage.ToPikaCore.WithOfWith
       PikaC.Stage.ToPikaCore.RenameResultLayout
+      PikaC.Stage.ToPikaCore.LayoutToWith
       PikaC.Stage.ToPikaCore.Monad
       PikaC.Utils
       PikaC.Subst
