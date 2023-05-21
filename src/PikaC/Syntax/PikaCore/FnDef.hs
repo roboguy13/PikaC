@@ -43,17 +43,22 @@ instance Ppr FnDef where
     where
       go :: [FnDefBranch] -> Doc
       go [] = mempty
-      go (branch : rest) = (ppr (_fnDefName def) <+> ppr branch) $$ go rest
+      go (branch : rest) = pprBranch (ppr (_fnDefName def)) branch $$ go rest
 
 instance Ppr FnDefBranch where
-  ppr branch =
-    sep
-      [ hsep [hsep $ punctuate (text " ") (map ppr (_fnDefBranchInputAssertions branch))
-              , text "==>"
-              , ppr (_fnDefOutputParams branch)
-              , text ":="
-              ]
-      ] $$ nest 1 (ppr (_fnDefBranchBody branch) <> text ";")
+  ppr = pprBranch mempty
+
+pprBranch :: Doc -> FnDefBranch -> Doc
+pprBranch doc branch =
+    (doc <+>
+      sep
+        [ hsep [hsep $ punctuate (text " ") (map ppr (_fnDefBranchInputAssertions branch))
+                , text "==>"
+                , ppr (_fnDefOutputParams branch)
+                , text ":="
+                ]
+        ])
+      $$ nest 1 (ppr (_fnDefBranchBody branch) <> text ";")
 
 and' :: Expr -> Expr -> Expr
 and' x (BoolLit True) = x
