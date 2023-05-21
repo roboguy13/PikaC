@@ -81,24 +81,6 @@
 /*  } */
 /* } */
 
-/* void mapAdd1(loc x, loc x1) { */
-/*  if (x == 0) { */
-/*   WRITE_LOC(x1, 0, 0); */
-/*  } else { */
-/*   if (!(x == 0)) { */
-/*    loc h2 = READ_LOC(x, 0); */
-/*    loc nxt5 = READ_LOC(x, 1); */
-/*    loc x4 = (loc)malloc(2 * sizeof(loc)); */
-/*    loc x6 = (loc)malloc(1 * sizeof(loc)); */
-/*    mapAdd1(nxt5, x6); */
-/*    loc x3 = READ_LOC(x6, 0); */
-/*    WRITE_LOC(x4, 0, (int)h2 + (int)1); */
-/*    WRITE_LOC(x4, 1, x3); */
-/*    WRITE_LOC(x1, 0, x4); */
-/*   } else { */
-/*   } */
-/*  } */
-/* } */
 void mapAdd1(loc x, loc x1) {
  if (x == 0) {
   WRITE_LOC(x1, 0, 0);
@@ -117,6 +99,49 @@ void mapAdd1(loc x, loc x1) {
   }
  }
 }
+
+void mapAdd1Dll(loc x, loc z1, loc x2, loc z3) {
+ if (x == 0) {
+  WRITE_LOC(x2, 0, 0);
+ } else {
+  if (!(x == 0)) {
+   loc h4 = READ_LOC(x, 0);
+   loc w7 = READ_LOC(x, 1);
+   loc z1 = READ_LOC(x, 2);
+   loc x6 = (loc)malloc(3 * sizeof(loc));
+   loc x9 = (loc)malloc(1 * sizeof(loc));
+   loc z10 = (loc)malloc(1 * sizeof(loc));
+   mapAdd1Dll(w7, x, x9, z10);
+   loc x5 = READ_LOC(x9, 0);
+   loc z8 = READ_LOC(z10, 0);
+   WRITE_LOC(x6, 0, (int)h4 + (int)1);
+   WRITE_LOC(x6, 1, x5);
+   WRITE_LOC(x6, 2, z3);
+   WRITE_LOC(x2, 0, x6);
+  } else {
+  }
+ }
+}
+
+
+/* void mapAdd1(loc x, loc x1) { */
+/*  if (x == 0) { */
+/*   WRITE_LOC(x1, 0, 0); */
+/*  } else { */
+/*   if (!(x == 0)) { */
+/*    loc h2 = READ_LOC(x, 0); */
+/*    loc nxt5 = READ_LOC(x, 1); */
+/*    loc x4 = (loc)malloc(2 * sizeof(loc)); */
+/*    loc x6 = (loc)malloc(1 * sizeof(loc)); */
+/*    mapAdd1(nxt5, x6); */
+/*    loc x3 = READ_LOC(x6, 0); */
+/*    WRITE_LOC(x4, 0, (int)h2 + (int)1); */
+/*    WRITE_LOC(x4, 1, x3); */
+/*    WRITE_LOC(x1, 0, x4); */
+/*   } else { */
+/*   } */
+/*  } */
+/* } */
 
 int main() {
   loc x = malloc(sizeof(loc));

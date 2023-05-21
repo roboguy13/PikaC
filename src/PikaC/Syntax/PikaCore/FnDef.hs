@@ -53,8 +53,7 @@ instance Ppr FnDefBranch where
               , ppr (_fnDefOutputParams branch)
               , text ":="
               ]
-      , nest 1 $ ppr (_fnDefBranchBody branch) <> text ";"
-      ]
+      ] $$ nest 1 (ppr (_fnDefBranchBody branch) <> text ";")
 
 and' :: Expr -> Expr -> Expr
 and' x (BoolLit True) = x

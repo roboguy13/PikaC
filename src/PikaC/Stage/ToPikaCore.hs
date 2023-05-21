@@ -52,7 +52,14 @@ toPikaCore layouts0 fn = runFreshM . runPikaIntern' $ do
   rhos <- mapM (traverse layoutParamRename) argLayouts
 
   let branches = map (convertFnBranch layouts argLayouts rhos argTypes outParams) (Pika.fnDefBranches fn)
-  let inParams = fastNub . map (locBase . pointsToLhs) $ concat $ concatMap PikaCore._fnDefBranchInputAssertions branches
+
+  -- let inParams = fastNub . map (locBase . pointsToLhs) $ concat $ concatMap PikaCore._fnDefBranchInputAssertions branches
+  let inParams :: [PikaCore.ExprName]
+      inParams =
+        concatMap (\case
+                     Nothing -> error "TODO: Implement non-constructor application pattern variables"
+                     Just x -> _layoutSigParams (_layoutSig x))
+        $ zipWith renameMaybe rhos argLayouts
 
   -- let freshenedBranches = trace ("rhos = " ++ show rhos) (map (freshenBranchAsn rhos) branches)
 
@@ -61,7 +68,7 @@ toPikaCore layouts0 fn = runFreshM . runPikaIntern' $ do
     $ PikaCore.FnDef
       { PikaCore._fnDefBranches = branches
       , PikaCore._fnDefName = Pika.fnDefName fn
-      , PikaCore._fnDefParams = inParams ++ outParams
+      , PikaCore._fnDefParams = trace ("params = " ++ show (inParams, outParams)) $ inParams ++ outParams
       }
   where
     (argTypes, resultType) = splitFnType (_typeSigTy (Pika.fnDefTypeSig fn))
