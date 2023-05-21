@@ -21,7 +21,7 @@ import Debug.Trace
 
 simplifyFnDef :: Fresh m => FnDef -> m FnDef
 simplifyFnDef fn =
-  trace ("simplifying " ++ ppr' fn) $
+  -- trace ("simplifying " ++ ppr' fn) $
 
   ((pure . renameResultLayout) <=<
   (pure . substWithLayoutVar) <=<

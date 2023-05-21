@@ -68,7 +68,7 @@ toPikaCore layouts0 fn = runFreshM . runPikaIntern' $ do
     $ PikaCore.FnDef
       { PikaCore._fnDefBranches = branches
       , PikaCore._fnDefName = Pika.fnDefName fn
-      , PikaCore._fnDefParams = trace ("params = " ++ show (inParams, outParams)) $ inParams ++ outParams
+      , PikaCore._fnDefParams = inParams ++ outParams
       }
   where
     (argTypes, resultType) = splitFnType (_typeSigTy (Pika.fnDefTypeSig fn))
@@ -89,15 +89,14 @@ convertFnBranch layouts argLayouts rhos argTypes outParams branch = runPikaConve
   body <- applyParameterMap paramMap <$> convertBase (Pika.fnBranchBody branch)
   -- body <- convertBase (Pika.fnBranchBody branch)
 
-  trace ("rhos = " ++ show rhos) $
-    pure
-      $ PikaCore.FnDefBranch
-        { PikaCore._fnDefOutputParams = outParams
-        , PikaCore._fnDefBranchBody = body
-        , PikaCore._fnDefBranchInputAssertions = -- TODO: Apply renaming
-            exprAsns &
-              (traversed.traversed.pointsToRhsLens) %~ applyParameterMap paramMap
-        }
+  pure
+    $ PikaCore.FnDefBranch
+      { PikaCore._fnDefOutputParams = outParams
+      , PikaCore._fnDefBranchBody = body
+      , PikaCore._fnDefBranchInputAssertions = -- TODO: Apply renaming
+          exprAsns &
+            (traversed.traversed.pointsToRhsLens) %~ applyParameterMap paramMap
+      }
 
 getArgAsn :: [Layout PikaCore.Expr] -> Type -> Pattern PikaCore.Expr -> LayoutBody PikaCore.Expr
 getArgAsn layouts ty (PatternVar {}) = error "getArgAsn: PatternVar {} case unimplemented"
@@ -125,13 +124,11 @@ convertBase = go
       app <- applyLayoutOrNOP layout rs f xs
 
       -- traceM $ "generating layout-applied app: " ++ show e0 ++ "\n  ^--> " ++ show app
-      r <-
-        pure $
-          PikaCore.WithIn
-            app
-            rs
-             (PikaCore.LayoutV rs)
-      pure $ trace ("with-in generating: r = " ++ ppr' r) r
+      pure $
+        PikaCore.WithIn
+          app
+          rs
+           (PikaCore.LayoutV rs)
     go (Pika.App f xs) = PikaCore.App f <$> mapM go xs
     go e0@(Pika.ApplyLayout {}) = error $ "convertBase: " ++ show e0
     go (Pika.Add x y) =
@@ -460,14 +457,11 @@ applyLayoutOrNOP layout outVars constructor args = do
 
     case applyLayoutLApplies layout constructor args' of
       Nothing -> do
-        traceM $ "applyLayoutOrNOP: NOP on (" ++ constructor ++ " " ++ unwords (map (show . pprP) args') ++ ")"
         pure Nothing
       Just asns -> do
         --           ++ "\n ^--> getPointsTos: " ++ show (getPointsTos asns)
-        e <- fmap Just $ lappliesToWiths outVars (getLApplies asns) =<< freshSslAssertion params (getPointsTos asns)
+        fmap Just $ lappliesToWiths outVars (getLApplies asns) =<< freshSslAssertion params (getPointsTos asns)
         -- e <- Just <$> freshSslAssertion params (getPointsTos asns)
-        trace ("*** applyLayoutOrNOP: (" ++ constructor ++ " " ++ unwords (map (show . pprP) args') ++ ") ---> " ++ show asns ++ "\ne = " ++ show e ++ "; getLApplies = " ++ show (getLApplies asns)) $
-          pure e
 
 -- | Only apply App's in LApply's, not LPointsTo's. Apply everything else
 -- everywhere
@@ -477,18 +471,15 @@ applyLayoutLApplies layout constructor args = do
   let body = _layoutBody branch
       st = patternMatchSubst' (_layoutPattern branch) constructor args
       nonApplySubsts = filter (not . is PikaCore._App . snd) st
-  trace ("args = " ++ show args ++ "; st = " ++ show st) $
-    trace ("nonApplySubsts = " ++ show nonApplySubsts) $
-      Just
-        (body & (unLayoutBody.traversed._LApply) %~ substs st -- Apply App's
-              & (unLayoutBody.traversed) %~ substs nonApplySubsts) -- Apply non-App's
+  Just
+    (body & (unLayoutBody.traversed._LApply) %~ substs st -- Apply App's
+          & (unLayoutBody.traversed) %~ substs nonApplySubsts) -- Apply non-App's
 
 lappliesToWiths :: [PikaCore.ExprName] -> [(String, PikaCore.Expr, [PikaCore.ExprName])] -> PikaCore.Expr -> PikaConvert PikaCore.Expr
 lappliesToWiths outVars [] e = pure e
 lappliesToWiths outVars ((layout, pikaApp@(PikaCore.App {}), layoutArgs):rest) e = do
   -- args <- mapM fresh layoutArgs
-  trace ("(outVars, layoutArgs) = " ++ show (outVars, layoutArgs))
-    $ PikaCore.WithIn
+  PikaCore.WithIn
       pikaApp
       outVars
       <$> lappliesToWiths outVars rest (substs (zip layoutArgs (map PikaCore.V outVars)) e)
