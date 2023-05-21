@@ -59,7 +59,7 @@ data Expr
       (LayoutArg Expr)     --     {x ...}
       ExprAssertion     --   { (x+1) :-> e ** ... }
   | App String [Expr] -- | Fully saturated function application
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 instance Plated Expr where
   plate f (V x) = pure $ V x

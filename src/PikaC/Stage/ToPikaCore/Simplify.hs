@@ -23,14 +23,22 @@ import Control.Lens
 import Debug.Trace
 
 simplifyFnDef :: Fresh m => FnDef -> m FnDef
-simplifyFnDef fn =
+simplifyFnDef =
   -- trace ("simplifying " ++ ppr' fn) $
 
-  (onFnDef layoutToWith <=<
-  (pure . renameResultLayout) <=<
-  (pure . substWithLayoutVar) <=<
-  withOfWith <=<
-  simplifyNestedCalls) fn
+  fixedPoint
+    (onFnDef layoutToWith <=<
+    (pure . renameResultLayout) <=<
+    (pure . substWithLayoutVar) <=<
+    withOfWith <=<
+    simplifyNestedCalls)
+
+fixedPoint :: Fresh m => (FnDef -> m FnDef) -> FnDef -> m FnDef
+fixedPoint f x = do
+  y <- f x
+  if y == x
+    then pure y
+    else fixedPoint f y
 
 onFnDef :: Fresh m => (Expr -> m Expr) -> FnDef -> m FnDef
 onFnDef f =

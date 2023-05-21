@@ -18,7 +18,7 @@ data FnDef =
   , _fnDefBranches :: [FnDefBranch]
   , _fnDefParams :: [ExprName]
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 data FnDefBranch =
   FnDefBranch
@@ -26,7 +26,7 @@ data FnDefBranch =
   , _fnDefBranchInputAssertions :: [ExprAssertion]
   , _fnDefBranchBody :: Expr
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 makeLenses ''FnDef
 makeLenses ''FnDefBranch
