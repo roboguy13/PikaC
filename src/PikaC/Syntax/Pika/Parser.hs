@@ -169,7 +169,7 @@ parseLayoutSig :: Parser (LayoutSig Expr)
 parseLayoutSig = lexeme $ do
   keyword "layout"
   symbol "["
-  params <- some parseLayoutVar
+  params <- some parseModedLayoutVar
   symbol "]"
   symbol "("
   adt <- parseAdtName
@@ -228,6 +228,13 @@ parseLayoutApply = do
 parseLayoutArg :: Parser ExprName
 parseLayoutArg = label "layout argument" $ lexeme $
   symbol "[" *> parseLayoutVar <* symbol "]"
+
+parseModedLayoutVar :: Parser (ModedName Expr)
+parseModedLayoutVar =
+  ModedName <$> parseMode <*> parseLayoutVar
+
+parseMode :: Parser Mode
+parseMode = (char '+' $> In) <|> (char '-' $> Out)
 
 parseLayoutVar :: Parser ExprName
 parseLayoutVar = label "layout variable" $ lexeme $

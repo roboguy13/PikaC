@@ -42,6 +42,8 @@ import Control.Monad.Reader
 
 import Debug.Trace
 
+import Data.Char
+
 -- | This does a basic conversion and then hands it off to the simplifier.
 toPikaCore :: [Layout Pika.Expr] -> Pika.FnDef -> PikaCore.FnDef
 toPikaCore layouts0 fn = runFreshM . runPikaIntern' $ do
@@ -108,6 +110,9 @@ getArgAsn layouts (TyVar layoutName) (Pattern constructor vars) =
 -- renameMaybe (Just rho) = rename rho
 -- renameMaybe Nothing = id
 
+isConstructor :: String -> Bool
+isConstructor = isUpper . head
+
 convertBase :: Pika.Expr -> PikaConvert PikaCore.Expr
 convertBase = go
   where
@@ -116,6 +121,22 @@ convertBase = go
     go (Pika.IntLit i) = pure $ PikaCore.IntLit i
     go (Pika.LayoutLambda {}) = error $ "convertBase: There should be no layout lambdas when converting from Pika to PikaCore"
     go (Pika.ApplyLayout (Pika.V v) layoutName) = PikaCore.V <$> internExprName v -- TODO: Is this correct?
+
+    go (Pika.ApplyLayout (Pika.App f xs) layoutName)
+      | isConstructor f = do
+          layout <- lookupLayoutM (name2String layoutName)
+          let layoutParams = _layoutSigParams (_layoutSig layout)
+          rs <- mapM fresh (replicate (length layoutParams) (string2Name "cc"))
+          xs' <- mapM convertBase xs
+          let applied = applyLayout' layout f xs'
+          bnd <- freshSslAssertion layoutParams (getPointsTos applied)
+          trace ("applyLayout args = " ++ show (xs, xs') ++ "; applied " ++ show applied) $
+            pure $
+              PikaCore.WithIn
+                bnd
+                rs
+                (PikaCore.LayoutV rs)
+
     go e0@(Pika.ApplyLayout (Pika.App f xs) layoutName) = do
       rs <- generateParamsM (TyVar layoutName)
 

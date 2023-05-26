@@ -124,6 +124,61 @@ void mapAdd1Dll(loc x, loc z1, loc x2, loc z3) {
 }
 
 
+void revcat(loc x, loc x1, loc x2) {
+ if ((x == 0) && (x1 == 0)) {
+  WRITE_LOC(x2, 0, 0);
+ } else {
+  if ((x == 0) && (!(x1 == 0))) {
+   loc h10 = READ_LOC(x1, 0);
+   loc nxt7 = READ_LOC(x1, 1);
+   loc x13 = (loc)malloc(2 * sizeof(loc));
+   WRITE_LOC(x13, 0, h10);
+   WRITE_LOC(x13, 1, nxt4);
+   WRITE_LOC(x2, 0, x13);
+  } else {
+   if ((!(x == 0)) && (x1 == 0)) {
+    WRITE_LOC(x2, 0, 0);
+    loc h10 = READ_LOC(x, 0);
+    loc nxt5 = READ_LOC(x, 1);
+    WRITE_LOC(x, 0, h10);
+    WRITE_LOC(x, 1, nxt4);
+    loc x12 = (loc)malloc(1 * sizeof(loc));
+    revcat(nxt5, x11, x12);
+    loc x2 = READ_LOC(x12, 0);
+   } else {
+    if ((!(x == 0)) && (!(x1 == 0))) {
+     WRITE_LOC(x2, 0, 0);
+     loc h13 = READ_LOC(x, 0);
+     loc nxt5 = READ_LOC(x, 1);
+     loc h26 = READ_LOC(x1, 0);
+     loc nxt7 = READ_LOC(x1, 1);
+     WRITE_LOC(x1, 0, h13);
+     WRITE_LOC(x1, 1, nxt4);
+     loc x9 = (loc)malloc(1 * sizeof(loc));
+     revcat(nxt5, x8, x9);
+     loc x2 = READ_LOC(x9, 0);
+    } else {
+    }
+   }
+  }
+ }
+}
+
+void reverse(loc x, loc x1) {
+ if (x == 0) {
+ } else {
+  if (!(x == 0)) {
+   loc h3 = READ_LOC(x, 0);
+   loc nxt5 = READ_LOC(x, 1);
+   WRITE_LOC(x2, 0, h3);
+   WRITE_LOC(x2, 1, nxt4);
+   loc x8 = (loc)malloc(1 * sizeof(loc));
+   revcat(x6, x7, x8);
+   loc x1 = READ_LOC(x8, 0);
+  } else {
+  }
+ }
+}
 
 
 /* void mapAdd1(loc x, loc x1) { */

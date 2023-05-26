@@ -5,6 +5,8 @@ import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Parser
 
+import PikaC.TypeChecker.Mode
+
 import PikaC.Syntax.PikaCore.FnDef
 
 import PikaC.Syntax.ParserUtils
@@ -28,6 +30,14 @@ main = do
       fileData <- readFile fileName
 
       let pikaModule = parse'' fileName parsePikaModule fileData
+          layouts = moduleLayouts pikaModule
+
+      case mapM_ (modeCheck layouts) layouts of
+        Left e -> do
+          putStrLn $ ppr' e
+          exitFailure
+        Right () -> pure ()
+
       withModule pikaModule
     _ -> error "Wrong number of arguments. Expected 1"
 

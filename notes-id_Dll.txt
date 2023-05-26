@@ -1,0 +1,57 @@
+Sll [+x] Nil := emp;
+Sll [+x] (Cons head tail) := [-nxt] x :-> head, (x+1) :-> nxt, Sll [nxt] t;
+
+Dll [+x, +z] Nil := emp;
+Dll [+x, +z] (Cons head tail) := [?w] x :-> head, (x+1) :-> z, (x+2) :-> w, Dll [w, x] t;
+         ^     *** Cannot match modes ***                                           ^
+
+Dll [+x, -z] Nil := emp;
+Dll [+x, -z] (Cons head tail) := [-w] x :-> head, (x+1) :-> z, (x+2) :-> w, Dll [w, x] t;
+
+Dll [out x, in z] Nil := emp;
+Dll [out x, in z] (Cons head tail) := [in w] x :-> head, (x+1) :-> z, (x+2) :-> w, Dll [w, x] t;
+
+id Nil := Nil;
+id (Cons h t) := Cons h (id t);
+
+
+
+
+id_Sll [x]{} ==> [r] := [r] {};
+id_Sll [x]{x :-> h, (x+1) :-> t} ==> [r] :=
+  with {r'} := id t.nxt
+  in
+  with {r''} := Cons h r'
+  in
+  [r]{r''};
+
+
+id_Sll [x]{} ==> [r] := [r] {};
+id_Sll [x]{x :-> h, (x+1) :-> t} ==> [r] :=
+  with {r'} := id t.x
+  in
+  [r] { r :-> h, (r+1) :-> r' };
+
+
+id_Dll [x, z] {} ==> [xr, zr] := [xr, zr] {};
+id_Dll [x, z] {x :-> h, (x+1) :-> z, (x+2) :-> w, Dll [w, x] t} ==> [xr, zr] :=
+  with {x', z'} = id_Dll [w, x]   --id_Dll <<Dll [w, x] t>>
+  in
+  [xr, zr]{xr :-> h, (xr+1) :-> ?z, (xr+2) :-> x'}
+  -- [xr, zr]{xr :-> h, (xr+1) :-> z, (xr+2) :-> w'}
+  -- [xr, zr]{xr :-> h, id_Dll <<Dll [w, x] t>>[x/xr, z/zr]}
+
+
+Nil case:
+  id_Dll [x, z] {x :-> h, (x+1) :-> z, (x+2) :-> w, Dll [w, x] t} ==> [xr, zr] :=
+    with {x', z'} = id_Dll {w = 0}
+    in
+    [xr, zr]{xr :-> h, (xr+1) :-> 0, (xr+2) :-> x'}  -- z is unconstrained so we choose 0
+
+Cons case:
+  id_Dll [x, z] {x :-> h, (x+1) :-> z, (x+2) :-> w, Dll [w, x] t} ==> [xr, zr] :=
+    with {x', z'} = id_Dll {w :-> h', (w+1) :-> x, (w+2) :-> w'}
+    in
+
+(id_Dll [x, z]).z = ?
+

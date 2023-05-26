@@ -4,6 +4,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RankNTypes #-}
 
 module PikaC.Stage.ToPikaCore.Monad
   where
@@ -12,6 +13,7 @@ import qualified PikaC.Syntax.Pika.Expr as Pika
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
+import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Heaplet
 import PikaC.Utils
 
@@ -32,11 +34,9 @@ import Debug.Trace
 newtype LayoutVarSubst = LayoutVarSubst [(Pika.ExprName, (String, LayoutArg PikaCore.Expr))]
   deriving (Semigroup, Monoid, Show)
 
-type LayoutEnv = [Layout PikaCore.Expr]
-
 data PikaConvertEnv =
   PikaConvertEnv
-  { _layoutEnv :: LayoutEnv
+  { _layoutEnv :: LayoutEnv PikaCore.Expr
   -- , _layoutVarSubst :: LayoutVarSubst
   }
 
@@ -59,21 +59,39 @@ type MonadPikaIntern m = (Fresh m, MonadState PikaConvertState m)
 newtype PikaConvert a = PikaConvert (ReaderT PikaConvertEnv PikaIntern a)
   deriving (Functor, Applicative, Monad, MonadState PikaConvertState, MonadReader PikaConvertEnv, Fresh)
 
-runPikaConvert :: LayoutEnv -> PikaConvert a -> a
+runPikaConvert :: LayoutEnv PikaCore.Expr -> PikaConvert a -> a
 runPikaConvert layouts =
   runFreshM . runPikaConvert' layouts
 
-runPikaConvert' :: LayoutEnv -> PikaConvert a -> FreshM a
+runPikaConvert' :: LayoutEnv PikaCore.Expr-> PikaConvert a -> FreshM a
 runPikaConvert' layouts =
   runPikaIntern' . runPikaConvert'' layouts
 
-runPikaConvert'' :: LayoutEnv -> PikaConvert a -> PikaIntern a
+runPikaConvert'' :: LayoutEnv PikaCore.Expr -> PikaConvert a -> PikaIntern a
 runPikaConvert'' layouts (PikaConvert m) = runReaderT m (PikaConvertEnv layouts)
 
 lookupLayoutM :: String -> PikaConvert (Layout PikaCore.Expr)
 lookupLayoutM layoutName = do
   layouts <- asks _layoutEnv
   pure $ lookupLayout layouts layoutName
+
+-- | Construct an ADT value using a pre-specified layout
+newtype Construct a =
+  Construct
+    (HasCallStack =>
+          String ->   -- Constructor name
+          [Name a] -> -- Location parameters
+          [LayoutHeaplet a])
+
+-- | Build a name mapping from an LApply given the global environment of layouts
+makeConstruct :: forall a. HasApp a => [Layout a] -> (String, a, [Name a]) -> Construct a
+makeConstruct layouts (layoutName, patVar, locVars) =
+  let layout = lookupLayout layouts layoutName
+  in
+  Construct $ \constructor newLocNames ->
+    let branch = lookupLayoutBranch' layout constructor
+    in
+    undefined
 
 -- vsubstLookupM :: HasCallStack => Pika.ExprName -> PikaConvert (String, LayoutArg PikaCore.Expr)
 -- vsubstLookupM e = do
@@ -118,7 +136,7 @@ type Rename a = [(a, a)]
 -- | For freshening layout pattern variables in function definitions
 layoutParamRename :: forall m. Fresh m => Layout PikaCore.Expr -> m (Rename PikaCore.ExprName)
 layoutParamRename layout =
-    let params = _layoutSigParams (_layoutSig layout)
+    let params = map modedNameName (_layoutSigParams (_layoutSig layout))
                   `union` foldr (union . layoutBranchFVs) [] (_layoutBranches layout)
     in
     mapM go params

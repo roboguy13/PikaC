@@ -63,9 +63,39 @@ data Layout a =
 data LayoutSig a =
   LayoutSig
     { _layoutSigAdt :: AdtName
-    , _layoutSigParams :: [Name a]
+    , _layoutSigParams :: [ModedName a]
     }
     deriving (Show, Generic)
+
+data ModedName a = ModedName Mode (Name a)
+  deriving (Show, Generic)
+
+data Mode = In | Out
+  deriving (Show, Generic, Eq)
+
+type ModeEnv a = [ModedName a]
+
+
+lookupMode :: ModeEnv a -> Name a -> Maybe Mode
+lookupMode env n =
+  lookup n (map (\(ModedName x y) -> (y, x)) env)
+
+lookupMode' :: HasCallStack => ModeEnv a -> Name a -> Mode
+lookupMode' env n =
+  case lookupMode env n of
+    Nothing -> error $ "lookupMode': Cannot find mode for " ++ show n
+    Just r -> r
+
+instance Ppr a => Ppr (ModedName a) where
+  ppr (ModedName mode n) = ppr mode <> ppr n
+
+instance Ppr Mode where
+  ppr In = text "+"
+  ppr Out = text "-"
+
+instance Typeable a => Alpha (ModedName a)
+
+instance Alpha Mode
 
 -- type Layout = Layout' Identity
 
@@ -109,6 +139,15 @@ makeLenses ''LayoutBranch
 makeLenses ''LayoutBody
 makePrisms ''LayoutHeaplet
 
+instance (IsNested a, Ppr a) => Ppr (LayoutHeaplet a) where
+  ppr (LPointsTo p) = ppr p
+  ppr (LApply f patVar layoutVars) =
+    text f
+      <+> pprP patVar
+      <+> (text "["
+          <> hsep (punctuate (text ",") (map ppr layoutVars))
+          <> text "]")
+
 instance (a ~ PType a, Alpha a, Typeable a) => Alpha (Layout a)
 instance (a ~ PType a, Alpha a, Typeable a) => Alpha (LayoutSig a)
 
@@ -123,11 +162,26 @@ instance (a ~ PType a, Alpha a, Typeable a) => Alpha (LayoutSig a)
 --   LApply name patVar layoutVars >>>= f =
 --     LApply name (patVar >>= f) (map (>>= f) layoutVars)
 
-lookupLayout :: [Layout a] -> String -> Layout a
+type LayoutEnv a = [Layout a]
+
+lookupLayout :: LayoutEnv a -> String -> Layout a
 lookupLayout [] name = error $ "lookupLayout: Cannot find layout " ++ name
 lookupLayout (x:xs) name
   | _layoutName x == name = x
   | otherwise = lookupLayout xs name
+
+class Moded f where
+  getMode :: ModeEnv a -> f a -> Maybe Mode
+
+instance Moded Name where
+  getMode = lookupMode
+
+-- TODO: Make sure this is consistent with environment?
+instance Moded ModedName where
+  getMode _ (ModedName m _) = Just m
+
+modedNameName :: ModedName a -> Name a
+modedNameName (ModedName _ n) = n
 
 lookupLayoutBranch :: HasApp a => Layout a -> String -> Maybe (LayoutBranch a)
 lookupLayoutBranch layout constructor = go $ _layoutBranches layout
@@ -170,6 +224,15 @@ instance (Typeable a, Show a, Alpha a) => Alpha (LayoutHeaplet a)
 
 instance (Show a, Typeable a, Alpha a) => Alpha (LayoutBody a)
 instance (Show a, Typeable (PType a), Typeable a, Alpha a) => Alpha (LayoutBranch a)
+
+-- | A name mapping gotten by applying a layout. This can be used
+-- for recursively applying layouts
+type LayoutMapping a = [(Name a, Name a)]
+
+-- | Follow the LApply's one time to get a LayoutMapping for
+-- those layout applications
+mappingFromLApplies :: [Layout a] -> LayoutBody a -> LayoutMapping a
+mappingFromLApplies = undefined
 
 -- | Includes parameters, excludes pattern variables
 layoutBranchFVs :: (Show a, Typeable a, a ~ PType a, Alpha a) => LayoutBranch a -> [Name a]

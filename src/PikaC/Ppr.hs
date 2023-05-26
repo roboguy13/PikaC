@@ -11,7 +11,7 @@ module PikaC.Ppr
   )
   where
 
-import Text.PrettyPrint.HughesPJ hiding ((<>))
+import Text.PrettyPrint.HughesPJ hiding ((<>), Mode)
 
 import Unbound.Generics.LocallyNameless
 

@@ -1,0 +1,20 @@
+%generate revcat
+%generate reverse
+
+Sll : layout[x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+revcat : Sll -> Sll -> Sll;
+revcat Nil Nil := Nil [Sll];
+revcat Nil (Cons h t) := Cons h t [Sll];
+revcat (Cons h t) Nil := revcat t (Cons h (Nil [Sll]) [Sll]);
+revcat (Cons h1 t1) (Cons h2 t2) := revcat t1 (Cons h1 (Cons h2 t2 [Sll]) [Sll]);
+
+reverse : Sll -> Sll;
+reverse Nil := Nil [Sll];
+reverse (Cons h t) := revcat (Cons h t [Sll]) (Nil [Sll]);
+
