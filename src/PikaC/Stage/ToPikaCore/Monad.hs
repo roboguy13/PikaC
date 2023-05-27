@@ -16,8 +16,10 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Heaplet
 import PikaC.Utils
+import PikaC.Ppr (ppr')
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
 
 import Data.List
 
@@ -75,23 +77,23 @@ lookupLayoutM layoutName = do
   layouts <- asks _layoutEnv
   pure $ lookupLayout layouts layoutName
 
--- | Construct an ADT value using a pre-specified layout
-newtype Construct a =
-  Construct
-    (HasCallStack =>
-          String ->   -- Constructor name
-          [Name a] -> -- Location parameters
-          [LayoutHeaplet a])
+-- -- | Construct an ADT value using a pre-specified layout
+-- newtype Construct a =
+--   Construct
+--     (HasCallStack =>
+--           String ->   -- Constructor name
+--           [Name a] -> -- Location parameters
+--           [LayoutHeaplet a])
 
--- | Build a name mapping from an LApply given the global environment of layouts
-makeConstruct :: forall a. HasApp a => [Layout a] -> (String, a, [Name a]) -> Construct a
-makeConstruct layouts (layoutName, patVar, locVars) =
-  let layout = lookupLayout layouts layoutName
-  in
-  Construct $ \constructor newLocNames ->
-    let branch = lookupLayoutBranch' layout constructor
-    in
-    undefined
+-- -- | Build a name mapping from an LApply given the global environment of layouts
+-- makeConstruct :: forall a. HasApp a => [Layout a] -> (String, a, [Name a]) -> Construct a
+-- makeConstruct layouts (layoutName, patVar, locVars) =
+--   let layout = lookupLayout layouts layoutName
+--   in
+--   Construct $ \constructor newLocNames ->
+--     let branch = lookupLayoutBranch' layout constructor
+--     in
+--     undefined
 
 -- vsubstLookupM :: HasCallStack => Pika.ExprName -> PikaConvert (String, LayoutArg PikaCore.Expr)
 -- vsubstLookupM e = do
@@ -110,41 +112,69 @@ scoped m = do
 -- TODO: Does this obey scope properly? Should we be using 'scoped' with
 -- this function?
 internExprName :: forall m. MonadPikaIntern m => Pika.ExprName -> m PikaCore.ExprName
-internExprName n = do
-  assocs <- gets _pikaToPcExprNameMap
-  case lookup n assocs of
-    Just n' -> pure n'
-    Nothing -> do
-      n' <- fresh (string2Name (name2String n))
-      pikaToPcExprNameMap %= ((n, n') :)
-      pure n'
+internExprName n = fresh (string2Name (name2String n))
+  -- do
+  --   assocs <- gets _pikaToPcExprNameMap
+  --   case lookup n assocs of
+  --     Just n' -> pure n'
+  --     Nothing -> do
+  --       n' <- fresh (string2Name (name2String n))
+  --       pikaToPcExprNameMap %= ((n, n') :)
+  --       pure n'
 
--- | Freshen the layout parameters
-freshSslAssertion :: Fresh m => LayoutArg PikaCore.Expr -> PikaCore.ExprAssertion -> m PikaCore.Expr
-freshSslAssertion params body = do
-  params' <- mapM fresh params
-  let body' = go (zip params params') body
+internModedExprName :: MonadPikaIntern m => ModedName Pika.Expr -> m (ModedName PikaCore.Expr)
+internModedExprName (Moded mode v) =
+  Moded mode <$> internExprName v
 
-  pure $ PikaCore.SslAssertion params' body'
-  where
-    go [] z = z
-    go ((p, p'):xs) z =
-      rename [(p, p')] (go xs z)
+freshModed :: Fresh m => ModedName a -> m (ModedName a)
+freshModed (Moded m v) = Moded m <$> fresh v
 
-type Rename a = [(a, a)]
+freshLayoutParams :: Fresh m => Layout a -> m [ModedName a]
+freshLayoutParams layout =
+  let B vs _ = _layoutBranches layout
+  in
+  mapM freshModed vs
 
--- | For freshening layout pattern variables in function definitions
-layoutParamRename :: forall m. Fresh m => Layout PikaCore.Expr -> m (Rename PikaCore.ExprName)
-layoutParamRename layout =
-    let params = map modedNameName (_layoutSigParams (_layoutSig layout))
-                  `union` foldr (union . layoutBranchFVs) [] (_layoutBranches layout)
-    in
-    mapM go params
-  where
-    go :: PikaCore.ExprName -> m (PikaCore.ExprName, PikaCore.ExprName)
-    go x = do
-      x' <- fresh x
-      pure (x, x')
+modedExpr :: ModedName PikaCore.Expr -> Moded PikaCore.Expr
+modedExpr (Moded m v) = Moded m (PikaCore.V v)
+
+-- applyLayout'' :: Layout PikaCore.Expr -> String -> [PType PikaCore.Expr] -> LayoutBody PikaCore.Expr
+-- applyLayout'' layout c args =
+--   let B vs _ = _layoutBranches layout
+--   in
+--   case applyLayout layout params c args of
+--     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c ++ " in " ++ show layout
+--     Just r -> r
+
+type Bound = Bind [ModedName PikaCore.Expr]
+
+
+-- -- | Freshen the layout parameters
+-- freshSslAssertion :: Fresh m => LayoutArg PikaCore.Expr -> PikaCore.ExprAssertion -> m PikaCore.Expr
+-- freshSslAssertion params body = do
+--   params' <- mapM fresh params
+--   let body' = go (zip params params') body
+--
+--   pure $ PikaCore.SslAssertion params' body'
+--   where
+--     go [] z = z
+--     go ((p, p'):xs) z =
+--       rename [(p, p')] (go xs z)
+
+-- type Rename a = [(a, a)]
+
+-- -- | For freshening layout pattern variables in function definitions
+-- layoutParamRename :: forall m. Fresh m => Layout PikaCore.Expr -> m (Rename PikaCore.ExprName)
+-- layoutParamRename layout =
+--     let params = map modedNameName (_layoutSigParams (_layoutSig layout))
+--                   `union` foldr (union . layoutBranchFVs) [] (_layoutBranches layout)
+--     in
+--     mapM go params
+--   where
+--     go :: PikaCore.ExprName -> m (PikaCore.ExprName, PikaCore.ExprName)
+--     go x = do
+--       x' <- fresh x
+--       pure (x, x')
 
 -- unintern :: forall m. MonadPikaIntern m => PikaCore.ExprName -> m Pika.ExprName
 -- unintern n =

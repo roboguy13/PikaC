@@ -32,20 +32,20 @@ import Unbound.Generics.LocallyNameless
 
 -- TODO: Make sure names aren't captured
 withOfWith :: Fresh m => FnDef -> m FnDef
-withOfWith =
-  (fnDefBranches.traversed) %%~ withOfWithBranch
-
+withOfWith = pure
+--   (fnDefBranches.traversed) %%~ withOfWithBranch
+--
 withOfWithBranch :: Fresh m => FnDefBranch -> m FnDefBranch
-withOfWithBranch =
-  fnDefBranchBody %%~ rewriteM withOfWithOne
-
-withOfWithOne :: Fresh m => Expr -> m (Maybe Expr)
-withOfWithOne (WithIn (WithIn e1 vars1 e2) vars2 e3) = do
-  vars2' <- mapM fresh vars2
-  let e3' = rename (zip vars2 vars2') e3
-
-  pure $ Just $ WithIn e1 vars1
-              $ WithIn e2 vars2' e3'
-
-withOfWithOne _ = pure Nothing
-
+withOfWithBranch = pure
+--   fnDefBranchBody %%~ rewriteM withOfWithOne
+--
+-- withOfWithOne :: Fresh m => Expr -> m (Maybe Expr)
+-- withOfWithOne (WithIn (WithIn e1 vars1 e2) vars2 e3) = do
+--   vars2' <- mapM fresh vars2
+--   let e3' = rename (zip vars2 vars2') e3
+--
+--   pure $ Just $ WithIn e1 vars1
+--               $ WithIn e2 vars2' e3'
+--
+-- withOfWithOne _ = pure Nothing
+--

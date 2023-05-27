@@ -27,13 +27,12 @@ import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
 
 import PikaC.Ppr
+import PikaC.Utils
 
 import Control.Lens
 import Control.Lens.TH
 
 import Data.Data
-
-type instance PType Expr = Expr
 
 data Expr
   = V ExprName
@@ -84,6 +83,8 @@ instance IsNested Expr where
 --       (bind (string2Name "alpha")
 --         (ApplyLayout (IntLit 1) (LayoutName' (string2Name "alpha")))))
 --     (LayoutName' (string2Name "TestLayout"))
+
+instance HasVar Expr where mkVar = V
 
 instance Subst Expr AdtName
 

@@ -18,6 +18,7 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Type
 
 import PikaC.Ppr
+import PikaC.Utils
 
 import Control.Monad.Identity
 
@@ -27,6 +28,7 @@ import GHC.Stack
 -- import Bound.Var
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
 
 import Data.Void
 import Data.Typeable
@@ -54,31 +56,31 @@ import GHC.Generics
 data Layout a =
   Layout
     { _layoutName :: String
-    , _layoutSig :: LayoutSig a
-    , _layoutBranches :: [LayoutBranch a]
-    -- , _layoutParams :: [Name a]
+    , _layoutAdt :: AdtName
+    -- , _layoutSig :: LayoutSig a
+    , _layoutBranches :: Bind [ModedName a] [LayoutBranch a]
     }
     deriving (Show, Generic)
 
-data LayoutSig a =
-  LayoutSig
-    { _layoutSigAdt :: AdtName
-    , _layoutSigParams :: [ModedName a]
-    }
-    deriving (Show, Generic)
+-- data LayoutSig a =
+--   LayoutSig
+--     , _layoutSigParams :: [ModedName a]
+--     }
+--     deriving (Show, Generic)
 
-data ModedName a = ModedName Mode (Name a)
+data Moded a = Moded Mode a
   deriving (Show, Generic)
+
+type ModedName a = Moded (Name a)
 
 data Mode = In | Out
   deriving (Show, Generic, Eq)
 
 type ModeEnv a = [ModedName a]
 
-
 lookupMode :: ModeEnv a -> Name a -> Maybe Mode
 lookupMode env n =
-  lookup n (map (\(ModedName x y) -> (y, x)) env)
+  lookup n (map (\(Moded x y) -> (y, x)) env)
 
 lookupMode' :: HasCallStack => ModeEnv a -> Name a -> Mode
 lookupMode' env n =
@@ -87,15 +89,22 @@ lookupMode' env n =
     Just r -> r
 
 instance Ppr a => Ppr (ModedName a) where
-  ppr (ModedName mode n) = ppr mode <> ppr n
+  ppr (Moded mode n) = ppr mode <> ppr n
 
 instance Ppr Mode where
   ppr In = text "+"
   ppr Out = text "-"
 
-instance Typeable a => Alpha (ModedName a)
+instance (Show a, Alpha a, Typeable a) => Alpha (Moded a)
 
 instance Alpha Mode
+
+instance Subst (Moded a) a => Subst (Moded a) (LayoutBranch a)
+instance Subst (Moded a) a => Subst (Moded a) (Pattern a)
+instance Subst (Moded a) a => Subst (Moded a) (LayoutBody a)
+instance Subst (Moded a) a => Subst (Moded a) (LayoutHeaplet a)
+instance Subst (Moded a) a => Subst (Moded a) (PointsTo a)
+instance Subst (Moded a) a => Subst (Moded a) (Loc a)
 
 -- type Layout = Layout' Identity
 
@@ -148,8 +157,8 @@ instance (IsNested a, Ppr a) => Ppr (LayoutHeaplet a) where
           <> hsep (punctuate (text ",") (map ppr layoutVars))
           <> text "]")
 
-instance (a ~ PType a, Alpha a, Typeable a) => Alpha (Layout a)
-instance (a ~ PType a, Alpha a, Typeable a) => Alpha (LayoutSig a)
+instance (Alpha a, Typeable a) => Alpha (Layout a)
+-- instance (a ~ PType a, Alpha a, Typeable a) => Alpha (LayoutSig a)
 
 -- updateLayoutParams :: Fresh m =>
 --   (Name a -> m (Name b)) -> [LayoutBranches
@@ -170,34 +179,41 @@ lookupLayout (x:xs) name
   | _layoutName x == name = x
   | otherwise = lookupLayout xs name
 
-class Moded f where
-  getMode :: ModeEnv a -> f a -> Maybe Mode
+-- class ModedC f where
+--   getMode :: ModeEnv a -> f (Name a) -> Maybe Mode
+--
+-- instance ModedC Name where
+--   getMode = lookupMode
+--
+-- -- TODO: Make sure this is consistent with environment?
+-- instance ModedC Moded where
+--   getMode _ (Moded m _) = Just m
 
-instance Moded Name where
-  getMode = lookupMode
+instance IsName (Moded (Name a)) a where
+  getName = modedNameName
 
--- TODO: Make sure this is consistent with environment?
-instance Moded ModedName where
-  getMode _ (ModedName m _) = Just m
+instance HasNames (Moded (Name a)) a where
+  getNames x = [getName x]
+
+getMode :: Moded a -> Mode
+getMode (Moded m _) = m
 
 modedNameName :: ModedName a -> Name a
-modedNameName (ModedName _ n) = n
+modedNameName (Moded _ n) = n
 
-lookupLayoutBranch :: HasApp a => Layout a -> String -> Maybe (LayoutBranch a)
+lookupLayoutBranch :: forall a. HasApp a => Layout a -> String -> Maybe (Bind [ModedName a] (LayoutBranch a))
 lookupLayoutBranch layout constructor = go $ _layoutBranches layout
   where
-    go [] = Nothing
-    go (x:xs) =
+    go :: Bind [ModedName a] [LayoutBranch a] -> Maybe (Bind [ModedName a] (LayoutBranch a))
+    go (B _ []) = Nothing
+    go (B vs (x:xs)) =
       case _layoutPattern x of
-        PatternVar _ -> Just x
+        PatternVar _ -> Just (B vs x)
         Pattern c _
-          | c == constructor -> Just x
-          | otherwise -> go xs
-    -- go (x:xs)
-    --   | _patConstructor (_layoutPattern x) == constructor = Just x
-    --   | otherwise = go xs
+          | c == constructor -> Just (B vs x)
+          | otherwise -> go (B vs xs)
 
-lookupLayoutBranch' :: (HasCallStack, HasApp a) => Layout a -> String -> LayoutBranch a
+lookupLayoutBranch' :: (HasCallStack, HasApp a) => Layout a -> String -> Bind [ModedName a] (LayoutBranch a)
 lookupLayoutBranch' layout c =
   case lookupLayoutBranch layout c of
     Nothing -> error $ "lookupLayoutBranch: Cannot find branch for constructor " ++ c
@@ -207,14 +223,16 @@ lookupLayoutBranch' layout c =
 -- instance Subst a a => Subst a (LayoutHeaplet a)
 -- instance Subst Expr a => Subst Expr (PointsTo a)
 
--- | Apply layout to a constructor value
-applyLayout :: (HasApp a, HasApp (PType a), Subst (PType a) (LayoutBody a)) => Layout a -> String -> [PType a] -> Maybe (LayoutBody a)
+-- | Apply layout to a constructor value, given layout parameter names
+applyLayout :: (Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a)) => Layout a -> String -> [a] -> Maybe (Bind [ModedName a] (LayoutBody a))
 applyLayout layout constructor args = do
-  branch <- lookupLayoutBranch layout constructor
-  let body = _layoutBody branch
-  pure $ patternMatch' (_layoutPattern branch) constructor args body
+  B params branch <- lookupLayoutBranch layout constructor
 
-applyLayout' :: (Show a, HasApp a, HasApp (PType a), Subst (PType a) (LayoutBody a)) => Layout a -> String -> [PType a] -> LayoutBody a
+  let body = _layoutBody branch
+
+  pure $ patternMatch' (_layoutPattern branch) constructor args (B params body)
+
+applyLayout' :: (Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, Show a, HasApp a, HasApp a, Subst a (LayoutBody a)) => Layout a -> String -> [a] -> Bind [ModedName a] (LayoutBody a)
 applyLayout' layout c args =
   case applyLayout layout c args of
     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c ++ " in " ++ show layout
@@ -223,7 +241,7 @@ applyLayout' layout c args =
 instance (Typeable a, Show a, Alpha a) => Alpha (LayoutHeaplet a)
 
 instance (Show a, Typeable a, Alpha a) => Alpha (LayoutBody a)
-instance (Show a, Typeable (PType a), Typeable a, Alpha a) => Alpha (LayoutBranch a)
+instance (Show a, Typeable a, Alpha a) => Alpha (LayoutBranch a)
 
 -- | A name mapping gotten by applying a layout. This can be used
 -- for recursively applying layouts
@@ -235,7 +253,7 @@ mappingFromLApplies :: [Layout a] -> LayoutBody a -> LayoutMapping a
 mappingFromLApplies = undefined
 
 -- | Includes parameters, excludes pattern variables
-layoutBranchFVs :: (Show a, Typeable a, a ~ PType a, Alpha a) => LayoutBranch a -> [Name a]
+layoutBranchFVs :: (Show a, Typeable a, Alpha a) => LayoutBranch a -> [Name a]
 layoutBranchFVs branch =
   filter (`notElem` getPatternNames (_layoutPattern branch))
     $ toListOf fv branch

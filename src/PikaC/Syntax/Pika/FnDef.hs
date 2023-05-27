@@ -6,6 +6,9 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.Expr
 
 import PikaC.Ppr
+import PikaC.Utils
+
+import Unbound.Generics.LocallyNameless
 
 data FnDef =
   FnDef
@@ -15,11 +18,13 @@ data FnDef =
     }
   deriving (Show)
 
-data FnDefBranch =
+newtype FnDefBranch =
   FnDefBranch
-    { fnBranchPats :: [Pattern Expr]
-    , fnBranchBody :: Expr
-    }
+  { fnBranchMatch :: PatternMatches Expr
+  }
+    -- { fnBranchPats :: [Pattern Expr]
+    -- , fnBranchBody :: Bind [ExprName] Expr
+    -- }
   deriving (Show)
 
 instance Ppr FnDef where
@@ -31,9 +36,9 @@ instance Ppr FnDef where
       )
 
 instance Ppr FnDefBranch where
-  ppr branch =
+  ppr (FnDefBranch matches@(PatternMatches bnd)) =
     sep
-      [ hsep (map ppr (fnBranchPats branch) ++ [text ":="])
-      , nest 1 $ ppr (fnBranchBody branch) <> text ";"
+      [ hsep (map ppr (patternMatchesPats matches) ++ [text ":="])
+      , nest 1 $ ppr (openBind bnd) <> text ";"
       ]
 

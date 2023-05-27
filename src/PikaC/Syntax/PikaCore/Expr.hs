@@ -15,6 +15,7 @@ module PikaC.Syntax.PikaCore.Expr
   where
 
 -- import PikaC.Syntax.Heaplet
+import PikaC.Utils
 import PikaC.Ppr
 import Data.List
 import Data.Foldable
@@ -27,14 +28,12 @@ import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
 
 import Control.Lens
-import Control.Lens.TH
+import Control.Lens.Action
 
-import GHC.Generics
+import GHC.Generics hiding (to)
 import GHC.Stack
 
 type ExprName = Name Expr
-
-type instance PType Expr = Expr
 
 -- type LocName = ExprName
 
@@ -51,16 +50,25 @@ data Expr
   | And Expr Expr
   -- | App (Expr a) (LayoutArg a)
   | WithIn                -- with
-      Expr                --     := e
-      [ExprName]     --   {x ...}
-      Expr       -- in e
+      Expr
+      (Bind [ModedName Expr]
+        Expr)
+      -- Expr                --     := e
+      -- [ExprName]     --   {x ...}
+      -- Expr       -- in e
 
   | SslAssertion            -- layout
-      (LayoutArg Expr)     --     {x ...}
-      ExprAssertion     --   { (x+1) :-> e ** ... }
-  | App String [Expr] -- | Fully saturated function application
-  deriving (Show, Generic, Eq)
+      (Bind [ModedName Expr]
+         ExprAssertion)
+      -- (LayoutArg Expr)     --     {x ...}
+      -- ExprAssertion     --   { (x+1) :-> e ** ... }
 
+  | App String [Expr] -- | Fully saturated function application
+  deriving (Show, Generic)
+
+instance HasVar Expr where mkVar = V
+
+-- TODO: Does this work correct w.r.t. Bind's, etc?
 instance Plated Expr where
   plate f (V x) = pure $ V x
   plate f (LayoutV x) = pure $ LayoutV x
@@ -71,11 +79,12 @@ instance Plated Expr where
   plate f (Equal x y) = Equal <$> f x <*> f y
   plate f (Not x) = Not <$> f x
   plate f (And x y) = And <$> f x <*> f y
-  plate f (WithIn x y z) = WithIn <$> f x <*> pure y <*> f z
-  plate f (SslAssertion a b) =
+  plate f (WithIn x (B y z)) =
+      WithIn <$> f x <*> (B y <$> f z)
+  plate f (SslAssertion (B a b)) =
     let z = plate (traverseOf (traversed.pointsToRhsLens) f) b
     in
-    SslAssertion a <$> z
+    SslAssertion . B a <$> z
   plate f (App x ys) = App x <$> traverse f ys
 
 type PointsToExpr = PointsTo Expr
@@ -127,6 +136,11 @@ instance Subst Expr Expr where
   isvar (V x) = Just $ SubstName x
   isvar _ = Nothing
 
+instance Subst Expr (ModedName a)
+instance Subst Expr Mode
+instance Subst ExprName (ModedName a)
+instance Subst ExprName Mode
+
 instance Subst Expr a => Subst Expr (PointsTo a) where
   isCoerceVar (x :-> y) = do
     SubstCoerce p q <- isCoerceVar @Expr @(Loc a) x
@@ -144,8 +158,16 @@ instance forall a. Subst Expr a => Subst Expr (Loc a) where
 instance Subst Expr a => Subst Expr (LayoutBody a)
 instance Subst Expr a => Subst Expr (LayoutHeaplet a)
 
-getPointsToExpr :: Expr -> [PointsToExpr]
-getPointsToExpr e = e ^.. (cosmos . _SslAssertion . _2 . traversed)
+getPointsToExpr :: forall m. Fresh m => Expr -> m [PointsToExpr]
+getPointsToExpr e = e ^!! (cosmos . _SslAssertion . to unbind' . acts . _2 . traversed)
+  where
+    unbind' = unbind @_ @_ @m
+
+
+-- getPointsToExpr :: Expr -> [PointsToExpr]
+-- getPointsToExpr e = e ^.. (cosmos . _SslAssertion . _)
+
+-- getPointsToExpr e = e ^.. (cosmos . _SslAssertion . _2 . traversed)
 
 -- instance HasPointsTo SimpleExpr Base where
 --   getPointsTo (BaseExpr {}) = []
@@ -161,13 +183,13 @@ getPointsToExpr e = e ^.. (cosmos . _SslAssertion . _2 . traversed)
 --   ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
 instance Ppr Expr where
-  ppr (WithIn bnd vars body) =
+  ppr (WithIn bnd (B vars body)) =
     sep [hsep [text "with {", hsep . punctuate (text ",") $ map go vars, text "} :=", ppr bnd], text "in", ppr body]
       where
         go x = text "<" <> ppr x <> text ">"
 
-  ppr (SslAssertion vars heaplets) =
-    sep [text "layout", ppr vars, ppr heaplets]
+  ppr (SslAssertion (B vars heaplets)) =
+    sep [text "layout", text "{" <+> hsep (punctuate (text ",") (map ppr vars)) <+> text "}", ppr heaplets]
   ppr (V x) = ppr x
   ppr (LayoutV x) = text "{" <+> hsep (punctuate (text ",") (map ppr x)) <+> text "}"
   ppr (IntLit i) = ppr i

@@ -29,21 +29,21 @@ import Control.Lens
 import Unbound.Generics.LocallyNameless
 
 renameResultLayout :: FnDef -> FnDef
-renameResultLayout =
-  (fnDefBranches.traverse) %~ renameResultLayoutBranch
-
-renameResultLayoutBranch :: FnDefBranch -> FnDefBranch
-renameResultLayoutBranch branch =
-  let outputs = _fnDefOutputParams branch
-  in
-  branch & fnDefBranchBody %~ go outputs
-
-go :: [ExprName] -> Expr -> Expr
-go newNames (WithIn bnd vars body) =
-  WithIn bnd vars (go newNames body)
-
-go newNames (SslAssertion names body) =
-  SslAssertion newNames (rename (zip names newNames) body)
-
-go newNames e = e
-
+renameResultLayout = id
+  -- (fnDefBranches.traverse) %~ renameResultLayoutBranch
+--
+-- renameResultLayoutBranch :: FnDefBranch -> FnDefBranch
+-- renameResultLayoutBranch branch =
+--   let outputs = _fnDefOutputParams branch
+--   in
+--   branch & fnDefBranchBody %~ go outputs
+--
+-- go :: [ExprName] -> Expr -> Expr
+-- go newNames (WithIn bnd vars body) =
+--   WithIn bnd vars (go newNames body)
+--
+-- go newNames (SslAssertion names body) =
+--   SslAssertion newNames (rename (zip names newNames) body)
+--
+-- go newNames e = e
+--

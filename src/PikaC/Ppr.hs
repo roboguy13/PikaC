@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Ppr
   (module Text.PrettyPrint.HughesPJ
@@ -8,12 +9,19 @@ module PikaC.Ppr
   ,pprP
   ,IsNested
   ,isNested
+  ,PprShow (..)
+  ,PprBind (..)
   )
   where
+
+import PikaC.Utils
 
 import Text.PrettyPrint.HughesPJ hiding ((<>), Mode)
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
+
+import Data.Typeable
 
 class Ppr a where
   ppr :: a -> Doc
@@ -34,6 +42,16 @@ instance Ppr AnyName where ppr (AnyName n) = ppr n
 
 class IsNested a where
   isNested :: a -> Bool
+
+newtype PprShow a = PprShow a
+
+instance Ppr a => Show (PprShow a) where
+  show (PprShow x) = ppr' x
+
+newtype PprBind a b = PprBind (Bind [a] b)
+
+instance (Ppr b, HasNames a b, HasVar b, Alpha a, Alpha b, Subst b b) => Ppr (PprBind a b) where
+  ppr (PprBind bnd) = ppr $ openBind bnd
 
 --   pprS :: a -> Brackets -> String
 -- data Brackets = NoBrackets | Brackets

@@ -34,7 +34,7 @@ main = do
 
       case mapM_ (modeCheck layouts) layouts of
         Left e -> do
-          putStrLn $ ppr' e
+          putStrLn $ render $ text "Mode error:" <+> ppr e
           exitFailure
         Right () -> pure ()
 

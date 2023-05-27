@@ -14,12 +14,12 @@ import PikaC.Syntax.PikaCore.FnDef
 import Control.Lens
 
 substWithLayoutVar :: FnDef -> FnDef
-substWithLayoutVar =
-  (fnDefBranches.traverse.fnDefBranchBody) %~ rewrite substWithLayoutVar'Expr
+substWithLayoutVar = id
+  -- (fnDefBranches.traverse.fnDefBranchBody) %~ rewrite substWithLayoutVar'Expr
 
-substWithLayoutVar'Expr :: Expr -> Maybe Expr
-substWithLayoutVar'Expr (WithIn a@(SslAssertion {}) xs (LayoutV ys))
-  | ys == xs = Just a
-substWithLayoutVar'Expr _ = Nothing
+-- substWithLayoutVar'Expr :: Expr -> Maybe Expr
+-- substWithLayoutVar'Expr (WithIn a@(SslAssertion {}) xs (LayoutV ys))
+--   | ys == xs = Just a
+-- substWithLayoutVar'Expr _ = Nothing
   
 
