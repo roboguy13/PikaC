@@ -39,7 +39,8 @@ type ExprName = Name Expr
 
 data Expr
   = V ExprName
-  | LayoutV [ExprName]    -- {x ...}
+  | LayoutV [Expr]    -- {x ...}
+  -- | LayoutV [ExprName]    -- {x ...}
   | IntLit Int -- TODO: Add output locations?
   | BoolLit Bool
 

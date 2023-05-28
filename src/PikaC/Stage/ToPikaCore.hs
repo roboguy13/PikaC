@@ -136,7 +136,7 @@ convertExpr openedArgLayouts = go
       x' <- internExprName x
       case lookupVar openedArgLayouts x' of
         [v] -> pure $ PikaCore.V v
-        vs -> pure $ PikaCore.LayoutV vs
+        vs -> pure $ PikaCore.LayoutV (map PikaCore.V vs)
     go e0@(Pika.LayoutLambda {}) = error $ "convertExpr: " ++ ppr' e0
     go (Pika.ApplyLayout (Pika.V v) layoutName) = PikaCore.V <$> internExprName v -- TODO: Is this correct?
 
@@ -153,7 +153,7 @@ convertExpr openedArgLayouts = go
             PikaCore.WithIn
               app'
               (bind rs
-                (PikaCore.LayoutV (map modedNameName rs)))
+                (PikaCore.LayoutV (map (PikaCore.V . modedNameName) rs)))
 
           -- rs <- freshLayoutParams layout
           --
@@ -184,7 +184,7 @@ convertExpr openedArgLayouts = go
             PikaCore.WithIn
               app'
               (bind rs
-                (PikaCore.LayoutV (map modedNameName rs)))
+                (PikaCore.LayoutV (map (PikaCore.V . modedNameName) rs)))
           -- rs <- generateParamsM (TyVar layoutName)
           -- app <- applyLayoutOrNOP layout rs f xs
           --
