@@ -42,6 +42,8 @@ import GHC.Generics
 
 import Data.List
 
+import Control.Applicative
+
 -- newtype Operand a b = Operand (Var a b)
 --   deriving (Functor, Applicative, Monad, Show)
 
@@ -326,17 +328,60 @@ openLayoutBranch bnd@(B vs _) = do
   let modes = map getMode vs
   (vs', branch) <- freshOpen bnd
   pure (zipWith Moded modes vs', branch)
+--
+-- applyLayoutBranch ::
+--   (Fresh m, Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a)) =>
+--   LayoutBranch a -> String -> [a] -> m (Bind [ModedName a] (Bind [Exists a] (LayoutBody a)))
+applyLayoutBranch
+  :: (Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+      Subst a (ModedName a)) =>
+     LayoutBranch a
+     -> String -> [a] -> Either String (Bind [Exists a] (LayoutBody a))
+applyLayoutBranch branch constructor args =
+    applyPatternMatch (_layoutMatch branch) constructor args
+
+applyLayoutBranchPattern
+  :: (Typeable a, HasApp (Name a),
+      Subst (Name a) (LayoutBody (Name a)),
+      Subst (Name a) (ModedName (Name a))) =>
+     LayoutBranch (Name a)
+     -> Pattern a
+     -> Either String (Bind [Exists (Name a)] (LayoutBody (Name a)))
+applyLayoutBranchPattern branch (PatternVar {}) = Left "applyLayoutBranchPattern: PatternVar"
+applyLayoutBranchPattern branch (Pattern c args) = applyLayoutBranch branch c args
+
+applyLayoutBranchPattern'
+  :: (Typeable a, HasApp (Name a),
+      Subst (Name a) (LayoutBody (Name a)),
+      Subst (Name a) (ModedName (Name a))) =>
+     LayoutBranch (Name a)
+     -> Pattern a -> Bind [Exists (Name a)] (LayoutBody (Name a))
+applyLayoutBranchPattern' branch pat =
+  case applyLayoutBranchPattern branch pat of
+    Left e -> error e
+    Right r -> r
+
+-- applyLayoutBranchPatternM
+--   :: (Fresh m, Typeable a, HasApp (Name a),
+--       Subst (Name a) (LayoutBody (Name a)),
+--       Subst (Name a) (ModedName (Name a))) =>
+--      LayoutBranch (Name a)
+--      -> Pattern a -> m (LayoutBody (Name a))
+-- applyLayoutBranchPatternM branch pat = do
+--   let bnd@(B vs _) = applyLayoutBranchPattern' branch pat
+--   vs' <- mapM fresh (concatMap getNames vs)
+--   pure $ instantiate bnd (map mkVars vs')
 
 -- | Apply layout to a constructor value
 applyLayout :: (Fresh m, Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a)) =>
   Layout a -> String -> [a] -> m (Maybe (Bind [ModedName a] (Bind [Exists a] (LayoutBody a))))
-applyLayout layout constructor args = do
+applyLayout layout constructor args =
   sequenceA (unbind <$> lookupLayoutBranch layout constructor) >>= \case
     Nothing -> pure Nothing
     Just (params, branch) ->
-      let matched = applyPatternMatch' (_layoutMatch branch) constructor args
-      in
-      pure . Just $ bind params matched
+      case applyLayoutBranch branch constructor args of
+        Left {} -> pure Nothing
+        Right b -> pure . Just $ bind params b
 
 applyLayout' :: (Fresh m, Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a)) =>
   Layout a -> String -> [a] -> m (Bind [ModedName a] (Bind [Exists a] (LayoutBody a)))
@@ -344,6 +389,53 @@ applyLayout' layout c args =
   applyLayout layout c args >>= \case
     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c ++ " in " ++ show layout
     Just r -> pure r
+
+applyLayoutPattern
+  :: (Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+      Subst a (ModedName a), HasVar a) =>
+     [LayoutBranch a]
+     -> Pattern a -> Either [Char] (Bind [Exists a] (LayoutBody a))
+applyLayoutPattern layout (PatternVar {}) = Left "applyLayoutPattern: PatternVar"
+applyLayoutPattern layout pat@(Pattern c args) =
+  go layout
+  where
+    go [] = Left $ "applyLayoutPattern: Cannot find layout for pattern " ++ ppr' pat ++ " in " ++ show layout
+    go (x:xs) = applyLayoutBranch x c (map mkVar args) <> go xs
+
+applyLayoutPattern'
+  :: (Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+      Subst a (ModedName a), HasVar a) =>
+     [LayoutBranch a] -> Pattern a -> Bind [Exists a] (LayoutBody a)
+applyLayoutPattern' layout pat =
+  case applyLayoutPattern layout pat of
+    Left e -> error e
+    Right r -> r
+
+applyLayoutBranchPatternM 
+  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+      Subst a (ModedName a), HasVar a) =>
+     LayoutBranch a -> Pattern a -> m (LayoutBody a)
+applyLayoutBranchPatternM branch pat = do
+  let bnd@(B vs _) = applyLayoutPattern' [branch] pat
+  vs' <- mapM fresh (concatMap getNames vs)
+  pure $ instantiate bnd (map mkVar vs')
+
+applyLayoutPatternM 
+  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+      Subst a (ModedName a), HasVar a) =>
+     [LayoutBranch a] -> Pattern a -> m (LayoutBody a)
+applyLayoutPatternM layout pat = do
+  let bnd@(B vs _) = applyLayoutPattern' layout pat
+  vs' <- mapM fresh (concatMap getNames vs)
+  pure $ instantiate bnd (map mkVar vs')
+
+applyLayoutPatternMaybe
+  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+      Subst a (ModedName a), HasVar a) =>
+     Maybe (OpenedLayout a) -> Pattern a -> m (LayoutBody a)
+applyLayoutPatternMaybe Nothing pat = pure mempty
+applyLayoutPatternMaybe (Just layout) pat =
+  applyLayoutPatternM layout pat
 
 getPointsTos :: LayoutBody a -> [PointsTo a]
 getPointsTos b@(LayoutBody xs0) = go xs0

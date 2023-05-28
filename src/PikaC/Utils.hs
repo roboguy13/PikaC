@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Utils
   where
@@ -34,6 +35,13 @@ openBind :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1)
 openBind bnd@(B vs _) =
   instantiate bnd (concatMap (map mkVar . getNames) vs)
 
+
+openBind' :: forall a1 a2 b. (HasVars a1 [a2], Subst a2 b, Alpha a1, Alpha b, Alpha a2, Subst a1 b,
+      HasNames a2 a1) =>
+     Bind a2 b -> b
+openBind' bnd@(B v _) =
+  instantiate bnd (mkVars @a1 @[a2] (getNames v))
+
 -- openBind1 :: (Typeable b1, Alpha b2, Alpha a, HasVar b1, Subst (Name b1) b2, HasNames a b1) =>
   -- Bind a b2 -> b2
 openBind1
@@ -43,7 +51,7 @@ openBind1
 openBind1 bnd@(B v _) =
   instantiate bnd (map mkVar (getNames v))
 
-freshOpen :: (Fresh m, Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1, FromName f) =>
+freshOpen :: forall m f a1 a2 b. (Fresh m, Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1, FromName f) =>
      Bind [a2] b -> m ([f a1], b)
 freshOpen bnd@(B vs _) = do
   vs' <- mapM fresh (concatMap getNames vs)
@@ -102,6 +110,9 @@ countOccurrences = Set.fromList . go []
 class HasVar a where
   mkVar :: Name a -> a
 
+class HasVars a b where
+  mkVars :: [Name a] -> b
+
 class IsName a b | a -> b where
   getName :: HasCallStack => a -> Name b
 
@@ -114,14 +125,17 @@ class HasNames a b | a -> b where
 instance HasNames (Name a) a where
   getNames x = [x]
 
-instance HasNames [Name a] a where
-  getNames = id
+instance HasNames a b => HasNames [a] b where
+  getNames = concatMap getNames
 
 class FromName f where
   fromName :: Name a -> f a
 
 instance FromName Name where
   fromName = id
+
+getBv :: Bind a b -> a
+getBv (B v _) = v
 
 -- TODO: Deal with these orphan instances
 -- deriving instance (Data a, Data b) => Data (Bind a b)

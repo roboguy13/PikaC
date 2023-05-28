@@ -112,7 +112,7 @@ scoped m = do
 -- TODO: Does this obey scope properly? Should we be using 'scoped' with
 -- this function?
 internExprName :: forall m. MonadPikaIntern m => Pika.ExprName -> m PikaCore.ExprName
-internExprName n = fresh (string2Name (name2String n))
+internExprName n = pure (string2Name (name2String n))
   -- do
   --   assocs <- gets _pikaToPcExprNameMap
   --   case lookup n assocs of

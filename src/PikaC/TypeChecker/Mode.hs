@@ -68,7 +68,6 @@ modeCheck layoutEnv layout = runFreshM $ do
       xs = map (getPatternMatch . _layoutMatch) openedBranches
 
       openIt (B pat body) = openBind (B (getPatternNames pat) body)
-      getBv (B v _) = v
 
       openedXs = map openIt xs
 
