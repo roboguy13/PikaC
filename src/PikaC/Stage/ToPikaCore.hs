@@ -23,6 +23,7 @@ import PikaC.Ppr
 
 import PikaC.Stage.ToPikaCore.Monad
 import PikaC.Stage.ToPikaCore.Simplify
+import PikaC.Stage.ToPikaCore.Utils
 
 import PikaC.Utils
 
@@ -262,10 +263,6 @@ lookupVar1 (LPointsTo ((x :+ i) :-> PikaCore.V rhs) : rest) v
 lookupVar1 (LApply layoutName (PikaCore.V patVar) layoutParams : rest) v
   | patVar == v = Just (map getName layoutParams)
 lookupVar1 (_ : rest) v = lookupVar1 rest v
-
-getV :: HasCallStack => PikaCore.Expr -> Name PikaCore.Expr
-getV (PikaCore.V x) = x
-getV e = error $ "getV: " ++ ppr' e
 
 onBind
   :: (Applicative f, Alpha a1, Alpha a2, Alpha a3, Alpha t, Alpha a4,

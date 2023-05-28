@@ -4,8 +4,11 @@ module PikaC.Stage.ToPikaCore.Utils
 import Unbound.Generics.LocallyNameless
 import PikaC.Syntax.PikaCore.Expr
 import PikaC.Syntax.PikaCore.FnDef
+import PikaC.Ppr
 
 import Control.Lens
+
+import GHC.Stack
 
 onFnDefBranch :: Fresh m => (Expr -> m Expr) -> FnDefBranch -> m FnDefBranch
 onFnDefBranch f =
@@ -21,4 +24,8 @@ onFnDef f fnDef = do
         bind inParams
           (bind outParams branches')
     }
+
+getV :: HasCallStack => Expr -> Name Expr
+getV (V x) = x
+getV e = error $ "getV: " ++ ppr' e
 
