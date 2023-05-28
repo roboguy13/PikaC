@@ -77,8 +77,8 @@ toPikaCore layouts0 globalFns fn = runFreshM . runPikaIntern' $ do
   branches' <-
     runPikaConvert'' layouts globalFns $ mapM (convertBranch openedArgLayouts) $ Pika.fnDefBranches fn
 
-  -- simplifyFnDef $
-  pure $
+  simplifyFnDef $
+  -- pure $
     PikaCore.FnDef
       { PikaCore._fnDefName = Pika.fnDefName fn
       , PikaCore._fnDefBranches =

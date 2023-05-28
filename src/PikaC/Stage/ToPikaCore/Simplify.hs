@@ -14,6 +14,8 @@ import PikaC.Stage.ToPikaCore.SubstWithLayoutVar
 import PikaC.Stage.ToPikaCore.RenameResultLayout
 import PikaC.Stage.ToPikaCore.LayoutToWith
 
+import PikaC.Stage.ToPikaCore.Utils
+
 import Unbound.Generics.LocallyNameless
 
 import PikaC.Ppr
@@ -23,16 +25,15 @@ import Control.Lens
 import Debug.Trace
 
 simplifyFnDef :: Fresh m => FnDef -> m FnDef
-simplifyFnDef = pure
-
-  -- (pure . renameResultLayout) <=<
-  -- fixedPoint
-  --   (onFnDef layoutToWith <=<
-  --   (pure . substWithLayoutVar) <=<
-  --   withOfWith <=<
-  --   simplifyNestedCalls)
-  --   .
-  -- myTraceWith (("simplifying " ++) . ppr')
+simplifyFnDef =
+  (pure . renameResultLayout) <=<
+  fixedPoint
+    (onFnDef layoutToWith <=<
+    (pure . substWithLayoutVar) <=<
+    withOfWith <=<
+    simplifyNestedCalls)
+    .
+  myTraceWith (("simplifying " ++) . ppr')
 
 myTraceWith :: (a -> String) -> a -> a
 myTraceWith f x = trace (f x) x
@@ -43,8 +44,4 @@ fixedPoint f x = do
   if aeq y x
     then pure y
     else fixedPoint f y
-
--- onFnDef :: Fresh m => (Expr -> m Expr) -> FnDef -> m FnDef
--- onFnDef f =
---   (fnDefBranches.traverse.fnDefBranchBody) %%~ f
 

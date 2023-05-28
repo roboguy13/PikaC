@@ -207,23 +207,50 @@ getPointsToExpr e = e ^!! (cosmos . _SslAssertion . to unbind' . acts . _2 . tra
 instance Subst (Exists Expr) Expr
 
 instance Ppr Expr where
-  ppr (WithIn bnd (B vars body)) =
-    sep [hsep [text "with {", hsep . punctuate (text ",") $ map go vars, text "} :=", ppr bnd], text "in", ppr body]
-      where
-        go x = text "<" <> ppr x <> text ">"
+  ppr = runFreshM . pprExpr
 
-  ppr (SslAssertion (B vars heaplets)) =
-    sep [text "layout", text "{" <+> hsep (punctuate (text ",") (map ppr vars)) <+> text "}", ppr heaplets]
-  ppr (V x) = ppr x
-  ppr (LayoutV x) = text "{" <+> hsep (punctuate (text ",") (map ppr x)) <+> text "}"
-  ppr (IntLit i) = ppr i
-  ppr (BoolLit b) = ppr b
-  ppr (Add x y) = sep [pprP x, text "+", pprP y]
-  ppr (Sub x y) = sep [pprP x, text "-", pprP y]
-  ppr (Equal x y) = sep [pprP x, text "==", pprP y]
-  ppr (Not x) = sep [text "!", pprP x]
-  ppr (And x y) = sep [pprP x, text "&&", pprP y]
-  ppr (App f x) = ppr f <+> hsep (map pprP x)
+pprExpr :: Expr -> FreshM Doc
+pprExpr (WithIn e bnd) = do
+  -- (vars, body0) <- unbind bnd
+  -- let body = instantiate bnd vars
+  (vars, body) <- freshOpen @_ @Name bnd
+  bodyDoc <- pprExpr body
+  eDoc <- pprExpr e
+  pure $ sep [hsep [text "with {", hsep . punctuate (text ",") $ map go vars, text "} :=", eDoc], text "in", bodyDoc]
+    where
+      go x = text "<" <> ppr x <> text ">"
+
+pprExpr (SslAssertion bnd) = do
+  (vars, heaplets) <- freshOpen @_ @Name bnd
+  -- (vars, heaplets0) <- unbind bnd
+  -- let heaplets = instantiate bnd vars
+  pure $ sep [text "layout", text "{" <+> hsep (punctuate (text ",") (map ppr vars)) <+> text "}", ppr heaplets]
+pprExpr (V x) = pure $ ppr x
+pprExpr (LayoutV x) = pure $ text "{" <+> hsep (punctuate (text ",") (map ppr x)) <+> text "}"
+pprExpr (IntLit i) = pure $ ppr i
+pprExpr (BoolLit b) = pure $ ppr b
+pprExpr (Add x y) = do
+  xDoc <- pprExpr x
+  yDoc <- pprExpr y
+  pure $ sep [yDoc, text "+", yDoc]
+pprExpr (Sub x y) = do
+  xDoc <- pprExpr x
+  yDoc <- pprExpr y
+  pure $ sep [xDoc, text "-", yDoc]
+pprExpr (Equal x y) = do
+  xDoc <- pprExpr x
+  yDoc <- pprExpr y
+  pure $ sep [xDoc, text "==", yDoc]
+pprExpr (Not x) = do
+  xDoc <- pprExpr x
+  pure $ sep [text "!", xDoc]
+pprExpr (And x y) = do
+  xDoc <- pprExpr x
+  yDoc <- pprExpr y
+  pure $ sep [xDoc, text "&&", yDoc]
+pprExpr (App f x) = do
+  xDoc <- mapM pprExpr x
+  pure $ ppr f <+> hsep xDoc
 
 instance IsNested Expr where
   isNested (V _) = False
