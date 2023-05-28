@@ -13,7 +13,7 @@ import PikaC.Syntax.ParserUtils
 
 import PikaC.Stage.ToPikaCore
 
-import PikaC.Backend.C.CodeGen
+-- import PikaC.Backend.C.CodeGen
 
 import PikaC.Ppr
 
@@ -31,6 +31,8 @@ main = do
 
       let pikaModule = parse'' fileName parsePikaModule fileData
           layouts = moduleLayouts pikaModule
+
+      mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
 
       case mapM_ (modeCheck layouts) layouts of
         Left e -> do
@@ -54,6 +56,6 @@ generateFn pikaModule fnName = do
   let pikaCore = toPikaCore (moduleLayouts pikaModule) $ moduleLookupFn pikaModule fnName
   putStrLn $ ppr' pikaCore
 
-  putStrLn "- C:"
-  putStrLn $ ppr' $ codeGenFn pikaCore
+  -- putStrLn "- C:"
+  -- putStrLn $ ppr' $ codeGenFn pikaCore
 

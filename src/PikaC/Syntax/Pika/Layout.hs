@@ -40,6 +40,8 @@ import Control.Lens.TH
 
 import GHC.Generics
 
+import Data.List
+
 -- newtype Operand a b = Operand (Var a b)
 --   deriving (Functor, Applicative, Monad, Show)
 
@@ -116,6 +118,12 @@ newtype Exists a = Exists (ModedName a)
 instance (Typeable a) => Alpha (Exists a)
 instance Subst a (ModedName a) => Subst a (Exists a)
 
+instance HasNames (Exists a) a where
+  getNames (Exists x) = getNames x
+
+instance HasNames a b => HasNames (Moded a) b where
+  getNames (Moded _ x) = getNames x
+
 layoutBranchPattern :: LayoutBranch a -> Pattern a
 layoutBranchPattern = patternMatchPat . _layoutMatch
 
@@ -141,7 +149,7 @@ data LayoutHeaplet a
   | LApply
       String -- Layout name
       a    -- Pattern variable
-      [Name a]    -- Layout variables
+      [a]    -- Layout variables
       -- [LocVar]    -- Layout variables
   deriving (Show, Generic)
 
@@ -152,8 +160,71 @@ makeLenses ''LayoutBranch
 makeLenses ''LayoutBody
 makePrisms ''LayoutHeaplet
 
--- getLayoutParams :: Layout a -> [ModedName a]
--- getLayoutParams = view (_1 . layoutBranches)
+instance Ppr a => Ppr (Exists a) where ppr (Exists x) = ppr x
+
+instance (IsNested a, Ppr a) => Ppr (LayoutBody a) where
+  ppr (LayoutBody []) = text "emp"
+  ppr (LayoutBody xs) = hsep (intersperse (text "**") (map ppr xs))
+
+instance (Subst (Name a) a, Alpha a, Typeable a) => Subst (Name a) (LayoutBranch a)
+instance (Subst (Name a) a, Alpha a, Typeable a) => Subst (Name a) (PatternMatch a (Bind [Exists a] (LayoutBody a)))
+instance Subst (Name a) (Exists a)
+instance Subst (Name a) (Moded (Name a))
+instance Subst (Name a) Mode
+instance Subst (Name a) a => Subst (Name a) (LayoutBody a)
+instance Subst (Name a) a => Subst (Name a) (LayoutHeaplet a)
+instance Subst (Pattern a) a => Subst (Pattern a) (LayoutBody a)
+instance Subst (Pattern a) a => Subst (Pattern a) (LayoutHeaplet a)
+instance Subst (Pattern a) (Exists a)
+instance Subst (Pattern a) (Moded (Name a))
+instance Subst (Pattern a) Mode
+instance Subst (Exists a) a => Subst (Exists a) (LayoutBody a)
+instance Subst (Exists a) a => Subst (Exists a) (LayoutHeaplet a)
+
+instance Subst (Exists a) a => Subst (Exists a) (PointsTo a)
+instance Subst (Exists a) a => Subst (Exists a) (Loc a)
+
+instance forall a. (Subst (Exists a) a, Subst (Pattern a) a, Subst (Name a) a, IsNested a, HasVar a, Subst a (LayoutBody a), Subst a (LayoutBranch a), Subst a (ModedName a), Typeable a, Alpha a, Ppr a) =>
+    Ppr (Layout a) where
+  ppr layout =
+    let bnd@(B params branches) = _layoutBranches layout
+        name = _layoutName layout
+
+        -- branchLines = map (go name) $ instantiate bnd (map (mkVar . modedNameName) params)
+        branchLines = map (go name) $ openBind bnd
+    in
+
+    ((text name <+> text ":" <+> text "layout[") <> hsep (punctuate (text ",") (map ppr params)) <> text "](" <> ppr (_layoutAdt layout) <> text ")"
+           $$
+           vcat branchLines)
+    where
+      go :: String -> LayoutBranch a -> Doc
+      go name (LayoutBranch (PatternMatch branch)) =
+        -- let bnd1@(B pat opened) = branch
+        --     bodyBnd@(B existVars _) = instantiate bnd1 [pat]
+        --     body = instantiate bodyBnd existVars
+        let (B pat _) = branch
+
+            bnd :: Bind [Exists a] (LayoutBody a)
+            bnd = openBind1 branch
+
+            (B existVars _) = bnd
+            body = openBind @a bnd
+
+            exists =
+              if null existVars
+                then mempty
+                else (text "exists" <+> hsep (punctuate (text ",") (map ppr existVars))) <> text "."
+        in
+
+        (text name <+> ppr pat <+> text ":="
+                $$ nest 2 (exists $$ ppr body))
+
+getLayoutParams :: Layout a -> [ModedName a]
+getLayoutParams layout =
+  let B vs _ = _layoutBranches layout
+  in
+  vs
 
 unbindLayout :: (Fresh m, Typeable a, Alpha a) => Layout a -> m ([ModedName a], [LayoutBranch a])
 unbindLayout = unbind . _layoutBranches
@@ -167,6 +238,10 @@ instance Subst (Moded a) a => Subst (Moded a) (PointsTo a)
 instance Subst (Moded a) a => Subst (Moded a) (Loc a)
 instance (Alpha a, Typeable a, Subst (Moded a) a) => Subst (Moded a) (PatternMatch a (LayoutBody a))
 instance (Alpha a, Typeable a, Subst (Moded a) (Exists a), Subst (Moded a) a) => Subst (Moded a) (PatternMatch a (Bind [Exists a] (LayoutBody a)))
+
+instance Subst (Exists a) AdtName
+instance Subst (Exists a) (Moded (Name a))
+instance Subst (Exists a) Mode
 
 instance (IsNested a, Ppr a) => Ppr (LayoutHeaplet a) where
   ppr (LPointsTo p) = ppr p
@@ -188,14 +263,11 @@ lookupLayout (x:xs) name
   | otherwise = lookupLayout xs name
 
 -- class ModedC f where
---   getMode :: ModeEnv a -> f (Name a) -> Maybe Mode
---
--- instance ModedC Name where
---   getMode = lookupMode
+--   findMode :: ModeEnv a -> f (Name a) -> Maybe Mode
 --
 -- -- TODO: Make sure this is consistent with environment?
 -- instance ModedC Moded where
---   getMode _ (Moded m _) = Just m
+--   findMode _ (Moded m _) = Just m
 
 openLayout :: (Fresh m, Alpha a, Typeable a, Subst a (LayoutBranch a), HasVar a) => Layout a -> m ([ModedName a], OpenedLayout a)
 openLayout layout = do
@@ -206,9 +278,6 @@ openLayout layout = do
 
 instance IsName (Moded (Name a)) a where
   getName = modedNameName
-
-instance HasNames (Moded (Name a)) a where
-  getNames x = [getName x]
 
 getMode :: Moded a -> Mode
 getMode (Moded m _) = m

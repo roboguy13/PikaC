@@ -1,16 +1,18 @@
 %generate mapAdd1
 %generate mapAdd1Dll
 
-Sll : layout[x](List);
+Sll : layout[-x](List);
 Sll Nil := emp;
 Sll (Cons head tail) :=
+  exists +nxt.
   x :-> head **
   (x+1) :-> nxt **
   Sll tail [nxt];
 
-Dll : layout[x z](List);
+Dll : layout[-x, -z](List);
 Dll Nil := emp;
 Dll (Cons head tail) :=
+  exists +w.
   x :-> head **
   (x+1) :-> w **
   (x+2) :-> z **

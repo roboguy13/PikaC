@@ -5,6 +5,7 @@ module PikaC.Backend.C.Syntax
 
 import PikaC.Syntax.Heaplet
 import PikaC.Ppr
+import PikaC.Utils
 
 import Unbound.Generics.LocallyNameless
 
@@ -123,6 +124,10 @@ instance IsNested CExpr where
   isNested (And {}) = True
   isNested (Deref {}) = False
 
+instance IsName CExpr CExpr where
+  getName (V x) = x
+  getName e = error $ "IsName CExpr CExpr requires var, got " ++ ppr' e
+
 findSetToZero :: [CName] -> [CName] -> [PointsTo CExpr] -> [CName]
 findSetToZero possiblyUpdated names xs =
     let modified = go xs
@@ -133,7 +138,7 @@ findSetToZero possiblyUpdated names xs =
     go [] = []
     -- go ((x :-> V y):rest) = locBase x : y : go rest
     -- go ((x :-> LocValue y):rest) = locBase x : locBase y : go rest
-    go ((x :-> y):rest) = locBase x : go rest
+    go ((x :-> y):rest) = getName (locBase x) : go rest
 
 computeBranchCondition :: [CName] -> [CName] -> CExpr
 computeBranchCondition defNames branchNames =

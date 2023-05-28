@@ -26,11 +26,22 @@ import Data.Data
 
 import Control.Lens
 
+import GHC.Stack
+
 -- openBind :: (IsName a b, HasVar b, Alpha a, Alpha b, Subst b b) => Bind [a] b -> b
 openBind :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1) =>
      Bind [a2] b -> b
 openBind bnd@(B vs _) =
   instantiate bnd (concatMap (map mkVar . getNames) vs)
+
+-- openBind1 :: (Typeable b1, Alpha b2, Alpha a, HasVar b1, Subst (Name b1) b2, HasNames a b1) =>
+  -- Bind a b2 -> b2
+openBind1
+  :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1,
+      HasNames a2 a1) =>
+     Bind a2 b -> b
+openBind1 bnd@(B v _) =
+  instantiate bnd (map mkVar (getNames v))
 
 freshOpen :: (Fresh m, Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1, FromName f) =>
      Bind [a2] b -> m ([f a1], b)
@@ -92,7 +103,7 @@ class HasVar a where
   mkVar :: Name a -> a
 
 class IsName a b | a -> b where
-  getName :: a -> Name b
+  getName :: HasCallStack => a -> Name b
 
 instance IsName (Name a) a where
   getName = id

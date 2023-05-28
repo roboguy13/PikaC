@@ -204,7 +204,7 @@ lookupVar1 [] v = Nothing
 lookupVar1 (LPointsTo ((x :+ i) :-> PikaCore.V rhs) : rest) v
   | rhs == v = Just [v]
 lookupVar1 (LApply layoutName (PikaCore.V patVar) layoutParams : rest) v
-  | patVar == v = Just layoutParams
+  | patVar == v = Just (map getName layoutParams)
 lookupVar1 (_ : rest) v = lookupVar1 rest v
 
 --   let branches = map (convertFnBranch layouts argLayouts argTypes outParams) (Pika.fnDefBranches fn)
@@ -276,13 +276,13 @@ convertLayoutBranch (LayoutBranch branch) = do
     go' :: LayoutHeaplet Pika.Expr -> PikaConvert (LayoutHeaplet PikaCore.Expr)
     go' (LApply layoutName patVar vs) = do
       patVar' <- convertExpr mempty patVar
-      vs' <- mapM internExprName vs
-      pure $ LApply layoutName patVar' vs'
+      vs' <- mapM internExprName (map getName vs)
+      pure $ LApply layoutName patVar' (map PikaCore.V vs')
 
-    go' (LPointsTo ((a :+ i) :-> b)) = do
+    go' (LPointsTo ((Pika.V a :+ i) :-> b)) = do
       a' <- internExprName a
       b' <- convertExpr mempty b
-      pure (LPointsTo ((a' :+ i) :-> b'))
+      pure (LPointsTo ((PikaCore.V a' :+ i) :-> b'))
 
 -- convertExpr (Pika.V x) = PikaCore.V <$> internExprName x
 -- convertExpr (Pika.IntLit i) = pure (PikaCore.IntLit i)

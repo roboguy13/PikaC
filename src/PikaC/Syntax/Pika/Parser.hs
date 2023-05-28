@@ -184,14 +184,14 @@ parseLayoutBranch layoutName = lexeme $ try $ do
 
   pat <- parsePattern
   symbol ":="
-  existVars <- parseExists
+  existVars <- fromMaybe [] <$> optional parseExists
   body <- parseLayoutBody
   symbol ";"
 
   pure $ LayoutBranch (PatternMatch (bind pat (bind existVars body)))
 
 parseExists :: Parser [Exists Expr]
-parseExists = do
+parseExists = label "existential quantifier" $ lexeme $ do
   keyword "exists"
   vars <- parseModedLayoutVar `sepBy1` symbol ","
   symbol "."
@@ -217,11 +217,11 @@ parsePointsTo = label "points-to" $ lexeme $ do
 parseLoc :: Parser (Loc Expr)
 parseLoc = label "location" $ lexeme $
   try go <|>
-  try (fmap (:+ 0) parseExprName)
+  try (fmap ((:+ 0) . V) parseExprName)
   where
     go = do
       symbol "("
-      v <- parseExprName
+      v <- V <$> parseExprName
       symbol "+"
       i <- read <$> some digitChar
       symbol ")"
@@ -233,9 +233,9 @@ parseLayoutApply = do
   n <- parseExprName
   LApply layoutName (V n) <$> some parseLayoutArg
 
-parseLayoutArg :: Parser ExprName
+parseLayoutArg :: Parser Expr
 parseLayoutArg = label "layout argument" $ lexeme $
-  symbol "[" *> parseLayoutVar <* symbol "]"
+  symbol "[" *> fmap V parseLayoutVar <* symbol "]"
 
 parseModedLayoutVar :: Parser (ModedName Expr)
 parseModedLayoutVar =

@@ -93,7 +93,7 @@ instance Subst Expr Expr where
   isvar (V n) = Just $ SubstName n
   isvar _ = Nothing
 
-instance Subst Expr (Loc a)
+instance Subst Expr a => Subst Expr (Loc a)
 
 type ExprName = Name Expr
 
@@ -106,9 +106,24 @@ type LayoutName = TypeName
 instance Subst Expr (LayoutBody Expr)
 instance Subst Expr (LayoutHeaplet Expr)
 instance Subst Expr (PointsTo Expr)
+instance Subst Expr (ModedName Expr)
+instance Subst Expr Mode
 -- instance Subst Expr LocVar
+instance Subst (Exists Expr) Expr
+instance Subst (Pattern Expr) Expr
+
+instance Subst (Name Expr) Expr
+instance Subst (Name Expr) AdtName
+
+instance Subst Expr (LayoutBranch Expr)
+instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (LayoutBody Expr)))
+instance Subst Expr (Pattern Expr)
 
 makePrisms ''Expr
+
+instance IsName Expr Expr where
+  getName (V x) = x
+  getName e = error $ "IsName Pika.Expr Pika.Expr requires var, got " ++ ppr' e
 
 -- | No layout lambdas
 isConcrete :: Expr -> Bool

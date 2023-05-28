@@ -12,6 +12,7 @@ module PikaC.Syntax.Pika.Pattern
 
 import PikaC.Ppr
 import PikaC.Utils
+import PikaC.Syntax.Type
 
 import GHC.Stack
 
@@ -128,6 +129,8 @@ applyPatternMatches' matches args =
     Right r -> r
 
 instance (Typeable a) => Alpha (Pattern a)
+instance Subst (Name a) (Pattern a)
+instance Subst (Pattern a) AdtName
 
 class HasApp a where
   mkApp :: String -> [a] -> a

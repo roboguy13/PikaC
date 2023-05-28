@@ -92,9 +92,6 @@ type ExprAssertion = [PointsToExpr]
 
 makePrisms ''Expr
 
-instance HasNames (Exists Expr) Expr where
-  getNames (Exists n) = getNames n
-
 instance HasApp Expr where
   mkApp = App
 
@@ -118,11 +115,15 @@ instance Subst Expr (Pattern Expr)
 
 -- instance Subst Expr LocVar
 
-instance Subst ExprName (PointsTo Expr) where
+-- instance Subst ExprName (PointsTo Expr) where
 
-instance Subst ExprName (Loc a) where
+instance Subst (Name Expr) a => Subst ExprName (Loc a) where
 
 instance Subst ExprName Expr
+
+instance IsName Expr Expr where
+  getName (V x) = x
+  getName e = error $ "IsName PikaCore.Expr PikaCore.Expr requires var, got " ++ ppr' e
 
 -- instance Subst LocVar Base where
   -- isCoerceVar (LocV n) = Just $ SubstCoerce n (Just . LocV . string2Name . unLocVar)
@@ -146,8 +147,8 @@ instance Subst Expr Expr where
 
 instance Subst Expr (ModedName a)
 instance Subst Expr Mode
-instance Subst ExprName (ModedName a)
-instance Subst ExprName Mode
+-- instance Subst ExprName (ModedName a)
+-- instance Subst ExprName Mode
 
 instance Subst Expr a => Subst Expr (PointsTo a) where
   isCoerceVar (x :-> y) = do
@@ -156,7 +157,7 @@ instance Subst Expr a => Subst Expr (PointsTo a) where
 
 instance forall a. Subst Expr a => Subst Expr (Loc a) where
   isCoerceVar (x :+ i) = do
-    SubstCoerce p q <- isCoerceVar @Expr @(Name a) x
+    SubstCoerce p q <- isCoerceVar @Expr @_ x
     pure (SubstCoerce p (fmap (:+ i) . q))
   -- isCoerceVar (V n) = Just $ SubstCoerce _ Just
   -- isCoerceVar _ = Nothing
@@ -189,6 +190,8 @@ getPointsToExpr e = e ^!! (cosmos . _SslAssertion . to unbind' . acts . _2 . tra
 
 -- instance Ppr a => Ppr (LayoutArg a) where
 --   ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
+
+instance Subst (Exists Expr) Expr
 
 instance Ppr Expr where
   ppr (WithIn bnd (B vars body)) =

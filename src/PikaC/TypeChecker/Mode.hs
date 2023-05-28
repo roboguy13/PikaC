@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module PikaC.TypeChecker.Mode
   (modeCheck, ModeError)
@@ -11,15 +12,20 @@ module PikaC.TypeChecker.Mode
 
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Heaplet
+import PikaC.Syntax.Pika.Pattern
 import PikaC.Ppr hiding (first)
+import PikaC.Utils
 
 import Control.Monad.Reader
 import Control.Applicative
 import Control.Monad.Morph
+import Control.Monad
 
 import Data.Bifunctor
 
 import Data.Coerce
+
+import Data.Typeable
 
 import Unbound.Generics.LocallyNameless
 
@@ -55,40 +61,49 @@ execModeCheck :: LayoutEnv a -> ModeEnv a -> ModeCheck a r -> Either ModeError r
 execModeCheck layoutEnv localEnv (ModeCheck m) =
   runReaderT m (ModeCheckEnv layoutEnv localEnv)
 
-modeCheck :: ModeCheckC a => LayoutEnv a -> Layout a -> Either ModeError ()
-modeCheck layoutEnv layout =
-  let localEnv = _layoutSigParams (_layoutSig layout)
-      heaplets = view (layoutBranches.traversed.layoutBody.unLayoutBody) layout
-  in
-  execModeCheck layoutEnv localEnv $
+modeCheck :: (IsName a a, ModeCheckC a, Subst a (LayoutBody a), Subst a (ModedName a), Typeable a, Alpha a, HasVar a) => LayoutEnv a -> Layout a -> Either ModeError ()
+modeCheck layoutEnv layout = runFreshM $ do
+  (localEnv, branches) <- unbindLayout layout
+  openedBranches <- mapM (fmap snd . openPatternMatch . _layoutMatch) branches
+  openExists <- mapM (fmap snd . unbind) openedBranches
+  let heaplets = concatMap _unLayoutBody openExists
+  -- let localEnv = getLayoutParams layout
+  --     heaplets = view (layoutBranches.traversed.unLayoutBody) layout
+  pure . execModeCheck layoutEnv localEnv $
     mapM_ modeCheckHeaplet heaplets
 
-modeCheckHeaplet :: forall a. ModeCheckC a => LayoutHeaplet a -> ModeCheck a ()
+modeCheckHeaplet :: forall a. (IsName a a, ModeCheckC a) => LayoutHeaplet a -> ModeCheck a ()
 modeCheckHeaplet h@(LPointsTo ((n :+ _) :-> _)) = do
-  getModeM n >>= \case
+  getModeM (getName n) >>= \case
     Out -> pure ()
     In -> modeErrorM $
             text "Variable" <+> ppr n <+> text "has input mode in left-hand side of points-to: " $$ nest 4 (ppr h)
 
 modeCheckHeaplet h@(LApply layoutName _patVar layoutVars) = do
   layout <- asks (lookupLayout . _mcLayoutEnv) <*> pure layoutName
-  zipWithM_ modeMatch' (_layoutSigParams (_layoutSig layout)) layoutVars
+  zipWithM_ modeMatch' (getLayoutParams layout) (map getName layoutVars)
   where
     modeMatch' x y =
       extendModeError
         ((text "In" <+> ppr h) <> text ":")
         (modeMatch x y)
 
-getModeM :: (Ppr (f a), Moded f) => f a -> ModeCheck a Mode
-getModeM x = do
-  locals <- asks _mcLocalModes
-  case getMode locals x of
-    Nothing ->
-        modeErrorM $
-          text "Cannot find mode for the variable" <+> ppr x
-    Just r -> pure r
+class GetModeM a b | a -> b where
+  getModeM :: a -> ModeCheck b Mode
 
-modeMatch :: (Ppr (f a), Ppr (g a), Moded f, Moded g) => f a -> g a -> ModeCheck a ()
+instance GetModeM (Name a) a where
+  getModeM x = do
+    locals <- asks _mcLocalModes
+    case lookupMode locals x of
+      Nothing ->
+          modeErrorM $
+            text "Cannot find mode for the variable" <+> ppr x
+      Just r -> pure r
+
+instance GetModeM (Moded (Name a)) a where
+  getModeM (Moded m _) = pure m
+
+modeMatch :: (Ppr a, Ppr b, GetModeM a c, GetModeM b c) => a -> b -> ModeCheck c ()
 modeMatch x y =
   liftA2 (,) (getModeM x) (getModeM y) >>= \case
     (In, Out) -> pure ()
