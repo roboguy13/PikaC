@@ -76,12 +76,13 @@ toPikaCore layouts0 fn = runFreshM . runPikaIntern' $ do
   branches' <-
     runPikaConvert'' layouts $ mapM (convertBranch openedArgLayouts) $ Pika.fnDefBranches fn
 
-  pure $ PikaCore.FnDef
-    { PikaCore._fnDefName = Pika.fnDefName fn
-    , PikaCore._fnDefBranches =
-        bind (concat inParams)
-          (bind outParams branches')
-    }
+  simplifyFnDef $
+    PikaCore.FnDef
+      { PikaCore._fnDefName = Pika.fnDefName fn
+      , PikaCore._fnDefBranches =
+          bind (concat inParams)
+            (bind outParams branches')
+      }
 
 convertBranch :: [Maybe ([ModedName PikaCore.Expr], OpenedLayout PikaCore.Expr)] -> Pika.FnDefBranch -> PikaConvert PikaCore.FnDefBranch
 convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
@@ -99,17 +100,16 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
 
   matches <- convertPatternMatches (Just openedLayoutBodies) matches0
 
-  (_, bodyExpr) <- openPatternMatches matches
+  (_, bodyExpr) <- openPatternMatches matches0
+  bodyExpr' <- convertExpr (Just openedLayoutBodies) bodyExpr
 
   -- inAsns <- zipWithM getAssertion openedArgLayouts $ patternMatchesPats matches
   let inAsns = map getPointsTos openedLayoutBodies
 
   pure $ PikaCore.FnDefBranch
     { PikaCore._fnDefBranchInputAssertions = inAsns
-    , PikaCore._fnDefBranchBody = bodyExpr
+    , PikaCore._fnDefBranchBody = bodyExpr'
     }
-
--- chooseExistVars :: OpenedLayout a -> [P
 
 convertPatternMatches :: Maybe [LayoutBody PikaCore.Expr] -> PatternMatches Pika.Expr Pika.Expr -> PikaConvert (PatternMatches PikaCore.Expr PikaCore.Expr)
 convertPatternMatches argLayoutBodies =
