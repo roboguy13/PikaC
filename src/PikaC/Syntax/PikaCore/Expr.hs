@@ -232,7 +232,7 @@ pprExpr (BoolLit b) = pure $ ppr b
 pprExpr (Add x y) = do
   xDoc <- pprExpr x
   yDoc <- pprExpr y
-  pure $ sep [yDoc, text "+", yDoc]
+  pure $ sep [xDoc, text "+", yDoc]
 pprExpr (Sub x y) = do
   xDoc <- pprExpr x
   yDoc <- pprExpr y
