@@ -28,6 +28,7 @@ import Data.Coerce
 import Data.Typeable
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
 
 import Control.Lens
 
@@ -61,11 +62,24 @@ execModeCheck :: LayoutEnv a -> ModeEnv a -> ModeCheck a r -> Either ModeError r
 execModeCheck layoutEnv localEnv (ModeCheck m) =
   runReaderT m (ModeCheckEnv layoutEnv localEnv)
 
-modeCheck :: (IsName a a, ModeCheckC a, Subst a (LayoutBody a), Subst a (ModedName a), Typeable a, Alpha a, HasVar a) => LayoutEnv a -> Layout a -> Either ModeError ()
+modeCheck :: (IsName a a, Subst a (LayoutBranch a), ModeCheckC a, Subst a (LayoutBody a), Subst a (ModedName a), Typeable a, Alpha a, HasVar a) => LayoutEnv a -> Layout a -> Either ModeError ()
 modeCheck layoutEnv layout = runFreshM $ do
-  (localEnv, branches) <- unbindLayout layout
-  openedBranches <- mapM (fmap snd . openPatternMatch . _layoutMatch) branches
-  openExists <- mapM (fmap snd . unbind) openedBranches
+  let openedBranches = openBind (_layoutBranches layout)
+      xs = map (getPatternMatch . _layoutMatch) openedBranches
+
+      openIt (B pat body) = openBind (B (getPatternNames pat) body)
+      getBv (B v _) = v
+
+      openedXs = map openIt xs
+
+      openExists = map openBind openedXs
+
+  let localEnv0 = getBv $ _layoutBranches layout
+  let localEnv = localEnv0 <> map getExists (concatMap (getBv) openedXs)
+
+  -- openedBranches <- mapM (fmap snd . openPatternMatch . _layoutMatch) branches
+  -- openExists <- mapM (fmap snd . unbind) openedBranches
+
   let heaplets = concatMap _unLayoutBody openExists
   -- let localEnv = getLayoutParams layout
   --     heaplets = view (layoutBranches.traversed.unLayoutBody) layout
@@ -97,7 +111,7 @@ instance GetModeM (Name a) a where
     case lookupMode locals x of
       Nothing ->
           modeErrorM $
-            text "Cannot find mode for the variable" <+> ppr x
+            text "Cannot find mode for the variable" <+> ppr x <+> text "in" <+> text (show locals)
       Just r -> pure r
 
 instance GetModeM (Moded (Name a)) a where

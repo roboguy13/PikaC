@@ -41,11 +41,11 @@ instance HasNames (Pattern a) a where
   getNames (Pattern _ vs) = vs
 
 newtype PatternMatch a b =
-  PatternMatch (Bind (Pattern a) b)
+  PatternMatch { getPatternMatch :: Bind (Pattern a) b }
   deriving (Show, Generic)
 
 newtype PatternMatches a b =
-  PatternMatches (Bind [Pattern a] b)
+  PatternMatches { getPatternMatches :: Bind [Pattern a] b }
   deriving (Show, Generic)
 
 instance (Typeable a, Alpha b) => Alpha (PatternMatch a b)

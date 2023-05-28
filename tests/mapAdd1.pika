@@ -9,7 +9,7 @@ Sll (Cons head tail) :=
   (x+1) :-> nxt **
   Sll tail [nxt];
 
-Dll : layout[-x, -z](List);
+Dll : layout[-x, +z](List);
 Dll Nil := emp;
 Dll (Cons head tail) :=
   exists +w.

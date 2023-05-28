@@ -112,7 +112,7 @@ instance Alpha Mode
 
 -- type Layout = Layout' Identity
 
-newtype Exists a = Exists (ModedName a)
+newtype Exists a = Exists { getExists :: ModedName a }
   deriving (Show, Generic)
 
 instance (Typeable a) => Alpha (Exists a)
