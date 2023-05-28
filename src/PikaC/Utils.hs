@@ -32,11 +32,11 @@ openBind :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1)
 openBind bnd@(B vs _) =
   instantiate bnd (concatMap (map mkVar . getNames) vs)
 
-freshOpen :: (Fresh m, Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1) =>
-     Bind [a2] b -> m b
+freshOpen :: (Fresh m, Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1, FromName f) =>
+     Bind [a2] b -> m ([f a1], b)
 freshOpen bnd@(B vs _) = do
   vs' <- mapM fresh (concatMap getNames vs)
-  pure (instantiate bnd (map mkVar vs'))
+  pure (map fromName vs', instantiate bnd (map mkVar vs'))
 
 -- rename :: forall a b. (Typeable a, Subst a b) => [(Name a, Name a)] -> b -> b
 -- rename = substs
@@ -102,6 +102,15 @@ class HasNames a b | a -> b where
 
 instance HasNames (Name a) a where
   getNames x = [x]
+
+instance HasNames [Name a] a where
+  getNames = id
+
+class FromName f where
+  fromName :: Name a -> f a
+
+instance FromName Name where
+  fromName = id
 
 -- TODO: Deal with these orphan instances
 -- deriving instance (Data a, Data b) => Data (Bind a b)

@@ -92,6 +92,9 @@ type ExprAssertion = [PointsToExpr]
 
 makePrisms ''Expr
 
+instance HasNames (Exists Expr) Expr where
+  getNames (Exists n) = getNames n
+
 instance HasApp Expr where
   mkApp = App
 
@@ -107,6 +110,11 @@ instance HasApp Expr where
 --     (BaseExpr (LocV (string2Name "x")))
 
 instance Alpha Expr
+
+instance Subst Expr (LayoutBranch Expr)
+instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (LayoutBody Expr)))
+instance Subst Expr (Pattern Expr)
+
 
 -- instance Subst Expr LocVar
 

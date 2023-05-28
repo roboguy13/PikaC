@@ -20,7 +20,7 @@ data FnDef =
 
 newtype FnDefBranch =
   FnDefBranch
-  { fnBranchMatch :: PatternMatches Expr
+  { fnBranchMatch :: PatternMatches Expr Expr
   }
     -- { fnBranchPats :: [Pattern Expr]
     -- , fnBranchBody :: Bind [ExprName] Expr

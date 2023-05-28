@@ -94,7 +94,7 @@ parseFnDefBranch fnName = label "function branch" $ lexeme $ try $ do
 
   symbol ";"
 
-  pure $ FnDefBranch pats body
+  pure $ FnDefBranch (PatternMatches (bind pats body))
 
 parsePattern :: Parser (Pattern Expr)
 parsePattern = label "pattern" $ lexeme $
@@ -160,21 +160,21 @@ parseLayout :: Parser (Layout Expr)
 parseLayout = label "layout definition" $ lexeme $ do
   layoutName <- parseLayoutName
   keyword ":"
-  sig <- parseLayoutSig
+  (params, adt) <- parseLayoutSig
   keyword ";"
   branches <- some (parseLayoutBranch layoutName)
-  pure $ Layout layoutName sig branches
+  pure $ Layout layoutName adt (bind params branches)
 
-parseLayoutSig :: Parser (LayoutSig Expr)
+parseLayoutSig :: Parser ([ModedName Expr], AdtName)
 parseLayoutSig = lexeme $ do
   keyword "layout"
   symbol "["
-  params <- some parseModedLayoutVar
+  params <- parseModedLayoutVar `sepBy1` symbol ","
   symbol "]"
   symbol "("
   adt <- parseAdtName
   symbol ")"
-  pure $ LayoutSig adt params
+  pure (params, adt)
 
 
 parseLayoutBranch :: String -> Parser (LayoutBranch Expr)
@@ -183,11 +183,19 @@ parseLayoutBranch layoutName = lexeme $ try $ do
   parserGuard (nameHere == layoutName) (Just nameHere) layoutName
 
   pat <- parsePattern
-  keyword ":="
+  symbol ":="
+  existVars <- parseExists
   body <- parseLayoutBody
-  keyword ";"
+  symbol ";"
 
-  pure $ LayoutBranch pat body
+  pure $ LayoutBranch (PatternMatch (bind pat (bind existVars body)))
+
+parseExists :: Parser [Exists Expr]
+parseExists = do
+  keyword "exists"
+  vars <- parseModedLayoutVar `sepBy1` symbol ","
+  symbol "."
+  pure $ map Exists vars
 
 parseLayoutBody :: Parser (LayoutBody Expr)
 parseLayoutBody = label "layout body" $ lexeme $
@@ -231,7 +239,7 @@ parseLayoutArg = label "layout argument" $ lexeme $
 
 parseModedLayoutVar :: Parser (ModedName Expr)
 parseModedLayoutVar =
-  ModedName <$> parseMode <*> parseLayoutVar
+  Moded <$> parseMode <*> parseLayoutVar
 
 parseMode :: Parser Mode
 parseMode = (char '+' $> In) <|> (char '-' $> Out)

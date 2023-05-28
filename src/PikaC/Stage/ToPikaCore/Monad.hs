@@ -122,6 +122,9 @@ internExprName n = fresh (string2Name (name2String n))
   --       pikaToPcExprNameMap %= ((n, n') :)
   --       pure n'
 
+internExists :: forall m. MonadPikaIntern m => Exists Pika.Expr -> m (Exists PikaCore.Expr)
+internExists (Exists n) = Exists <$> internModedExprName n
+
 internModedExprName :: MonadPikaIntern m => ModedName Pika.Expr -> m (ModedName PikaCore.Expr)
 internModedExprName (Moded mode v) =
   Moded mode <$> internExprName v

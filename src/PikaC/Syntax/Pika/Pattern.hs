@@ -39,18 +39,67 @@ instance HasNames (Pattern a) a where
   getNames (PatternVar v) = [v]
   getNames (Pattern _ vs) = vs
 
-newtype PatternMatch a =
-  PatternMatch (Bind (Pattern a) a)
-  deriving (Show)
+newtype PatternMatch a b =
+  PatternMatch (Bind (Pattern a) b)
+  deriving (Show, Generic)
 
-newtype PatternMatches a =
-  PatternMatches (Bind [Pattern a] a)
-  deriving (Show)
+newtype PatternMatches a b =
+  PatternMatches (Bind [Pattern a] b)
+  deriving (Show, Generic)
 
-patternMatchesPats :: PatternMatches a -> [Pattern a]
+instance (Typeable a, Alpha b) => Alpha (PatternMatch a b)
+instance (Typeable a, Alpha b) => Alpha (PatternMatches a b)
+
+openPatternMatch :: (Fresh m, HasVar a, Subst a b, Alpha b, Alpha a, Typeable a) =>
+  PatternMatch a b -> m ([Name a], b)
+openPatternMatch (PatternMatch bnd) = do
+  (pat, b) <- unbind bnd
+  pure (getNames pat, b)
+  -- freshOpen (B (getNames pat) body)
+
+openPatternMatches :: (Fresh m, HasVar a, Subst a b, Alpha b, Alpha a, Typeable a) =>
+  PatternMatches a b -> m ([[Name a]], b)
+openPatternMatches (PatternMatches matches) = do
+  (pats, b) <- unbind matches
+  pure (map getNames pats, b)
+
+patternMatchPat :: PatternMatch a b -> Pattern a
+patternMatchPat (PatternMatch (B pat _)) = pat
+
+patternMatchesPats :: PatternMatches a b -> [Pattern a]
 patternMatchesPats (PatternMatches (B pats _)) = pats
 
-applyPatternMatch :: (Typeable a, Alpha a, HasApp a, Subst a a) => PatternMatch a -> String -> [a] -> Either String a
+lookupPatternMatch :: [PatternMatch a b] -> String -> Maybe (PatternMatch a b)
+lookupPatternMatch [] pat = Nothing
+lookupPatternMatch (x@(PatternMatch (B (PatternVar v) _)) : _) constructor = Just x
+lookupPatternMatch (x@(PatternMatch (B (Pattern constructor' _) _)) : xs) constructor
+  | constructor' == constructor = Just x
+  | otherwise = lookupPatternMatch xs constructor
+
+lookupPatternMatch' :: (HasCallStack, Show b) => [PatternMatch a b] -> String -> PatternMatch a b
+lookupPatternMatch' matches constructor =
+  case lookupPatternMatch matches constructor of
+    Nothing -> error $ "Cannot find match for constructor " ++ constructor ++ " in " ++ show matches
+    Just r -> r
+
+
+onPattern :: Applicative f => (Name a -> f (Name b)) -> Pattern a -> f (Pattern b)
+onPattern f (PatternVar v) = PatternVar <$> f v
+onPattern f (Pattern c vs) = Pattern c <$> traverse f vs
+
+onPatternMatch :: (Fresh m, Typeable a, Typeable a', Alpha b, Alpha b') =>
+  (Name a -> m (Name a')) -> (b -> m b') -> PatternMatch a b -> m (PatternMatch a' b')
+onPatternMatch varFn bodyFn (PatternMatch m) = do
+  (pat, body) <- unbind m
+  PatternMatch <$> (bind <$> onPattern varFn pat <*> bodyFn body)
+
+onPatternMatches :: (Fresh m, Typeable a, Typeable a', Alpha b, Alpha b') =>
+  (Name a -> m (Name a')) -> (b -> m b') -> PatternMatches a b -> m (PatternMatches a' b')
+onPatternMatches varFn bodyFn (PatternMatches m) = do
+  (pats, body) <- unbind m
+  PatternMatches <$> (bind <$> mapM (onPattern varFn) pats <*> bodyFn body)
+
+applyPatternMatch :: (Typeable a, Alpha a, HasApp a, Subst a b, Alpha b) => PatternMatch a b -> String -> [a] -> Either String b
 applyPatternMatch match@(PatternMatch (B pat body)) constructor xs =
   case pat of
     PatternVar v -> Right $ substBind (B v body) (mkApp constructor xs)
@@ -59,20 +108,20 @@ applyPatternMatch match@(PatternMatch (B pat body)) constructor xs =
       | constructor2 == constructor -> Right $ instantiate (B vs body) xs
       | otherwise -> Left $ "applyPatternMatch: Pattern constructors do not match: Expected: " ++ constructor ++ ", found: " ++ constructor2
 
-applyPatternMatch' :: (HasCallStack, Typeable a, Alpha a, HasApp a, Subst a a) => PatternMatch a -> String -> [a] -> a
+applyPatternMatch' :: (HasCallStack, Typeable a, Alpha a, Alpha b, HasApp a, Subst a b) => PatternMatch a b -> String -> [a] -> b
 applyPatternMatch' match constructor xs =
   case applyPatternMatch match constructor xs of
     Left e -> error e
     Right r -> r
 
-applyPatternMatches :: (Show a, Typeable a, Alpha a, HasApp a, Subst a a) => PatternMatches a -> [(String, [a])] -> Either String a
+applyPatternMatches :: (Show a, Typeable a, Alpha a, Alpha b, HasApp a, Subst a b) => PatternMatches a b -> [(String, [a])] -> Either String b
 applyPatternMatches matches@(PatternMatches (B pats body)) args
   | length pats /= length args = Left $ "applyPatternMatches: Expected " ++ show (length pats) ++ " patterns, got " ++ show (length args) ++ " arguments: " ++ show (matches, args)
   | otherwise = do
     (names, xs) <- unzip . concat <$> zipWithM (uncurry . patternMatchSubst) pats args
     pure (instantiate (B names body) xs)
 
-applyPatternMatches' :: (Show a, Typeable a, Alpha a, HasApp a, Subst a a) => PatternMatches a -> [(String, [a])] -> a
+applyPatternMatches' :: (Show a, Typeable a, Alpha a, HasApp a, Subst a b, Alpha b) => PatternMatches a b -> [(String, [a])] -> b
 applyPatternMatches' matches args =
   case applyPatternMatches matches args of
     Left e -> error e
