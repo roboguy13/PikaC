@@ -16,7 +16,7 @@ module PikaC.Ppr
 
 import PikaC.Utils
 
-import Text.PrettyPrint.HughesPJ hiding ((<>), Mode)
+import Text.PrettyPrint.HughesPJ hiding ((<>), Mode, first)
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind

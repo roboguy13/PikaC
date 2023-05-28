@@ -10,10 +10,12 @@ module PikaC.Stage.ToPikaCore.Monad
   where
 
 import qualified PikaC.Syntax.Pika.Expr as Pika
+import qualified PikaC.Syntax.Pika.FnDef as Pika
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.Expr
+import PikaC.Syntax.Type
 import PikaC.Syntax.Heaplet
 import PikaC.Utils
 import PikaC.Ppr (ppr')
@@ -39,6 +41,7 @@ newtype LayoutVarSubst = LayoutVarSubst [(Pika.ExprName, (String, LayoutArg Pika
 data PikaConvertEnv =
   PikaConvertEnv
   { _layoutEnv :: LayoutEnv PikaCore.Expr
+  , _globalFns :: [Pika.FnDef]
   -- , _layoutVarSubst :: LayoutVarSubst
   }
 
@@ -61,21 +64,45 @@ type MonadPikaIntern m = (Fresh m, MonadState PikaConvertState m)
 newtype PikaConvert a = PikaConvert (ReaderT PikaConvertEnv PikaIntern a)
   deriving (Functor, Applicative, Monad, MonadState PikaConvertState, MonadReader PikaConvertEnv, Fresh)
 
-runPikaConvert :: LayoutEnv PikaCore.Expr -> PikaConvert a -> a
-runPikaConvert layouts =
-  runFreshM . runPikaConvert' layouts
+instance MonadFail PikaConvert where
+  fail = error
 
-runPikaConvert' :: LayoutEnv PikaCore.Expr-> PikaConvert a -> FreshM a
-runPikaConvert' layouts =
-  runPikaIntern' . runPikaConvert'' layouts
+runPikaConvert :: LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert a -> a
+runPikaConvert layouts globalFns =
+  runFreshM . runPikaConvert' layouts globalFns
 
-runPikaConvert'' :: LayoutEnv PikaCore.Expr -> PikaConvert a -> PikaIntern a
-runPikaConvert'' layouts (PikaConvert m) = runReaderT m (PikaConvertEnv layouts)
+runPikaConvert' :: LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert a -> FreshM a
+runPikaConvert' layouts globalFns =
+  runPikaIntern' . runPikaConvert'' layouts globalFns
+
+runPikaConvert'' :: LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert a -> PikaIntern a
+runPikaConvert'' layouts globalFns (PikaConvert m) = runReaderT m (PikaConvertEnv layouts globalFns)
 
 lookupLayoutM :: String -> PikaConvert (Layout PikaCore.Expr)
 lookupLayoutM layoutName = do
   layouts <- asks _layoutEnv
   pure $ lookupLayout layouts layoutName
+
+lookupFnDef :: HasCallStack => String -> PikaConvert Pika.FnDef
+lookupFnDef name = go <$> asks _globalFns
+  where
+    go [] = error $ "lookupFnDef: Cannot find function " ++ name
+    go (x:xs)
+      | Pika.fnDefName x == name = x
+      | otherwise = go xs
+
+lookupFnTypeSig :: HasCallStack => String -> PikaConvert TypeSig
+lookupFnTypeSig name = Pika.fnDefTypeSig <$> lookupFnDef name
+
+lookupFnResultType :: HasCallStack => String -> PikaConvert Type
+lookupFnResultType fnName = do
+  sig <- lookupFnTypeSig fnName
+  case _typeSigLayoutConstraints sig of
+    (_:_) -> error $ "lookupFnResultType: Function " ++ fnName ++ " should not be layout polymorphic. Found type " ++ ppr' sig
+    [] ->
+      let (_, r) = splitFnType (_typeSigTy sig)
+      in
+      pure r
 
 -- -- | Construct an ADT value using a pre-specified layout
 -- newtype Construct a =

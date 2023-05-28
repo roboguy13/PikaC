@@ -119,6 +119,9 @@ instance Subst Expr (LayoutBranch Expr)
 instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (LayoutBody Expr)))
 instance Subst Expr (Pattern Expr)
 
+instance Subst (Moded Expr) Expr
+instance Subst (Moded Expr) AdtName
+
 makePrisms ''Expr
 
 instance IsName Expr Expr where
@@ -155,4 +158,71 @@ reduceLayouts = go
     go (Sub x y) = Sub (go x) (go y)
     go (Equal x y) = Equal (go x) (go y)
     go (LName x) = LName x
+
+-- Tests
+sllLayout :: Layout Expr
+sllLayout =
+  Layout
+    { _layoutName = "Sll"
+    , _layoutAdt = AdtName "List"
+    , _layoutBranches =
+        let x = string2Name "x"
+        in
+        bind [Moded Out x]
+          [LayoutBranch
+            (PatternMatch
+              (bind (Pattern "Nil" [])
+                (bind [] mempty)))
+
+          ,let h = string2Name "h"
+               t = string2Name "t"
+               nxt = string2Name "nxt"
+           in
+           LayoutBranch
+             (PatternMatch
+               (bind (Pattern "Cons" [h, t])
+                 (bind [Exists $ Moded In nxt]
+                   $ LayoutBody
+                       [LPointsTo $ (V x :+ 0) :-> V h
+                       ,LPointsTo $ (V x :+ 1) :-> V nxt
+                       ,LApply "Sll"
+                          (V t)
+                          [V nxt]
+                       ])))
+          ]
+    }
+
+dllLayout :: Layout Expr
+dllLayout =
+  Layout
+    { _layoutName = "Dll"
+    , _layoutAdt = AdtName "List"
+    , _layoutBranches =
+        let x = string2Name "x"
+            z = string2Name "z"
+        in
+        bind [Moded Out x, Moded In z]
+          [LayoutBranch
+            (PatternMatch
+              (bind (Pattern "Nil" [])
+                (bind [] mempty)))
+
+          ,let h = string2Name "h"
+               t = string2Name "t"
+               nxt = string2Name "nxt"
+           in
+           LayoutBranch
+             (PatternMatch
+               (bind (Pattern "Cons" [h, t])
+                 (bind [Exists $ Moded In nxt]
+                   $ LayoutBody
+                       [LPointsTo $ (V x :+ 0) :-> V h
+                       ,LPointsTo $ (V x :+ 1) :-> V nxt
+                       ,LPointsTo $ (V x :+ 2) :-> V z
+                       ,LApply "Dll"
+                          (V t)
+                          [V nxt, V x]
+                       ])))
+          ]
+    }
 

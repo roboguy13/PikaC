@@ -142,6 +142,18 @@ instance IsName Expr Expr where
   --   pure $ SubstCoerce x (fmap SimpleExpr . f)
   -- isCoerceVar _ = Nothing
 
+instance Subst (Moded Expr) Expr
+instance Subst (Moded Expr) (Moded (Name Expr))
+instance Subst (Moded Expr) Mode
+instance Subst (Moded (Name Expr)) (LayoutBody Expr)
+instance Subst (Moded (Name Expr)) (LayoutHeaplet Expr)
+instance Subst (Moded (Name Expr)) (PointsTo Expr)
+instance Subst (Moded (Name Expr)) (Loc Expr)
+instance Subst (Moded (Name Expr)) Expr
+instance Subst (Moded (Name Expr)) (Moded (Name Expr))
+instance Subst (Moded (Name Expr)) Mode
+instance Subst (Moded (Name Expr)) (Exists Expr)
+
 instance Subst Expr Expr where
   isvar (V x) = Just $ SubstName x
   isvar _ = Nothing

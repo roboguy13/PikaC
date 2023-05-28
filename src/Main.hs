@@ -53,7 +53,7 @@ generateFn pikaModule fnName = do
   putStrLn $ "*** " <> fnName <> " ***"
 
   putStrLn "- PikaCore:"
-  let pikaCore = toPikaCore (moduleLayouts pikaModule) $ moduleLookupFn pikaModule fnName
+  let pikaCore = toPikaCore (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
   putStrLn $ ppr' pikaCore
 
   -- putStrLn "- C:"

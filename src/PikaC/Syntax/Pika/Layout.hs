@@ -35,6 +35,8 @@ import Unbound.Generics.LocallyNameless.Bind
 import Data.Void
 import Data.Typeable
 
+import Data.Bifunctor
+
 import Control.Lens
 import Control.Lens.TH
 
@@ -77,6 +79,7 @@ newtype LayoutBranch a =
             (LayoutBody a))
     }
     deriving (Show, Generic)
+
 
 -- | A layout where the layout parameters have been substituted
 type OpenedLayout a = [LayoutBranch a]
@@ -155,12 +158,32 @@ data LayoutHeaplet a
       -- [LocVar]    -- Layout variables
   deriving (Show, Generic)
 
+-- | Split into points-to and applications
+splitLayoutHeaplets ::
+  [LayoutHeaplet a] ->
+  ([PointsTo a], [(String, a, [a])])
+splitLayoutHeaplets [] = ([], [])
+splitLayoutHeaplets (LPointsTo p : xs) =
+  first (p:) (splitLayoutHeaplets xs)
+splitLayoutHeaplets (LApply layoutName exprArg layoutVars : xs) =
+  second ((layoutName, exprArg, layoutVars) :) (splitLayoutHeaplets xs)
+
 -- type PatternVar = Name Expr
 
 makeLenses ''Layout
 makeLenses ''LayoutBranch
 makeLenses ''LayoutBody
 makePrisms ''LayoutHeaplet
+
+-- -- NOTE: This is just for testing
+-- getFirstBranch :: (MonadFail m, Fresh m, Typeable a, Alpha a) =>
+--   Layout a ->
+--   m (Bind [ModedName a]
+--       (Bind [Exists a]
+--         (LayoutBody a)))
+-- getFirstBranch layout = do
+--   (vars, (LayoutBranch branch:_)) <- unbind (_layoutBranches layout)
+--   pure $ bind vars branch
 
 instance Ppr a => Ppr (Exists a) where ppr (Exists x) = ppr x
 
@@ -390,6 +413,21 @@ applyLayout' layout c args =
     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c ++ " in " ++ show layout
     Just r -> pure r
 
+freshExists :: (Fresh m, Alpha a, Subst a (LayoutBody a), HasVar a, Typeable a) =>
+  Bind [ModedName a] (Bind [Exists a] (LayoutBody a)) ->
+  m (Bind [ModedName a] (LayoutBody a))
+freshExists bnd0 = do
+  (vars, bnd1) <- unbind bnd0
+  (_, bnd2) <- freshOpenExists bnd1
+  pure (bind vars bnd2)
+
+freshOpenExists ::  (Fresh m, Alpha b, Subst c b, HasVar c, Alpha c, Typeable c) =>
+     Bind [Exists c] b -> m ([Exists c], b)
+freshOpenExists bnd@(B vs _) = do
+  vs' <- mapM fresh (concatMap getNames vs)
+  let moded = zipWith Moded (map (getMode . getExists) vs) vs'
+  pure (map Exists moded, instantiate bnd (map mkVar vs'))
+
 applyLayoutPattern
   :: (Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
       Subst a (ModedName a), HasVar a) =>
@@ -443,6 +481,9 @@ getPointsTos b@(LayoutBody xs0) = go xs0
     go [] = []
     go (LApply {} : xs) = go xs
     go (LPointsTo p : xs) = p : go xs
+
+-- -- A e [x ...]
+-- substLApplies
 
 instance (Typeable a, Show a, Alpha a) => Alpha (LayoutHeaplet a)
 
