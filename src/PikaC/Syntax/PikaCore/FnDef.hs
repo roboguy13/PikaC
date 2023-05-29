@@ -22,6 +22,15 @@ import Unbound.Generics.LocallyNameless.Bind
 
 import GHC.Generics
 
+import Data.GenValidity
+import Data.Validity
+
+import Control.Lens
+import Data.List
+
+import Test.QuickCheck
+import Control.Monad
+
 data FnDef =
   FnDef
   { _fnDefName :: String
@@ -31,7 +40,7 @@ data FnDef =
            [FnDefBranch])
   -- , _fnDefParams :: [ModedName Expr]
   }
-  deriving (Show, Generic)
+  deriving (Generic)
 
 data FnDefBranch =
   FnDefBranch
@@ -39,7 +48,7 @@ data FnDefBranch =
   { _fnDefBranchInputAssertions :: [ExprAssertion]
   , _fnDefBranchBody :: Expr
   }
-  deriving (Show, Generic)
+  deriving (Generic)
 
 makeLenses ''FnDef
 makeLenses ''FnDefBranch
@@ -88,6 +97,12 @@ instance Ppr FnDef where
 -- instance Ppr FnDefBranch where
 --   ppr = pprBranch mempty
 
+instance Show FnDef where
+  show = ppr'
+
+instance Show FnDefBranch where
+  show = render . runFreshM . pprBranch [] mempty
+
 pprBranch :: [ModedName Expr] -> Doc -> FnDefBranch -> FreshM Doc
 pprBranch outParams doc branch = do
     -- (outParams, branch) <- freshOpen @_ @Name branchBind
@@ -111,4 +126,66 @@ and' x y = And x y
 not' :: Expr -> Expr
 not' (Not x) = x
 not' x = Not x
+
+--
+-- Property testing --
+--
+
+-- -- | Generate only well-scoped @FnDef@s
+-- instance GenValid FnDef where
+--   genValid = genValidFnDef
+
+-- | Function definitions should be well-scoped
+instance Validity FnDef where
+  validate (FnDef _ (B inVars (B outVars branches))) =
+    let vars = inVars ++ outVars
+    in
+    mconcat $ map (validBranch vars) branches
+    -- check (isClosed @_ @Expr branches) "No free variables"
+
+-- TODO: Make sure we are properly accounting for names "bound" by input assertions
+validBranch :: [ModedName Expr] -> FnDefBranch -> Validation
+validBranch modedBvs branch =
+    check (all (`elem` bvs) bodyFvs) "Well-scoped"
+  where
+    bodyFvs = toListOf @(Name Expr) fv (_fnDefBranchBody branch)
+
+    bvs = map modedNameName modedBvs `union` toListOf fv (_fnDefBranchInputAssertions branch)
+
+genValidFnDef :: Gen FnDef
+genValidFnDef = do
+  i <- choose (1, 4)
+  j <- choose (1, 2)
+  inParams <- (:[]) . nub <$> replicateM i arbitraryAlpha
+  outParams <- (:[]) . nub <$> replicateM j arbitraryAlpha
+
+  when (any (`elem` outParams) inParams) discard -- Make sure inParams and outParams are disjoint
+
+  k <- choose (1, 4)
+
+  let modedInParams = map (Moded In . string2Name) inParams
+      modedOutParams = map (Moded Out . string2Name) outParams
+
+  let params = modedInParams ++ modedOutParams
+
+  FnDef "testFn"
+    <$>
+      (bind modedInParams
+        <$> (bind modedOutParams
+              <$> replicateM k (genValidBranch params)))
+
+genValidBranch :: [ModedName Expr] -> Gen FnDefBranch
+genValidBranch = sized . genValidBranch'
+
+genValidBranch' :: [ModedName Expr] -> Int -> Gen FnDefBranch
+genValidBranch' modedBvs size = do
+    i <- choose (0, 3)
+    inAsns <- replicateM i (genValidAssertion bvs (genValidExpr' (asnName : bvs)) (size `div` 2))
+    -- TODO: Figure this out:
+    -- e <- genValidExpr' (asnName : bvs) (size `div` 2)
+    e <- genValidExpr' (bvs) (size `div` 2)
+    pure $ FnDefBranch inAsns e
+  where
+    bvs = map modedNameName modedBvs
+    asnName = newName bvs
 

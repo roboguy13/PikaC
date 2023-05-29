@@ -27,11 +27,19 @@ import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
 
-import Control.Lens
+import Control.Lens hiding (elements)
 import Control.Lens.Action
 
 import GHC.Generics hiding (to)
 import GHC.Stack
+
+import Control.Monad
+
+import Data.Validity
+import Data.GenValidity
+import Test.QuickCheck
+
+import Data.Char
 
 type ExprName = Name Expr
 
@@ -283,4 +291,60 @@ isBase (Equal x y) = True
 isBase (Not x) = True
 isBase (And x y) = True
 isBase _ = False
+
+-- Property testing --
+
+genValidExpr :: [Name Expr] -> Gen Expr
+genValidExpr bvs = sized (genValidExpr' bvs)
+
+genValidExpr' :: [Name Expr] -> Int -> Gen Expr
+genValidExpr' [] 0 =
+  oneof
+    [IntLit <$> arbitrary
+    ,BoolLit <$> arbitrary
+    ]
+genValidExpr' bvs 0 =
+  oneof
+    [V <$> elements bvs
+    ,genValidExpr' [] 0
+    ]
+
+genValidExpr' bvs size =
+  oneof
+    [genValidExpr' bvs 0
+    ,Add <$> halvedGen <*> halvedGen
+    ,Sub <$> halvedGen <*> halvedGen
+    ,Equal <$> halvedGen <*> halvedGen
+    ,Not <$> genValidExpr' bvs (size - 1)
+    ,And <$> halvedGen <*> halvedGen
+    ,let n' = newName bvs
+     in
+     WithIn <$> halvedGen
+      <*> (bind [Moded Out n']
+            <$> halvedGenWith (n' : bvs))
+
+    ,SslAssertion
+      <$> (bind [] <$> genValidAssertion bvs (genValidExpr' bvs) (size - 1))
+
+    ,do
+      isBinary <- arbitrary :: Gen Bool
+      if isBinary
+        then do
+          x <- halvedGen
+          y <- halvedGen
+          App <$> replicateM 3 arbitraryAlpha <*> pure [x, y]
+        else do
+          x <- genValidExpr' bvs (size - 1)
+          App <$> replicateM 3 arbitraryAlpha <*> pure [x]
+    ]
+  where
+    halvedGen = halvedGenWith bvs
+    halvedGenWith bvs' = genValidExpr' bvs' (size `div` 2)
+
+newName :: [Name Expr] -> Name Expr
+newName [] = string2Name "a"
+newName ns = last . runFreshM $ mapM fresh ns
+
+arbitraryAlpha :: Gen Char
+arbitraryAlpha = arbitrary `suchThat` (`elem` ['a'..'z'])
 

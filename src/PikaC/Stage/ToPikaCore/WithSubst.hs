@@ -29,12 +29,14 @@ withSubst = onFnDef (rewriteM go)
 
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (WithIn (LayoutV vs) bnd) = do
-  (vars, body) <- unbind bnd
-  pure $ Just $ substs (zip (map getV vs) (map (V . modedNameName) vars)) body
+  (_vars, body) <- unbind bnd
+  pure $ Just $ instantiate bnd vs
+  -- pure $ Just $ substs (zip (map getV vs) (map (V . modedNameName) vars)) body
 
 go (WithIn (V v) bnd) = do
-  (vars, body) <- unbind bnd
-  pure $ Just $ substs (zip [v] (map (V . modedNameName) vars)) body
+  (_vars, body) <- unbind bnd
+  pure $ Just $ instantiate bnd [v]
+  -- pure $ Just $ substs (zip [v] (map (V . modedNameName) vars)) body
 
 go _ = pure Nothing
 

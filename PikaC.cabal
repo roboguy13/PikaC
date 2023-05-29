@@ -69,7 +69,6 @@ executable PikaC
     build-depends:    base ^>=4.18.0.0,
                       containers,
                       mtl,
-                      hedgehog,
                       pretty,
                       bound,
                       unbound-generics,
@@ -79,5 +78,9 @@ executable PikaC
                       lens-action,
                       megaparsec,
                       text,
+                      hedgehog,
+                      validity,
+                      genvalidity,
+                      QuickCheck,
     hs-source-dirs:   src
     default-language: GHC2021

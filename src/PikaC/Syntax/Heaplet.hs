@@ -26,7 +26,11 @@ import GHC.Generics
 import Data.Data
 
 import Control.Lens.Plated
-import Control.Lens
+import Control.Lens hiding (elements)
+
+import Control.Monad
+
+import Test.QuickCheck
 
 type LayoutArg a = [Name a]
 
@@ -131,4 +135,26 @@ findAllocations names xs = map toAlloc locMaximums
 
     toAlloc :: Loc a -> Allocation a
     toAlloc (x :+ i) = Alloc (getName x) (i + 1)
+
+-- Property testing --
+
+genValidAssertion :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen [PointsTo a]
+genValidAssertion names genA size = do
+  i <- choose (1, 4)
+  replicateM i (genValidPointsTo names genA (size `div` i))
+
+genValidPointsTo :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen (PointsTo a)
+genValidPointsTo names genA size = do
+    loc <- genValidLoc names halvedGenA
+    rhs <- halvedGenA
+    pure (loc :-> rhs)
+  where
+    halvedGenA =
+      genA (size `div` 2)
+
+genValidLoc :: HasVar a => [Name a] -> Gen a -> Gen (Loc a)
+genValidLoc names genA = do
+  i <- choose (0, 5)
+  v <- mkVar <$> elements names
+  pure (v :+ i)
 

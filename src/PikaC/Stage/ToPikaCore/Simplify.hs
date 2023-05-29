@@ -27,6 +27,9 @@ import Control.Lens
 
 import Debug.Trace
 
+import Test.QuickCheck
+import Data.Validity
+
 simplifyFnDef :: Fresh m => FnDef -> m FnDef
 simplifyFnDef =
   renameResultLayout <=<
@@ -50,4 +53,41 @@ fixedPoint f x = do
   if aeq y x
     then pure y
     else fixedPoint f y
+
+--
+-- Property testing --
+--
+
+prop_preserves_wellScoped :: (FnDef -> FreshM FnDef) -> Property
+prop_preserves_wellScoped pass =
+  forAll genValidFnDef $ \fnDef ->
+    let result = runFreshM (pass fnDef)
+    in
+    case prettyValidate result of
+      Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False
+      Right _ -> property True
+
+prop_wellScoped_simplifyNestedCalls :: Property
+prop_wellScoped_simplifyNestedCalls =
+  prop_preserves_wellScoped simplifyNestedCalls
+
+prop_wellScoped_callOfWith :: Property
+prop_wellScoped_callOfWith = 
+  prop_preserves_wellScoped callOfWith
+
+prop_wellScoped_withOfWith :: Property
+prop_wellScoped_withOfWith =
+  prop_preserves_wellScoped withOfWith
+
+prop_wellScoped_substWithLayoutVar :: Property
+prop_wellScoped_substWithLayoutVar =
+  prop_preserves_wellScoped substWithLayoutVar
+
+prop_wellScoped_withSubst :: Property
+prop_wellScoped_withSubst =
+  prop_preserves_wellScoped withSubst
+
+prop_wellScoped_simplifyFnDef :: Property
+prop_wellScoped_simplifyFnDef =
+  prop_preserves_wellScoped simplifyFnDef
 
