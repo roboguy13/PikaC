@@ -231,27 +231,32 @@ pprExpr (LayoutV x) = pure $ text "{" <+> hsep (punctuate (text ",") (map ppr x)
 pprExpr (IntLit i) = pure $ ppr i
 pprExpr (BoolLit b) = pure $ ppr b
 pprExpr (Add x y) = do
-  xDoc <- pprExpr x
-  yDoc <- pprExpr y
+  xDoc <- pprExprP x
+  yDoc <- pprExprP y
   pure $ sep [xDoc, text "+", yDoc]
 pprExpr (Sub x y) = do
-  xDoc <- pprExpr x
-  yDoc <- pprExpr y
+  xDoc <- pprExprP x
+  yDoc <- pprExprP y
   pure $ sep [xDoc, text "-", yDoc]
 pprExpr (Equal x y) = do
   xDoc <- pprExpr x
   yDoc <- pprExpr y
   pure $ sep [xDoc, text "==", yDoc]
 pprExpr (Not x) = do
-  xDoc <- pprExpr x
+  xDoc <- pprExprP x
   pure $ sep [text "!", xDoc]
 pprExpr (And x y) = do
-  xDoc <- pprExpr x
-  yDoc <- pprExpr y
+  xDoc <- pprExprP x
+  yDoc <- pprExprP y
   pure $ sep [xDoc, text "&&", yDoc]
 pprExpr (App f x) = do
-  xDoc <- mapM pprExpr x
+  xDoc <- mapM pprExprP x
   pure $ ppr f <+> hsep xDoc
+
+pprExprP :: Expr -> FreshM Doc
+pprExprP e
+  | isNested e = parens <$> pprExpr e
+  | otherwise = pprExpr e
 
 instance IsNested Expr where
   isNested (V _) = False
