@@ -29,3 +29,11 @@ getV :: HasCallStack => Expr -> Name Expr
 getV (V x) = x
 getV e = error $ "getV: " ++ ppr' e
 
+-- argExpr :: Fresh m => [Name Expr] -> m Expr
+-- argExpr [v] = V <$> fresh v
+-- argExpr vs = LayoutV <$> mapM (fmap V . fresh) vs
+
+argExpr :: [Name Expr] -> Expr
+argExpr [v] = V v
+argExpr vs = LayoutV (map V vs)
+

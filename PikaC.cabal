@@ -55,6 +55,7 @@ executable PikaC
       PikaC.Stage.ToPikaCore.RenameResultLayout
       PikaC.Stage.ToPikaCore.LayoutToWith
       PikaC.Stage.ToPikaCore.WithLayoutV
+      PikaC.Stage.ToPikaCore.CallOfWith
       PikaC.Stage.ToPikaCore.Monad
       PikaC.Stage.ToPikaCore.Utils
       PikaC.Utils
