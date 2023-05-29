@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE LambdaCase #-}
 
 module PikaC.Syntax.PikaCore.FnDef
   where
@@ -56,20 +57,44 @@ instance Alpha FnDef
 instance Subst Expr FnDefBranch
 
 instance Ppr FnDef where
-  ppr def = go (openBind (_fnDefBranches def))
+  ppr def = runFreshM $ do
+      let bnd1@(B vs _) = openBind (_fnDefBranches def)
+      vs' <- mapM fresh (concatMap getNames vs)
+      let modedVs' = zipWith Moded (map getMode vs) vs'
+      let branches = instantiate bnd1 (map V vs')
+      go modedVs' branches
     where
-      go :: Bind [ModedName Expr] [FnDefBranch] -> Doc
-      go (B _ []) = mempty
-      go (B vs (branch : rest)) = pprBranch (ppr (_fnDefName def)) (B vs branch) $$ go (B vs rest)
+      go :: [ModedName Expr] -> [FnDefBranch] -> FreshM Doc
+      go _ [] = pure mempty
+      go outParams (x:xs) = do
+        xDoc <- pprBranch outParams (ppr (_fnDefName def)) x
+        restDoc <- go outParams xs
+        pure (xDoc $$ restDoc)
+      -- go :: Bind [ModedName Expr] [FnDefBranch] -> FreshM Doc
+      -- go bnd =
+      --   let (B bndVars _) = bnd
+      --       modes = map getMode bndVars
+      --   in
+      --   freshOpen @_ @Name bnd >>= \case
+      --     (_, []) -> pure mempty
+      --     (vs, branch : rest) -> do
+      --       let modedVs = zipWith Moded modes vs
+      --       doc <- pprBranch (ppr (_fnDefName def)) (bind modedVs branch)
+      --       rest <- go $ bind modedVs rest
+      --       pure (doc $$ rest)
+      -- -- go (B _ []) = mempty
+      -- -- go (B vs (branch : rest)) = pprBranch (ppr (_fnDefName def)) (B vs branch) $$ go (B vs rest)
 
 -- instance Ppr FnDefBranch where
 --   ppr = pprBranch mempty
 
-pprBranch :: Doc -> Bind [ModedName Expr] FnDefBranch -> Doc
-pprBranch doc branchBind =
-    let B outParams branch = branchBind
-    in
-    (doc <+>
+pprBranch :: [ModedName Expr] -> Doc -> FnDefBranch -> FreshM Doc
+pprBranch outParams doc branch = do
+    -- (outParams, branch) <- freshOpen @_ @Name branchBind
+    exprDoc <- pprExpr (_fnDefBranchBody branch)
+    -- let B outParams branch = branchBind
+    -- in
+    pure $ (doc <+>
       sep
         [ hsep [hsep $ punctuate (text " ") (map ppr (_fnDefBranchInputAssertions branch))
                 , text "==>"
@@ -77,7 +102,7 @@ pprBranch doc branchBind =
                 , text ":="
                 ]
         ])
-      $$ nest 1 (ppr (_fnDefBranchBody branch) <> text ";")
+          $$ nest 1 (exprDoc <> text ";")
 
 and' :: Expr -> Expr -> Expr
 and' x (BoolLit True) = x

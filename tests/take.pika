@@ -1,15 +1,17 @@
 %generate take
 
-Sll : layout[x](List);
+Sll : layout[-x](List);
 Sll Nil := emp;
 Sll (Cons head tail) :=
+  exists +nxt.
   x :-> head **
   (x+1) :-> nxt **
   Sll tail [nxt];
 
-NatLayout : layout[x](Nat);
+NatLayout : layout[-x](Nat);
 NatLayout Z := emp;
 NatLayout (S n) :=
+  exists +nxt.
   x :-> nxt **
   NatLayout n [nxt];
 

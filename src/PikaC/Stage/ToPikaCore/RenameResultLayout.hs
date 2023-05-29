@@ -60,7 +60,6 @@ renameResultLayout fnDef = do
 go :: Fresh m => [ExprName] -> Expr -> m Expr
 go newNames (WithIn e bnd) = do
   (vars, body) <- unbind bnd
-  traceM $ "Descending into " ++ ppr' body
   body' <- go newNames body
   pure $ WithIn e $ bind vars body'
 
@@ -69,9 +68,9 @@ go newNames e0@(SslAssertion bnd) = do
   (vars, body) <- unbind bnd
   let modedNewNames = zipWith Moded (map getMode vars) newNames
       sb = zip (map modedNameName vars) (map V newNames)
-  trace ("substitution: " ++ show sb ++ " in: " ++ show body)
-    $ pure $ SslAssertion $
-      bind modedNewNames
+  -- trace ("substitution: " ++ show sb ++ " in: " ++ show body) $
+  pure $ SslAssertion $
+      bind [] --modedNewNames
         (substs sb body)
 
 -- go newNames (WithIn bnd vars body) =
