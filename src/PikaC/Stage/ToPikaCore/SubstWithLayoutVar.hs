@@ -34,6 +34,8 @@ substWithLayoutVar'Expr (WithIn a bnd) =
   unbind bnd >>= \case
     (xs, LayoutV ys)
       | map getV ys == map modedNameName xs -> pure $ Just a
+    (xs, V v)
+      | map modedNameName xs == [v] -> pure $ Just a
     _ -> pure Nothing
 substWithLayoutVar'Expr _ = pure Nothing
 

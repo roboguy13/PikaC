@@ -15,6 +15,7 @@ import PikaC.Stage.ToPikaCore.RenameResultLayout
 import PikaC.Stage.ToPikaCore.LayoutToWith
 import PikaC.Stage.ToPikaCore.WithLayoutV
 import PikaC.Stage.ToPikaCore.CallOfWith
+import PikaC.Stage.ToPikaCore.WithSubst
 
 import PikaC.Stage.ToPikaCore.Utils
 
@@ -34,6 +35,7 @@ simplifyFnDef =
     onFnDef layoutToWith <=<
     -- withLayoutV <=< -- TODO: This doesn't seem to work
     withOfWith <=<
+    withSubst <=<
     simplifyNestedCalls <=<
     substWithLayoutVar)
     -- .
