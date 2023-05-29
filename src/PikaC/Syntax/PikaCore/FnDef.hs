@@ -40,7 +40,7 @@ data FnDef =
            [FnDefBranch])
   -- , _fnDefParams :: [ModedName Expr]
   }
-  deriving (Generic)
+  deriving (Show, Generic)
 
 data FnDefBranch =
   FnDefBranch
@@ -48,7 +48,7 @@ data FnDefBranch =
   { _fnDefBranchInputAssertions :: [ExprAssertion]
   , _fnDefBranchBody :: Expr
   }
-  deriving (Generic)
+  deriving (Show, Generic)
 
 makeLenses ''FnDef
 makeLenses ''FnDefBranch
@@ -97,11 +97,11 @@ instance Ppr FnDef where
 -- instance Ppr FnDefBranch where
 --   ppr = pprBranch mempty
 
-instance Show FnDef where
-  show = ppr'
-
-instance Show FnDefBranch where
-  show = render . runFreshM . pprBranch [] mempty
+-- instance Show FnDef where
+--   show = ppr'
+--
+-- instance Show FnDefBranch where
+--   show = render . runFreshM . pprBranch [] mempty
 
 pprBranch :: [ModedName Expr] -> Doc -> FnDefBranch -> FreshM Doc
 pprBranch outParams doc branch = do

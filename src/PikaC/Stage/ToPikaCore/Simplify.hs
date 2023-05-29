@@ -40,7 +40,8 @@ simplifyFnDef =
     withOfWith <=<
     withSubst <=<
     simplifyNestedCalls <=<
-    substWithLayoutVar)
+    substWithLayoutVar
+    )
     -- .
   -- myTraceWith (("simplifying " ++) . ppr')
 

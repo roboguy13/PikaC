@@ -42,14 +42,12 @@ go (App f args) = do
       -- in
       let r = mkWithIns withs (App f newArgs)
       in
-      trace ("r = " ++ show r) $
       pure . Just $ r
 go _ = pure Nothing
 
 mkWithIns :: [(Expr, [ModedName Expr])] -> Expr -> Expr
 mkWithIns [] e = e
 mkWithIns ((rhs, vars) : xs) e =
-  trace ("with-in vars = " ++ show vars ++ "; e = " ++ show e) $
   WithIn
     rhs
     (bind vars (mkWithIns xs e))
@@ -66,7 +64,7 @@ getAndReplaceWiths (WithIn e bnd : xs) = do
   (vars, body) <- unbind bnd
   (withs, rest) <- getAndReplaceWiths xs
 
-  trace ("vars = " ++ show vars ++ "; body = " ++ show body) $ pure ((e, vars) : withs, body : rest)
+  pure ((e, vars) : withs, body : rest)
 
 getAndReplaceWiths (e : xs) = do
   (withs, rest) <- getAndReplaceWiths xs

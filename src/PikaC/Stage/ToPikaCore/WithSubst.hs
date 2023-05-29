@@ -24,6 +24,8 @@ import Control.Lens
 
 import Unbound.Generics.LocallyNameless
 
+import Debug.Trace
+
 withSubst :: Fresh m => FnDef -> m FnDef
 withSubst = onFnDef (rewriteM go)
 
@@ -31,12 +33,10 @@ go :: Fresh m => Expr -> m (Maybe Expr)
 go (WithIn (LayoutV vs) bnd) = do
   (_vars, body) <- unbind bnd
   pure $ Just $ instantiate bnd vs
-  -- pure $ Just $ substs (zip (map getV vs) (map (V . modedNameName) vars)) body
 
-go (WithIn (V v) bnd) = do
-  (_vars, body) <- unbind bnd
-  pure $ Just $ instantiate bnd [v]
-  -- pure $ Just $ substs (zip [v] (map (V . modedNameName) vars)) body
+go e0@(WithIn (V v) bnd) = do
+  (vars, body) <- unbind bnd
+  pure . Just $ instantiate bnd [V v]
 
 go _ = pure Nothing
 
