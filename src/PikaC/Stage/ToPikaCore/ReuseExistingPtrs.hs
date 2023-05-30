@@ -9,6 +9,8 @@
 
 {-# LANGUAGE TupleSections #-}
 
+{-# OPTIONS_GHC -Wall #-}
+
 module PikaC.Stage.ToPikaCore.ReuseExistingPtrs
   (reuseExistingPtrs)
   where
@@ -47,6 +49,8 @@ goBranch branch = do
 go :: Fresh m => [ExprAssertion] -> Expr -> m Expr
 go asns e0@(V {}) = pure e0
 go asns e0@(LayoutV {}) = pure e0
+go asns e0@(IntLit {}) = pure e0
+go asns e0@(BoolLit {}) = pure e0
 go asns (Add x y) = liftA2 Add (go asns x) (go asns y)
 go asns (Sub x y) = liftA2 Sub (go asns x) (go asns y)
 go asns (Equal x y) = liftA2 Equal (go asns x) (go asns y)
