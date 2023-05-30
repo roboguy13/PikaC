@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module PikaC.Syntax.PikaCore.FnDef
   where
@@ -35,7 +36,7 @@ import Control.Monad
 
 data FnDef =
   FnDef
-  { _fnDefName :: String
+  { _fnDefName :: FnName
   , _fnDefBranches ::
       Bind [ModedName Expr]    -- Input parameters
         (Bind [ModedName Expr] -- Output parameters

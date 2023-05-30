@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module PikaC.Stage.ToPikaCore.Simplify
   (simplifyFnDef
   )
@@ -64,8 +66,8 @@ fixedPoint f x = do
 -- Property testing --
 --
 
-prop_preserves_wellScoped :: (FnDef -> FreshM FnDef) -> Property
-prop_preserves_wellScoped pass =
+propPreserves_wellScoped :: (FnDef -> FreshM FnDef) -> Property
+propPreserves_wellScoped pass =
   forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
     let result = runFreshM (pass fnDef)
     in
@@ -76,45 +78,52 @@ prop_preserves_wellScoped pass =
 
 prop_genValidFnDef_sane :: Property
 prop_genValidFnDef_sane =
-  prop_preserves_wellScoped pure
+  withMaxSuccess 5000 $ propPreserves_wellScoped pure
 
 prop_wellScoped_reuseExistingPtrs :: Property
 prop_wellScoped_reuseExistingPtrs =
-  prop_preserves_wellScoped reuseExistingPtrs
+  withMaxSuccess 5000 $ propPreserves_wellScoped reuseExistingPtrs
 
 prop_wellScoped_replaceClosedAssertions :: Property
 prop_wellScoped_replaceClosedAssertions =
-  prop_preserves_wellScoped replaceClosedAssertions
+  withMaxSuccess 5000 $ propPreserves_wellScoped replaceClosedAssertions
 
 prop_wellScoped_simplifyNestedCalls :: Property
 prop_wellScoped_simplifyNestedCalls =
-  prop_preserves_wellScoped simplifyNestedCalls
+  withMaxSuccess 5000 $ propPreserves_wellScoped simplifyNestedCalls
 
 prop_wellScoped_callOfWith :: Property
 prop_wellScoped_callOfWith = 
-  prop_preserves_wellScoped callOfWith
+  withMaxSuccess 5000 $ propPreserves_wellScoped callOfWith
 
 prop_wellScoped_withOfWith :: Property
 prop_wellScoped_withOfWith =
-  prop_preserves_wellScoped withOfWith
+  withMaxSuccess 5000 $ propPreserves_wellScoped withOfWith
 
 prop_wellScoped_substWithLayoutVar :: Property
 prop_wellScoped_substWithLayoutVar =
-  prop_preserves_wellScoped substWithLayoutVar
+  withMaxSuccess 5000 $ propPreserves_wellScoped substWithLayoutVar
 
 prop_wellScoped_withSubst :: Property
 prop_wellScoped_withSubst =
-  prop_preserves_wellScoped withSubst
+  withMaxSuccess 5000 $ propPreserves_wellScoped withSubst
 
 prop_wellScoped_layoutToWith :: Property
 prop_wellScoped_layoutToWith =
-  prop_preserves_wellScoped (onFnDef layoutToWith)
+  withMaxSuccess 5000 $ propPreserves_wellScoped (onFnDef layoutToWith)
 
 prop_wellScoped_renameResultLayout :: Property
 prop_wellScoped_renameResultLayout =
-  prop_preserves_wellScoped renameResultLayout
+  withMaxSuccess 5000 $ propPreserves_wellScoped renameResultLayout
 
 prop_wellScoped_simplifyFnDef :: Property
 prop_wellScoped_simplifyFnDef =
-  prop_preserves_wellScoped simplifyFnDef
+  withMaxSuccess 350 $ propPreserves_wellScoped simplifyFnDef
+
+return []
+checkAllProps :: IO Bool
+checkAllProps = do
+  print (map fst $(allProperties))
+  $(quickCheckAll)
+  -- $(verboseCheckAll)
 

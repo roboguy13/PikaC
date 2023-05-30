@@ -42,6 +42,7 @@ import Test.QuickCheck
 import Unbound.Generics.LocallyNameless.Unsafe -- Just for implementing QuickCheck shrinking
 
 import Data.Char
+import Data.String
 
 type ExprName = Name Expr
 
@@ -81,6 +82,9 @@ data Expr
 type FnName = FnName' String
 newtype FnName' a = FnName a
   deriving (Show, Eq, Ord, Generic)
+
+instance IsString FnName where
+  fromString = FnName
 
 instance Subst a b => Subst a (FnName' b)
 
