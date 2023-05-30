@@ -68,8 +68,8 @@ fixedPoint f x = do
 -- Property testing --
 --
 
-propPreserves_wellScoped :: (FnDef -> FreshM FnDef) -> Property
-propPreserves_wellScoped pass =
+propPreserves_valid :: (FnDef -> FreshM FnDef) -> Property
+propPreserves_valid pass =
   forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
     let result = runFreshM (pass fnDef)
     in
@@ -80,47 +80,47 @@ propPreserves_wellScoped pass =
 
 prop_genValidFnDef_sane :: Property
 prop_genValidFnDef_sane =
-  withMaxSuccess 5000 $ propPreserves_wellScoped pure
+  withMaxSuccess 5000 $ propPreserves_valid pure
 
-prop_wellScoped_reuseExistingPtrs :: Property
-prop_wellScoped_reuseExistingPtrs =
-  withMaxSuccess 5000 $ propPreserves_wellScoped reuseExistingPtrs
+prop_valid_reuseExistingPtrs :: Property
+prop_valid_reuseExistingPtrs =
+  withMaxSuccess 5000 $ propPreserves_valid reuseExistingPtrs
 
-prop_wellScoped_replaceClosedAssertions :: Property
-prop_wellScoped_replaceClosedAssertions =
-  withMaxSuccess 5000 $ propPreserves_wellScoped replaceClosedAssertions
+prop_valid_replaceClosedAssertions :: Property
+prop_valid_replaceClosedAssertions =
+  withMaxSuccess 5000 $ propPreserves_valid replaceClosedAssertions
 
-prop_wellScoped_simplifyNestedCalls :: Property
-prop_wellScoped_simplifyNestedCalls =
-  withMaxSuccess 5000 $ propPreserves_wellScoped simplifyNestedCalls
+prop_valid_simplifyNestedCalls :: Property
+prop_valid_simplifyNestedCalls =
+  withMaxSuccess 5000 $ propPreserves_valid simplifyNestedCalls
 
-prop_wellScoped_callOfWith :: Property
-prop_wellScoped_callOfWith = 
-  withMaxSuccess 5000 $ propPreserves_wellScoped callOfWith
+prop_valid_callOfWith :: Property
+prop_valid_callOfWith = 
+  withMaxSuccess 5000 $ propPreserves_valid callOfWith
 
-prop_wellScoped_withOfWith :: Property
-prop_wellScoped_withOfWith =
-  withMaxSuccess 5000 $ propPreserves_wellScoped withOfWith
+prop_valid_withOfWith :: Property
+prop_valid_withOfWith =
+  withMaxSuccess 5000 $ propPreserves_valid withOfWith
 
-prop_wellScoped_substWithLayoutVar :: Property
-prop_wellScoped_substWithLayoutVar =
-  withMaxSuccess 5000 $ propPreserves_wellScoped substWithLayoutVar
+prop_valid_substWithLayoutVar :: Property
+prop_valid_substWithLayoutVar =
+  withMaxSuccess 5000 $ propPreserves_valid substWithLayoutVar
 
-prop_wellScoped_withSubst :: Property
-prop_wellScoped_withSubst =
-  withMaxSuccess 5000 $ propPreserves_wellScoped withSubst
+prop_valid_withSubst :: Property
+prop_valid_withSubst =
+  withMaxSuccess 5000 $ propPreserves_valid withSubst
 
-prop_wellScoped_layoutToWith :: Property
-prop_wellScoped_layoutToWith =
-  withMaxSuccess 5000 $ propPreserves_wellScoped (onFnDef layoutToWith)
+prop_valid_layoutToWith :: Property
+prop_valid_layoutToWith =
+  withMaxSuccess 5000 $ propPreserves_valid (onFnDef layoutToWith)
 
-prop_wellScoped_renameResultLayout :: Property
-prop_wellScoped_renameResultLayout =
-  withMaxSuccess 5000 $ propPreserves_wellScoped renameResultLayout
+prop_valid_renameResultLayout :: Property
+prop_valid_renameResultLayout =
+  withMaxSuccess 5000 $ propPreserves_valid renameResultLayout
 
-prop_wellScoped_simplifyFnDef :: Property
-prop_wellScoped_simplifyFnDef =
-  withMaxSuccess 350 $ propPreserves_wellScoped simplifyFnDef
+prop_valid_simplifyFnDef :: Property
+prop_valid_simplifyFnDef =
+  withMaxSuccess 350 $ propPreserves_valid simplifyFnDef
 
 testFn :: FnDef
 testFn =
