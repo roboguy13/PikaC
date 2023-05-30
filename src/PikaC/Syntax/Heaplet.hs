@@ -138,11 +138,19 @@ findAllocations names xs = map toAlloc locMaximums
 
 -- Property testing --
 
-shrinkAssertion :: forall a. (a -> [a]) -> [PointsTo a] -> [[PointsTo a]]
-shrinkAssertion shrinkA = shrinkList go
-  where
-    go :: PointsTo a -> [PointsTo a]
-    go (x :-> y) = fmap (x :->) (shrinkA y)
+instance (IsBase a, Arbitrary a) => Arbitrary (Loc a) where
+  arbitrary = liftA2 (:+) (arbitrary `suchThat` isVar) arbitrary
+  shrink (x :+ i) = liftA2 (:+) (filter isVar (shrink x)) (shrink i)
+
+instance (IsBase a, Arbitrary a) => Arbitrary (PointsTo a) where
+  arbitrary = liftA2 (:->) arbitrary arbitrary
+  shrink (x :-> y) = liftA2 (:->) (shrink x) (shrink y)
+
+-- shrinkAssertion :: forall a. (a -> [a]) -> [PointsTo a] -> [[PointsTo a]]
+-- shrinkAssertion shrinkA = shrinkList go
+--   where
+--     go :: PointsTo a -> [PointsTo a]
+--     go (x :-> y) = fmap (x :->) (shrinkA y)
 
 genValidAssertion :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen [PointsTo a]
 genValidAssertion names genA size = do

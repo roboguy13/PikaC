@@ -44,7 +44,7 @@ simplifyOne (SslAssertion bnd) = do
 
 simplifyOne _ = pure Nothing
 
-setOneCall :: Expr -> ExprAssertion -> Maybe (ExprAssertion, (String, [Expr]))
+setOneCall :: Expr -> ExprAssertion -> Maybe (ExprAssertion, (FnName, [Expr]))
 setOneCall newExpr = go Nothing
   where
     go found [] = fmap ([], ) found

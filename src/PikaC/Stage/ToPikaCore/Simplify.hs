@@ -70,7 +70,8 @@ prop_preserves_wellScoped pass =
     let result = runFreshM (pass fnDef)
     in
     case prettyValidate result of
-      Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False
+      -- Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False
+      Left msg -> counterexample ("Counterexample result:\n" ++ msg) False
       Right _ -> property True
 
 prop_genValidFnDef_sane :: Property

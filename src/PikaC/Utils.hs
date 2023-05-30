@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module PikaC.Utils
   where
@@ -23,6 +24,8 @@ import Unbound.Generics.LocallyNameless.Bind
 import Unbound.Generics.LocallyNameless.Name
 import Unbound.Generics.PermM
 
+import Unbound.Generics.LocallyNameless.Unsafe
+
 import Data.Typeable
 import Data.Data
 
@@ -33,6 +36,9 @@ import GHC.Stack
 import Data.Kind
 
 import Test.QuickCheck
+import Test.QuickCheck.Arbitrary
+
+import GHC.Generics
 
 -- openBind :: (IsName a b, HasVar b, Alpha a, Alpha b, Subst b b) => Bind [a] b -> b
 openBind :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1) =>
@@ -127,6 +133,13 @@ instance IsName (Name a) a where
 class HasNames a b | a -> b where
   getNames :: a -> [Name b]
 
+class IsBase a where
+  isVar :: a -> Bool
+  isLit :: a -> Bool
+
+isBase :: IsBase a => a -> Bool
+isBase x = isVar x || isLit x
+
 instance HasNames (Name a) a where
   getNames x = [x]
 
@@ -150,6 +163,18 @@ shrinkName = genericShrink
 
 qcSubseqs :: [a] -> [[a]]
 qcSubseqs = drop 1 . init . subsequences
+
+instance (Alpha a, Alpha b, Arbitrary b) => Arbitrary (Bind a b) where
+  arbitrary = error "Arbitrary (Bind a b)"
+  shrink bnd =
+    let (vars, body) = unsafeUnbind bnd
+        body' = shrink body
+    in
+    bind vars <$> body'
+
+instance Arbitrary (Name a) where
+  arbitrary = error "Arbitrary (Name a)"
+  shrink _ = []
 
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)

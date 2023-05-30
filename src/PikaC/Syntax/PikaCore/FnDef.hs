@@ -135,22 +135,27 @@ not' x = Not x
 
 instance Arbitrary FnDef where
   arbitrary = genValidFnDef
-  shrink fnDef = do
-    let (inVars, bnd1) = unsafeUnbind $ _fnDefBranches fnDef
-        (outVars, branches) = unsafeUnbind bnd1
-    newBranches <- transpose $ map shrinkBranch branches -- TODO: Is this right way around?
-    
-    setBranches fnDef inVars outVars <$> qcSubseqs newBranches
+  shrink = filter isValid . genericShrink
 
-setBranches :: FnDef -> [Moded ExprName] -> [Moded ExprName] -> [FnDefBranch] -> FnDef
-setBranches fnDef inVars outVars branches = fnDef { _fnDefBranches = bind inVars $ bind outVars branches }
-
-shrinkBranch :: FnDefBranch -> [FnDefBranch]
-shrinkBranch branch = do
-  e <- shrinkExpr $ _fnDefBranchBody branch
-  pure $ branch
-    { _fnDefBranchBody = e
-    }
+instance Arbitrary FnDefBranch where
+  arbitrary = genValidBranch [] -- NOTE: Only closed FnDefBranch's
+  shrink = genericShrink
+--   shrink fnDef = do
+--     let (inVars, bnd1) = unsafeUnbind $ _fnDefBranches fnDef
+--         (outVars, branches) = unsafeUnbind bnd1
+--     newBranches <- transpose $ map shrinkBranch branches -- TODO: Is this right way around?
+--     
+--     setBranches fnDef inVars outVars <$> qcSubseqs newBranches
+--
+-- setBranches :: FnDef -> [Moded ExprName] -> [Moded ExprName] -> [FnDefBranch] -> FnDef
+-- setBranches fnDef inVars outVars branches = fnDef { _fnDefBranches = bind inVars $ bind outVars branches }
+--
+-- shrinkBranch :: FnDefBranch -> [FnDefBranch]
+-- shrinkBranch branch = do
+--   e <- shrink $ _fnDefBranchBody branch
+--   pure $ branch
+--     { _fnDefBranchBody = e
+--     }
 
 -- -- | Generate only well-scoped @FnDef@s
 -- instance GenValid FnDef where
@@ -168,6 +173,8 @@ instance Validity FnDef where
 validBranch :: [ModedName Expr] -> FnDefBranch -> Validation
 validBranch modedBvs branch =
     check (all (`elem` bvs) bodyFvs) "Well-scoped"
+    <> check (not (null (_fnDefBranchInputAssertions branch))) "Has at least one parameter"
+    <> check (any (not . null) (_fnDefBranchInputAssertions branch)) "At least one non-empty parameter"
   where
     bodyFvs = toListOf @(Name Expr) fv (_fnDefBranchBody branch)
 
@@ -200,8 +207,8 @@ genValidBranch = sized . genValidBranch'
 
 genValidBranch' :: [ModedName Expr] -> Int -> Gen FnDefBranch
 genValidBranch' modedBvs size = do
-    i <- choose (0, 3)
-    inAsns <- replicateM i (genValidAssertion bvs (const $ genAsnVar (asnName : bvs)) (size `div` 2))
+    i <- choose (1, 3)
+    inAsns <- replicateM i (genValidAssertion bvs (const $ genAsnVar (asnName : bvs)) (size `div` 2)) `suchThat` any (not . null)
     -- TODO: Figure this out:
     -- e <- genValidExpr' (asnName : bvs) (size `div` 2)
     e <- genValidExpr' (bvs) (size `div` 2)

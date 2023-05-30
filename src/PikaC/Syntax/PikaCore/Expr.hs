@@ -75,10 +75,41 @@ data Expr
       -- (LayoutArg Expr)     --     {x ...}
       -- ExprAssertion     --   { (x+1) :-> e ** ... }
 
-  | App String [Expr] -- | Fully saturated function application
+  | App FnName [Expr] -- | Fully saturated function application
   deriving (Show, Generic)
 
+type FnName = FnName' String
+newtype FnName' a = FnName a
+  deriving (Show, Eq, Ord, Generic)
+
+instance Subst a b => Subst a (FnName' b)
+
+instance Alpha FnName
+instance Ppr FnName where ppr (FnName f) = text f
+
+instance Arbitrary FnName where
+  arbitrary = (FnName <$> arbitrary) `suchThat` fnNameIsOk
+  shrink = filter fnNameIsOk . genericShrink
+
+fnNameIsOk :: FnName -> Bool
+fnNameIsOk (FnName str) =
+  all (`elem` ['a'..'z']) str && not (null str)
+
+exprIsOk :: Expr -> Bool
+exprIsOk = and . map go . universe
+  where
+    go (SslAssertion (B _ [])) = False
+    go _ = True
+
 instance HasVar Expr where mkVar = V
+
+instance IsBase Expr where
+  isVar (V _) = True
+  isVar _ = False
+
+  isLit (IntLit _) = True
+  isLit (BoolLit _) = True
+  isLit _ = False
 
 -- TODO: Does this work correct w.r.t. Bind's, etc?
 instance Plated Expr where
@@ -105,7 +136,7 @@ type ExprAssertion = [PointsToExpr]
 makePrisms ''Expr
 
 instance HasApp Expr where
-  mkApp = App
+  mkApp = App . FnName
 
 -- example :: SimpleExpr
 -- example =
@@ -296,30 +327,37 @@ isBase _ = False
 
 -- Property testing --
 
-shrinkExpr :: Expr -> [Expr]
--- shrinkExpr (V n) = V <$> shrinkName n
-shrinkExpr (V n) = [] --pure $ V n
-shrinkExpr (LayoutV ns) = [] --pure $ LayoutV ns
-shrinkExpr (IntLit i) = IntLit <$> shrink i
-shrinkExpr (BoolLit b) = BoolLit <$> shrink b
-shrinkExpr (Add x y) = [x, y] ++ (Add <$> shrinkExpr x <*> shrinkExpr y)
-shrinkExpr (Sub x y) = [x, y] ++ (Sub <$> shrinkExpr x <*> shrinkExpr y)
-shrinkExpr (Equal x y) = [x, y] ++ (Equal <$> shrinkExpr x <*> shrinkExpr y)
-shrinkExpr (Not x) = [x] ++ (Not <$> shrinkExpr x)
-shrinkExpr (And x y) = [x, y] ++ (And <$> shrinkExpr x <*> shrinkExpr y)
-shrinkExpr (WithIn e bnd) =
-  let (vars, body) = unsafeUnbind bnd
-  in
-  [e] ++
-  -- [instantiate bnd (replicate (length vars) (IntLit 2))] ++
-  (WithIn <$> shrinkExpr e <*> (bind vars <$> shrinkExpr body))
-shrinkExpr (SslAssertion bnd) =
-  let (vars, asn) = unsafeUnbind bnd
-  in
-  SslAssertion <$> (bind vars <$> shrinkAssertion shrinkExpr asn)
-shrinkExpr (App f args) =
-  args ++
-  (App <$> shrink f <*> mapM shrinkExpr args)
+instance Arbitrary Expr where
+  arbitrary = genValidExpr [] -- NOTE: Only generates *closed* expressions
+  shrink = filter exprIsOk . genericShrink
+
+-- shrinkExpr' :: Expr -> [Expr]
+-- shrinkExpr' = genericShrink
+
+-- shrinkExpr :: Expr -> [Expr]
+-- -- shrinkExpr (V n) = V <$> shrinkName n
+-- shrinkExpr (V n) = [] --pure $ V n
+-- shrinkExpr (LayoutV ns) = [] --pure $ LayoutV ns
+-- shrinkExpr (IntLit i) = IntLit <$> shrink i
+-- shrinkExpr (BoolLit b) = BoolLit <$> shrink b
+-- shrinkExpr (Add x y) = [x, y] ++ (Add <$> shrinkExpr x <*> shrinkExpr y)
+-- shrinkExpr (Sub x y) = [x, y] ++ (Sub <$> shrinkExpr x <*> shrinkExpr y)
+-- shrinkExpr (Equal x y) = [x, y] ++ (Equal <$> shrinkExpr x <*> shrinkExpr y)
+-- shrinkExpr (Not x) = [x] ++ (Not <$> shrinkExpr x)
+-- shrinkExpr (And x y) = [x, y] ++ (And <$> shrinkExpr x <*> shrinkExpr y)
+-- shrinkExpr (WithIn e bnd) =
+--   let (vars, body) = unsafeUnbind bnd
+--   in
+--   [e] ++
+--   -- [instantiate bnd (replicate (length vars) (IntLit 2))] ++
+--   (WithIn <$> shrinkExpr e <*> (bind vars <$> shrinkExpr body))
+-- shrinkExpr (SslAssertion bnd) =
+--   let (vars, asn) = unsafeUnbind bnd
+--   in
+--   SslAssertion <$> (bind vars <$> shrinkAssertion shrinkExpr asn)
+-- shrinkExpr (App f args) =
+--   args ++
+--   (App <$> shrink f <*> mapM shrinkExpr args)
 
 genValidExpr :: [Name Expr] -> Gen Expr
 genValidExpr bvs = sized (genValidExpr' bvs)
@@ -384,10 +422,10 @@ genValidExpr' bvs size =
         then do
           x <- halvedGen
           y <- halvedGen
-          App <$> replicateM 3 arbitraryAlpha <*> pure [x, y]
+          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [x, y]
         else do
           x <- genValidExpr' bvs (size - 1)
-          App <$> replicateM 3 arbitraryAlpha <*> pure [x]
+          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [x]
     ]
   where
     halvedGen = halvedGenWith bvs
