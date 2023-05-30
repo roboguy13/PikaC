@@ -28,6 +28,8 @@ import Data.Validity
 import Control.Lens hiding (elements)
 import Data.List
 
+import Unbound.Generics.LocallyNameless.Unsafe -- Just for implementing QuickCheck shrinking
+
 import Test.QuickCheck
 import Control.Monad
 
@@ -40,7 +42,7 @@ data FnDef =
            [FnDefBranch])
   -- , _fnDefParams :: [ModedName Expr]
   }
-  deriving (Generic)
+  deriving (Show, Generic)
 
 data FnDefBranch =
   FnDefBranch
@@ -48,7 +50,7 @@ data FnDefBranch =
   { _fnDefBranchInputAssertions :: [ExprAssertion]
   , _fnDefBranchBody :: Expr
   }
-  deriving (Generic)
+  deriving (Show, Generic)
 
 makeLenses ''FnDef
 makeLenses ''FnDefBranch
@@ -97,11 +99,11 @@ instance Ppr FnDef where
 -- instance Ppr FnDefBranch where
 --   ppr = pprBranch mempty
 
-instance Show FnDef where
-  show = ppr'
-
-instance Show FnDefBranch where
-  show = render . runFreshM . pprBranch [] mempty
+-- instance Show FnDef where
+--   show = ppr'
+--
+-- instance Show FnDefBranch where
+--   show = render . runFreshM . pprBranch [] mempty
 
 pprBranch :: [ModedName Expr] -> Doc -> FnDefBranch -> FreshM Doc
 pprBranch outParams doc branch = do
@@ -129,7 +131,22 @@ not' x = Not x
 
 instance Arbitrary FnDef where
   arbitrary = genValidFnDef
-  -- shrink = genericShrink
+  shrink fnDef = do
+    let (inVars, bnd1) = unsafeUnbind $ _fnDefBranches fnDef
+        (outVars, branches) = unsafeUnbind bnd1
+    newBranches <- transpose $ map shrinkBranch branches -- TODO: Is this right way around?
+    
+    setBranches fnDef inVars outVars <$> drop 1 (subsequences newBranches)
+
+setBranches :: FnDef -> [Moded ExprName] -> [Moded ExprName] -> [FnDefBranch] -> FnDef
+setBranches fnDef inVars outVars branches = fnDef { _fnDefBranches = bind inVars $ bind outVars branches }
+
+shrinkBranch :: FnDefBranch -> [FnDefBranch]
+shrinkBranch branch = do
+  e <- shrinkExpr $ _fnDefBranchBody branch
+  pure $ branch
+    { _fnDefBranchBody = e
+    }
 
 --
 -- Property testing --

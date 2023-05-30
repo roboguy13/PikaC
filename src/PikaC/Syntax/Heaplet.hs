@@ -138,6 +138,15 @@ findAllocations names xs = map toAlloc locMaximums
 
 -- Property testing --
 
+shrinkAssertion :: forall a. (a -> [a]) -> [PointsTo a] -> [[PointsTo a]]
+shrinkAssertion shrinkA xs = [xs] --take 1 $ drop 1 $ subsequences xs
+  --   let ys = transpose $ map go xs
+  --   in
+  --   ys
+  -- where
+  --   go :: PointsTo a -> [PointsTo a]
+  --   go (x :-> y) = fmap (x :->) (shrinkA y)
+
 genValidAssertion :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen [PointsTo a]
 genValidAssertion names genA size = do
   i <- choose (1, 4)

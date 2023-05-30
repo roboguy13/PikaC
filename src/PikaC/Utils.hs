@@ -32,6 +32,8 @@ import GHC.Stack
 
 import Data.Kind
 
+import Test.QuickCheck
+
 -- openBind :: (IsName a b, HasVar b, Alpha a, Alpha b, Subst b b) => Bind [a] b -> b
 openBind :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1) =>
      Bind [a2] b -> b
@@ -143,7 +145,9 @@ getBv (B v _) = v
 isClosed :: forall a (b :: Type). (Alpha a, Typeable a, Typeable b) => a -> Bool
 isClosed = null . toListOf @(Name b) (fv @a)
 
--- TODO: Deal with these orphan instances
+shrinkName :: Name a -> [Name a]
+shrinkName = genericShrink
+
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)
 -- instance (Data a, Data b) => Plated (Bind a b)

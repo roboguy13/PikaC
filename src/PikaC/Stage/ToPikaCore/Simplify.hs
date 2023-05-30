@@ -66,7 +66,7 @@ fixedPoint f x = do
 
 prop_preserves_wellScoped :: (FnDef -> FreshM FnDef) -> Property
 prop_preserves_wellScoped pass =
-  forAll genValidFnDef $ \fnDef ->
+  forAllShrinkShow genValidFnDef (take 3 . shrink) ppr' $ \fnDef ->
     let result = runFreshM (pass fnDef)
     in
     case prettyValidate result of

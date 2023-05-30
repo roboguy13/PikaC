@@ -39,6 +39,8 @@ import Data.Validity
 import Data.GenValidity
 import Test.QuickCheck
 
+import Unbound.Generics.LocallyNameless.Unsafe -- Just for implementing QuickCheck shrinking
+
 import Data.Char
 
 type ExprName = Name Expr
@@ -293,6 +295,31 @@ isBase (And x y) = True
 isBase _ = False
 
 -- Property testing --
+
+shrinkExpr :: Expr -> [Expr]
+-- shrinkExpr (V n) = V <$> shrinkName n
+shrinkExpr (V n) = pure $ V n
+shrinkExpr (LayoutV ns) = pure $ LayoutV ns
+shrinkExpr (IntLit i) = IntLit <$> shrink i
+shrinkExpr (BoolLit b) = BoolLit <$> shrink b
+shrinkExpr (Add x y) = [x, y] ++ (Add <$> shrinkExpr x <*> shrinkExpr y)
+shrinkExpr (Sub x y) = [x, y] ++ (Sub <$> shrinkExpr x <*> shrinkExpr y)
+shrinkExpr (Equal x y) = [x, y] ++ (Equal <$> shrinkExpr x <*> shrinkExpr y)
+shrinkExpr (Not x) = [x] ++ (Not <$> shrinkExpr x)
+shrinkExpr (And x y) = [x, y] ++ (And <$> shrinkExpr x <*> shrinkExpr y)
+shrinkExpr (WithIn e bnd) =
+  let (vars, body) = unsafeUnbind bnd
+  in
+  [e] ++
+  -- [instantiate bnd (replicate (length vars) (IntLit (-2)))] ++
+  (WithIn <$> shrinkExpr e <*> (bind vars <$> shrinkExpr body))
+shrinkExpr (SslAssertion bnd) =
+  let (vars, asn) = unsafeUnbind bnd
+  in
+  SslAssertion <$> (bind vars <$> shrinkAssertion shrinkExpr asn)
+shrinkExpr (App f args) =
+  args -- ++
+  -- (App <$> shrink f <*> mapM shrinkExpr args)
 
 genValidExpr :: [Name Expr] -> Gen Expr
 genValidExpr bvs = sized (genValidExpr' bvs)
