@@ -21,11 +21,7 @@ import PikaC.Syntax.Pika.Layout
 import PikaC.Stage.ToPikaCore.Utils
 import PikaC.Utils
 
-import Data.Bifunctor
-
 import Data.List
-
-import Control.Lens
 
 import Control.Applicative
 import Control.Monad
@@ -115,7 +111,4 @@ pointsToTuple ((V x :+ i) :-> rhs) = ((x, i), rhs)
 tupleEq :: ((ExprName, Int), Expr) -> ((ExprName, Int), Expr) -> Bool
 tupleEq ((a, i), e) ((b, j), e') =
   a == b && i == j && aeq e e'
-
-lhsNames :: ExprAssertion -> [ExprName]
-lhsNames = fastNub . map (getV . locBase . pointsToLhs)
 

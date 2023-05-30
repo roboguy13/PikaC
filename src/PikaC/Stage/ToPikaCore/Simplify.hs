@@ -17,6 +17,7 @@ import PikaC.Stage.ToPikaCore.WithLayoutV
 import PikaC.Stage.ToPikaCore.CallOfWith
 import PikaC.Stage.ToPikaCore.WithSubst
 import PikaC.Stage.ToPikaCore.ReuseExistingPtrs
+import PikaC.Stage.ToPikaCore.ReplaceClosedAssertions
 
 import PikaC.Stage.ToPikaCore.Utils
 
@@ -33,10 +34,11 @@ import Data.Validity
 
 simplifyFnDef :: Fresh m => FnDef -> m FnDef
 simplifyFnDef =
-  renameResultLayout <=<
+  renameResultLayout <=< -- NOTE: This should go last
   fixedPoint
     (
       reuseExistingPtrs <=<
+      replaceClosedAssertions <=<
       callOfWith <=<
       onFnDef layoutToWith <=<
       -- withLayoutV <=< -- TODO: This doesn't seem to work

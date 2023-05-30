@@ -4,7 +4,9 @@ module PikaC.Stage.ToPikaCore.Utils
 import Unbound.Generics.LocallyNameless
 import PikaC.Syntax.PikaCore.Expr
 import PikaC.Syntax.PikaCore.FnDef
+import PikaC.Syntax.Heaplet
 import PikaC.Ppr
+import PikaC.Utils
 
 import Control.Lens
 
@@ -36,4 +38,7 @@ getV e = error $ "getV: " ++ ppr' e
 argExpr :: [Name Expr] -> Expr
 argExpr [v] = V v
 argExpr vs = LayoutV (map V vs)
+
+lhsNames :: ExprAssertion -> [ExprName]
+lhsNames = fastNub . map (getV . locBase . pointsToLhs)
 
