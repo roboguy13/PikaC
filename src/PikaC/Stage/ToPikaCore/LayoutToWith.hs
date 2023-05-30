@@ -25,6 +25,7 @@ import PikaC.Stage.ToPikaCore.Utils
 import Control.Lens
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
 
 import Debug.Trace
 
@@ -51,14 +52,16 @@ mkWithIns ((vars, rhs, newVars) : xs) e =
 
 getAndReplaceAsns :: Fresh m => [Expr] -> m ([(LayoutArg Expr, ExprAssertion, LayoutArg Expr)], [Expr])
 getAndReplaceAsns [] = pure ([], [])
-getAndReplaceAsns (SslAssertion bnd:xs) = do
-  (arg, e) <- unbind bnd
-  (asns, rest) <- getAndReplaceAsns xs
+getAndReplaceAsns (SslAssertion bnd:xs)
+  | B vs _ <- bnd
+  , not (null vs) = do
+      (arg, e) <- unbind bnd
+      (asns, rest) <- getAndReplaceAsns xs
 
-  freshArgs <- mapM fresh (map modedNameName arg)
-  let arg' = argExpr freshArgs
+      freshArgs <- mapM fresh (map modedNameName arg)
+      let arg' = argExpr freshArgs
 
-  pure ((map modedNameName arg, e, freshArgs) : asns, arg' : rest)
+      pure ((map modedNameName arg, e, freshArgs) : asns, arg' : rest)
 
 getAndReplaceAsns (e : xs) = do
   (asns, rest) <- getAndReplaceAsns xs

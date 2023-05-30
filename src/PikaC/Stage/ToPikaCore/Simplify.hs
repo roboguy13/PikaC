@@ -120,7 +120,7 @@ prop_valid_renameResultLayout =
 
 prop_valid_simplifyFnDef :: Property
 prop_valid_simplifyFnDef =
-  withMaxSuccess 350 $ propPreserves_valid simplifyFnDef
+  withMaxSuccess 5000 $ propPreserves_valid simplifyFnDef
 
 testFn :: FnDef
 testFn =
