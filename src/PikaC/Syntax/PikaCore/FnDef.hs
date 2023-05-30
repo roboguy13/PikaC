@@ -25,7 +25,7 @@ import GHC.Generics
 import Data.GenValidity
 import Data.Validity
 
-import Control.Lens
+import Control.Lens hiding (elements)
 import Data.List
 
 import Test.QuickCheck
@@ -40,7 +40,7 @@ data FnDef =
            [FnDefBranch])
   -- , _fnDefParams :: [ModedName Expr]
   }
-  deriving (Show, Generic)
+  deriving (Generic)
 
 data FnDefBranch =
   FnDefBranch
@@ -48,7 +48,7 @@ data FnDefBranch =
   { _fnDefBranchInputAssertions :: [ExprAssertion]
   , _fnDefBranchBody :: Expr
   }
-  deriving (Show, Generic)
+  deriving (Generic)
 
 makeLenses ''FnDef
 makeLenses ''FnDefBranch
@@ -97,11 +97,11 @@ instance Ppr FnDef where
 -- instance Ppr FnDefBranch where
 --   ppr = pprBranch mempty
 
--- instance Show FnDef where
---   show = ppr'
---
--- instance Show FnDefBranch where
---   show = render . runFreshM . pprBranch [] mempty
+instance Show FnDef where
+  show = ppr'
+
+instance Show FnDefBranch where
+  show = render . runFreshM . pprBranch [] mempty
 
 pprBranch :: [ModedName Expr] -> Doc -> FnDefBranch -> FreshM Doc
 pprBranch outParams doc branch = do
@@ -184,7 +184,7 @@ genValidBranch = sized . genValidBranch'
 genValidBranch' :: [ModedName Expr] -> Int -> Gen FnDefBranch
 genValidBranch' modedBvs size = do
     i <- choose (0, 3)
-    inAsns <- replicateM i (genValidAssertion bvs (genValidExpr' (asnName : bvs)) (size `div` 2))
+    inAsns <- replicateM i (genValidAssertion bvs (const $ genAsnVar (asnName : bvs)) (size `div` 2))
     -- TODO: Figure this out:
     -- e <- genValidExpr' (asnName : bvs) (size `div` 2)
     e <- genValidExpr' (bvs) (size `div` 2)
@@ -192,4 +192,8 @@ genValidBranch' modedBvs size = do
   where
     bvs = map modedNameName modedBvs
     asnName = newName bvs
+
+    genAsnVar names = do
+      name <- elements names
+      pure $ V name
 

@@ -297,6 +297,31 @@ isBase _ = False
 genValidExpr :: [Name Expr] -> Gen Expr
 genValidExpr bvs = sized (genValidExpr' bvs)
 
+-- No SslAssertion's or WithIn's
+genSimpleExpr :: [Name Expr] -> Int -> Gen Expr
+genSimpleExpr [] 0 =
+  oneof
+    [IntLit <$> arbitrary
+    ,BoolLit <$> arbitrary
+    ]
+genSimpleExpr bvs 0 =
+  oneof
+    [V <$> elements bvs
+    ,genSimpleExpr [] 0
+    ]
+genSimpleExpr bvs size =
+  oneof
+    [genSimpleExpr bvs 0
+    ,Add <$> halvedGen <*> halvedGen
+    ,Sub <$> halvedGen <*> halvedGen
+    ,Equal <$> halvedGen <*> halvedGen
+    ,Not <$> genSimpleExpr bvs (size - 1)
+    ,And <$> halvedGen <*> halvedGen
+    ]
+  where
+    halvedGen = halvedGenWith bvs
+    halvedGenWith bvs' = genSimpleExpr bvs' (size `div` 2)
+
 genValidExpr' :: [Name Expr] -> Int -> Gen Expr
 genValidExpr' [] 0 =
   oneof
@@ -324,7 +349,7 @@ genValidExpr' bvs size =
             <$> halvedGenWith (n' : bvs))
 
     ,SslAssertion
-      <$> (bind [] <$> genValidAssertion bvs (genValidExpr' bvs) (size - 1))
+      <$> (bind [] <$> genValidAssertion bvs (genSimpleExpr bvs) (size - 1))
 
     ,do
       isBinary <- arbitrary :: Gen Bool
