@@ -298,8 +298,8 @@ isBase _ = False
 
 shrinkExpr :: Expr -> [Expr]
 -- shrinkExpr (V n) = V <$> shrinkName n
-shrinkExpr (V n) = pure $ V n
-shrinkExpr (LayoutV ns) = pure $ LayoutV ns
+shrinkExpr (V n) = [] --pure $ V n
+shrinkExpr (LayoutV ns) = [] --pure $ LayoutV ns
 shrinkExpr (IntLit i) = IntLit <$> shrink i
 shrinkExpr (BoolLit b) = BoolLit <$> shrink b
 shrinkExpr (Add x y) = [x, y] ++ (Add <$> shrinkExpr x <*> shrinkExpr y)
@@ -311,7 +311,7 @@ shrinkExpr (WithIn e bnd) =
   let (vars, body) = unsafeUnbind bnd
   in
   [e] ++
-  -- [instantiate bnd (replicate (length vars) (IntLit (-2)))] ++
+  -- [instantiate bnd (replicate (length vars) (IntLit 2))] ++
   (WithIn <$> shrinkExpr e <*> (bind vars <$> shrinkExpr body))
 shrinkExpr (SslAssertion bnd) =
   let (vars, asn) = unsafeUnbind bnd

@@ -35,12 +35,12 @@ import Data.Validity
 simplifyFnDef :: Fresh m => FnDef -> m FnDef
 simplifyFnDef =
   renameResultLayout <=< -- NOTE: This should go last
-  fixedPoint
+  -- fixedPoint
     (
       reuseExistingPtrs <=<
       replaceClosedAssertions <=<
       callOfWith <=<
-      -- onFnDef layoutToWith <=<
+      onFnDef layoutToWith <=<
       -- withLayoutV <=< -- TODO: This doesn't seem to work
       withOfWith <=<
       withSubst <=<
