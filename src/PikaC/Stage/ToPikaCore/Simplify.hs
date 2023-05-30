@@ -16,6 +16,7 @@ import PikaC.Stage.ToPikaCore.LayoutToWith
 import PikaC.Stage.ToPikaCore.WithLayoutV
 import PikaC.Stage.ToPikaCore.CallOfWith
 import PikaC.Stage.ToPikaCore.WithSubst
+import PikaC.Stage.ToPikaCore.ReuseExistingPtrs
 
 import PikaC.Stage.ToPikaCore.Utils
 
@@ -34,13 +35,15 @@ simplifyFnDef :: Fresh m => FnDef -> m FnDef
 simplifyFnDef =
   renameResultLayout <=<
   fixedPoint
-    (callOfWith <=<
-    onFnDef layoutToWith <=<
-    -- withLayoutV <=< -- TODO: This doesn't seem to work
-    withOfWith <=<
-    withSubst <=<
-    simplifyNestedCalls <=<
-    substWithLayoutVar
+    (
+      reuseExistingPtrs <=<
+      callOfWith <=<
+      onFnDef layoutToWith <=<
+      -- withLayoutV <=< -- TODO: This doesn't seem to work
+      withOfWith <=<
+      withSubst <=<
+      simplifyNestedCalls <=<
+      substWithLayoutVar
     )
     -- .
   -- myTraceWith (("simplifying " ++) . ppr')

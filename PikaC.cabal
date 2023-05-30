@@ -57,6 +57,7 @@ executable PikaC
       PikaC.Stage.ToPikaCore.WithLayoutV
       PikaC.Stage.ToPikaCore.CallOfWith
       PikaC.Stage.ToPikaCore.WithSubst
+      PikaC.Stage.ToPikaCore.ReuseExistingPtrs
       PikaC.Stage.ToPikaCore.Monad
       PikaC.Stage.ToPikaCore.Utils
       PikaC.Utils

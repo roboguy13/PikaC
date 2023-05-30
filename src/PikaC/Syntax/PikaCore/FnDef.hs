@@ -127,6 +127,10 @@ not' :: Expr -> Expr
 not' (Not x) = x
 not' x = Not x
 
+instance Arbitrary FnDef where
+  arbitrary = genValidFnDef
+  -- shrink = genericShrink
+
 --
 -- Property testing --
 --
