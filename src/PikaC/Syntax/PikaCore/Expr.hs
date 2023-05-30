@@ -318,8 +318,8 @@ shrinkExpr (SslAssertion bnd) =
   in
   SslAssertion <$> (bind vars <$> shrinkAssertion shrinkExpr asn)
 shrinkExpr (App f args) =
-  args -- ++
-  -- (App <$> shrink f <*> mapM shrinkExpr args)
+  args ++
+  (App <$> shrink f <*> mapM shrinkExpr args)
 
 genValidExpr :: [Name Expr] -> Gen Expr
 genValidExpr bvs = sized (genValidExpr' bvs)

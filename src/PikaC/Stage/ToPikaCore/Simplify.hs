@@ -66,12 +66,16 @@ fixedPoint f x = do
 
 prop_preserves_wellScoped :: (FnDef -> FreshM FnDef) -> Property
 prop_preserves_wellScoped pass =
-  forAllShrinkShow genValidFnDef (take 3 . shrink) ppr' $ \fnDef ->
+  forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
     let result = runFreshM (pass fnDef)
     in
     case prettyValidate result of
       Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False
       Right _ -> property True
+
+prop_genValidFnDef_sane :: Property
+prop_genValidFnDef_sane =
+  prop_preserves_wellScoped pure
 
 prop_wellScoped_simplifyNestedCalls :: Property
 prop_wellScoped_simplifyNestedCalls =
