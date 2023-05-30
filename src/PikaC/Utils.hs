@@ -148,6 +148,9 @@ isClosed = null . toListOf @(Name b) (fv @a)
 shrinkName :: Name a -> [Name a]
 shrinkName = genericShrink
 
+qcSubseqs :: [a] -> [[a]]
+qcSubseqs = drop 1 . init . subsequences
+
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)
 -- instance (Data a, Data b) => Plated (Bind a b)

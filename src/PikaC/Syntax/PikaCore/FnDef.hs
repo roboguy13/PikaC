@@ -129,6 +129,10 @@ not' :: Expr -> Expr
 not' (Not x) = x
 not' x = Not x
 
+--
+-- Property testing --
+--
+
 instance Arbitrary FnDef where
   arbitrary = genValidFnDef
   shrink fnDef = do
@@ -136,7 +140,7 @@ instance Arbitrary FnDef where
         (outVars, branches) = unsafeUnbind bnd1
     newBranches <- transpose $ map shrinkBranch branches -- TODO: Is this right way around?
     
-    setBranches fnDef inVars outVars <$> drop 1 (subsequences newBranches)
+    setBranches fnDef inVars outVars <$> qcSubseqs newBranches
 
 setBranches :: FnDef -> [Moded ExprName] -> [Moded ExprName] -> [FnDefBranch] -> FnDef
 setBranches fnDef inVars outVars branches = fnDef { _fnDefBranches = bind inVars $ bind outVars branches }
@@ -147,10 +151,6 @@ shrinkBranch branch = do
   pure $ branch
     { _fnDefBranchBody = e
     }
-
---
--- Property testing --
---
 
 -- -- | Generate only well-scoped @FnDef@s
 -- instance GenValid FnDef where

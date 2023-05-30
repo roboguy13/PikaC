@@ -140,7 +140,7 @@ findAllocations names xs = map toAlloc locMaximums
 
 shrinkAssertion :: forall a. (a -> [a]) -> [PointsTo a] -> [[PointsTo a]]
 shrinkAssertion shrinkA xs = do
-  asn <- drop 1 $ subsequences xs
+  asn <- qcSubseqs xs
   map go asn
   --   let ys = transpose $ map go xs
   --   in

@@ -40,7 +40,7 @@ simplifyFnDef =
       reuseExistingPtrs <=<
       replaceClosedAssertions <=<
       callOfWith <=<
-      onFnDef layoutToWith <=<
+      -- onFnDef layoutToWith <=<
       -- withLayoutV <=< -- TODO: This doesn't seem to work
       withOfWith <=<
       withSubst <=<
@@ -77,6 +77,14 @@ prop_genValidFnDef_sane :: Property
 prop_genValidFnDef_sane =
   prop_preserves_wellScoped pure
 
+prop_wellScoped_reuseExistingPtrs :: Property
+prop_wellScoped_reuseExistingPtrs =
+  prop_preserves_wellScoped reuseExistingPtrs
+
+prop_wellScoped_replaceClosedAssertions :: Property
+prop_wellScoped_replaceClosedAssertions =
+  prop_preserves_wellScoped replaceClosedAssertions
+
 prop_wellScoped_simplifyNestedCalls :: Property
 prop_wellScoped_simplifyNestedCalls =
   prop_preserves_wellScoped simplifyNestedCalls
@@ -96,6 +104,14 @@ prop_wellScoped_substWithLayoutVar =
 prop_wellScoped_withSubst :: Property
 prop_wellScoped_withSubst =
   prop_preserves_wellScoped withSubst
+
+prop_wellScoped_layoutToWith :: Property
+prop_wellScoped_layoutToWith =
+  prop_preserves_wellScoped (onFnDef layoutToWith)
+
+prop_wellScoped_renameResultLayout :: Property
+prop_wellScoped_renameResultLayout =
+  prop_preserves_wellScoped renameResultLayout
 
 prop_wellScoped_simplifyFnDef :: Property
 prop_wellScoped_simplifyFnDef =
