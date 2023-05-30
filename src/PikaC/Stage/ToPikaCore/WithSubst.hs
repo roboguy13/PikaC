@@ -32,11 +32,11 @@ withSubst = onFnDef (rewriteM go)
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (WithIn (LayoutV vs) bnd) = do
   (_vars, body) <- unbind bnd
-  pure $ Just $ instantiate bnd vs
+  pure $ Just $ instantiate bnd (map (Moded Out) vs)
 
 go e0@(WithIn (V v) bnd) = do
   (vars, body) <- unbind bnd
-  pure . Just $ instantiate bnd [V v]
+  pure . Just $ instantiate bnd [Moded Out $ V v]
 
 go _ = pure Nothing
 

@@ -122,37 +122,34 @@ prop_valid_simplifyFnDef :: Property
 prop_valid_simplifyFnDef =
   withMaxSuccess 5000 $ propPreserves_valid simplifyFnDef
 
--- testFn :: FnDef
--- testFn =
---   FnDef
---   { _fnDefName = FnName "a"
---   , _fnDefBranches =
---       let c = string2Name "c"
---           v = string2Name "v"
---       in
---       bind [Moded In ak]
---         $ bind [Moded Out a]
---           [ FnDefBranch
---             { _fnDefBranchInputAssertions =
---                 [[ (V ak :+ 1) :-> V ak
---                 ]]
---             , _fnDefBranchBody =
---                 WithIn
---                   (SslAssertion
---                     (bind []
---                       [ (V ak :+ 1) :-> V ak
---                       ]))
---                   (bind [Moded Out a1]
---                     $ App (FnName "a")
---                         [SslAssertion
---                           (bind []
---                             [ (V a :+ 5) :-> BoolLit True
---                             ])
---                         ,V a1
---                         ])
---             }
---           ]
---   }
+testFn :: FnDef
+testFn =
+  FnDef
+  { _fnDefName = FnName "a"
+  , _fnDefBranches =
+      let ljnh = string2Name "ljnh"
+          pn = string2Name "pn"
+          pn1 = string2Name "pn1"
+          pn2 = string2Name "pn2"
+      in
+      bind [Moded In ljnh]
+        $ bind [Moded Out pn]
+          [ FnDefBranch
+            { _fnDefBranchInputAssertions =
+                [[ (V ljnh :+ 5) :-> V ljnh
+                ]]
+            , _fnDefBranchBody =
+                WithIn
+                  (V ljnh)
+                  (bind [Moded Out pn1]
+                    $ WithIn (V pn1)
+                        $ bind [Moded Out pn2]
+                            $ SslAssertion
+                                $ bind []
+                                    [(V pn2 :+ 3) :-> V pn2])
+            }
+          ]
+  }
 
 return []
 checkAllProps :: IO Bool
