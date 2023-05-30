@@ -122,38 +122,37 @@ prop_valid_simplifyFnDef :: Property
 prop_valid_simplifyFnDef =
   withMaxSuccess 5000 $ propPreserves_valid simplifyFnDef
 
-testFn :: FnDef
-testFn =
-  FnDef
-  { _fnDefName = FnName "a"
-  , _fnDefBranches =
-      let ak = string2Name "ak"
-          a = string2Name "a"
-          a1 = string2Name "a1"
-      in
-      bind [Moded In ak]
-        $ bind [Moded Out a]
-          [ FnDefBranch
-            { _fnDefBranchInputAssertions =
-                [[ (V ak :+ 1) :-> V ak
-                ]]
-            , _fnDefBranchBody =
-                WithIn
-                  (SslAssertion
-                    (bind []
-                      [ (V ak :+ 1) :-> V ak
-                      ]))
-                  (bind [Moded Out a1]
-                    $ App (FnName "a")
-                        [SslAssertion
-                          (bind []
-                            [ (V a :+ 5) :-> BoolLit True
-                            ])
-                        ,V a1
-                        ])
-            }
-          ]
-  }
+-- testFn :: FnDef
+-- testFn =
+--   FnDef
+--   { _fnDefName = FnName "a"
+--   , _fnDefBranches =
+--       let c = string2Name "c"
+--           v = string2Name "v"
+--       in
+--       bind [Moded In ak]
+--         $ bind [Moded Out a]
+--           [ FnDefBranch
+--             { _fnDefBranchInputAssertions =
+--                 [[ (V ak :+ 1) :-> V ak
+--                 ]]
+--             , _fnDefBranchBody =
+--                 WithIn
+--                   (SslAssertion
+--                     (bind []
+--                       [ (V ak :+ 1) :-> V ak
+--                       ]))
+--                   (bind [Moded Out a1]
+--                     $ App (FnName "a")
+--                         [SslAssertion
+--                           (bind []
+--                             [ (V a :+ 5) :-> BoolLit True
+--                             ])
+--                         ,V a1
+--                         ])
+--             }
+--           ]
+--   }
 
 return []
 checkAllProps :: IO Bool

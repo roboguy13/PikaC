@@ -139,7 +139,7 @@ instance Arbitrary FnDef where
   shrink = filter isValid . genericShrink
 
 instance Arbitrary FnDefBranch where
-  arbitrary = genValidBranch [] -- NOTE: Only closed FnDefBranch's
+  arbitrary = genValidBranch [] [] -- NOTE: Only closed FnDefBranch's
   shrink = genericShrink
 --   shrink fnDef = do
 --     let (inVars, bnd1) = unsafeUnbind $ _fnDefBranches fnDef
@@ -205,18 +205,21 @@ genValidFnDef = do
     <$>
       (bind modedInParams
         <$> (bind modedOutParams
-              <$> replicateM k (genValidBranch params)))
+              <$> replicateM k (genValidBranch (map string2Name outParams) params)))
 
-genValidBranch :: [ModedName Expr] -> Gen FnDefBranch
-genValidBranch = sized . genValidBranch'
+genValidBranch :: [Name Expr] -> [ModedName Expr] -> Gen FnDefBranch
+genValidBranch outVars = sized . genValidBranch' outVars
 
-genValidBranch' :: [ModedName Expr] -> Int -> Gen FnDefBranch
-genValidBranch' modedBvs size = do
+genValidBranch' :: [Name Expr] -> [ModedName Expr] -> Int -> Gen FnDefBranch
+genValidBranch' outVars modedBvs size = do
     i <- choose (1, 3)
     inAsns <- replicateM i (genValidAssertion bvs (const $ genAsnVar (asnName : bvs)) (size `div` 2)) `suchThat` any (not . null)
+
+    when (not (null (toListOf fv inAsns `intersect` outVars))) discard
+
     -- TODO: Figure this out:
     -- e <- genValidExpr' (asnName : bvs) (size `div` 2)
-    e <- genValidExpr' (bvs) (size `div` 2)
+    e <- genValidExpr' bvs (size `div` 2)
     pure $ FnDefBranch inAsns e
   where
     bvs = map modedNameName modedBvs
