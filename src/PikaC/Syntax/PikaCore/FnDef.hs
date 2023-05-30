@@ -167,19 +167,23 @@ instance Validity FnDef where
   validate (FnDef _ (B inVars (B outVars branches))) =
     let vars = inVars ++ outVars
     in
-    mconcat $ map (validBranch vars) branches
+    mconcat $ map (validBranch (map modedNameName outVars) vars) branches
     -- check (isClosed @_ @Expr branches) "No free variables"
 
 -- TODO: Make sure we are properly accounting for names "bound" by input assertions
-validBranch :: [ModedName Expr] -> FnDefBranch -> Validation
-validBranch modedBvs branch =
+validBranch :: [Name Expr] -> [ModedName Expr] -> FnDefBranch -> Validation
+validBranch outVars modedBvs branch =
     check (all (`elem` bvs) bodyFvs) "Well-scoped"
     <> check (not (null (_fnDefBranchInputAssertions branch))) "Has at least one parameter"
     <> check (any (not . null) (_fnDefBranchInputAssertions branch)) "At least one non-empty parameter"
+    <> check (null (inAsnVars `intersect` outVars)) "Input variables should not include output variables"
+    <> annotate (_fnDefBranchBody branch) "Branch body expression is ok"
   where
     bodyFvs = toListOf @(Name Expr) fv (_fnDefBranchBody branch)
 
-    bvs = map modedNameName modedBvs `union` toListOf fv (_fnDefBranchInputAssertions branch)
+    inAsnVars = toListOf fv (_fnDefBranchInputAssertions branch)
+
+    bvs = map modedNameName modedBvs `union` inAsnVars
 
 genValidFnDef :: Gen FnDef
 genValidFnDef = do

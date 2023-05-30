@@ -91,19 +91,9 @@ instance Subst a b => Subst a (FnName' b)
 instance Alpha FnName
 instance Ppr FnName where ppr (FnName f) = text f
 
-instance Arbitrary FnName where
-  arbitrary = (FnName <$> arbitrary) `suchThat` fnNameIsOk
-  shrink = filter fnNameIsOk . genericShrink
-
 fnNameIsOk :: FnName -> Bool
 fnNameIsOk (FnName str) =
   all (`elem` ['a'..'z']) str && not (null str)
-
-exprIsOk :: Expr -> Bool
-exprIsOk = and . map go . universe
-  where
-    go (SslAssertion (B _ [])) = False
-    go _ = True
 
 instance HasVar Expr where mkVar = V
 
@@ -331,9 +321,13 @@ isBase _ = False
 
 -- Property testing --
 
+instance Arbitrary FnName where
+  arbitrary = (FnName <$> arbitrary) `suchThat` fnNameIsOk
+  shrink = filter fnNameIsOk . genericShrink
+
 instance Arbitrary Expr where
   arbitrary = genValidExpr [] -- NOTE: Only generates *closed* expressions
-  shrink = filter exprIsOk . genericShrink
+  shrink = filter isValid . genericShrink
 
 -- shrinkExpr' :: Expr -> [Expr]
 -- shrinkExpr' = genericShrink
@@ -362,6 +356,16 @@ instance Arbitrary Expr where
 -- shrinkExpr (App f args) =
 --   args ++
 --   (App <$> shrink f <*> mapM shrinkExpr args)
+
+instance Validity Expr where
+  validate = exprIsOk
+
+exprIsOk :: Expr -> Validation
+exprIsOk = mconcat . map go . universe
+  where
+    go (SslAssertion (B _ [])) = invalid "Empty assertion"
+    go (WithIn _ (B [] _)) = invalid "with-in with empty variable list"
+    go _ = mempty
 
 genValidExpr :: [Name Expr] -> Gen Expr
 genValidExpr bvs = sized (genValidExpr' bvs)

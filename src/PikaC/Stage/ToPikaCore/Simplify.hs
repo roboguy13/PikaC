@@ -9,6 +9,8 @@ import Control.Monad
 
 import PikaC.Syntax.PikaCore.Expr
 import PikaC.Syntax.PikaCore.FnDef
+import PikaC.Syntax.Heaplet
+import PikaC.Syntax.Pika.Layout
 
 import PikaC.Stage.ToPikaCore.NestedCalls
 import PikaC.Stage.ToPikaCore.WithOfWith
@@ -119,6 +121,39 @@ prop_wellScoped_renameResultLayout =
 prop_wellScoped_simplifyFnDef :: Property
 prop_wellScoped_simplifyFnDef =
   withMaxSuccess 350 $ propPreserves_wellScoped simplifyFnDef
+
+testFn :: FnDef
+testFn =
+  FnDef
+  { _fnDefName = FnName "a"
+  , _fnDefBranches =
+      let ak = string2Name "ak"
+          a = string2Name "a"
+          a1 = string2Name "a1"
+      in
+      bind [Moded In ak]
+        $ bind [Moded Out a]
+          [ FnDefBranch
+            { _fnDefBranchInputAssertions =
+                [[ (V ak :+ 1) :-> V ak
+                ]]
+            , _fnDefBranchBody =
+                WithIn
+                  (SslAssertion
+                    (bind []
+                      [ (V ak :+ 1) :-> V ak
+                      ]))
+                  (bind [Moded Out a1]
+                    $ App (FnName "a")
+                        [SslAssertion
+                          (bind []
+                            [ (V a :+ 5) :-> BoolLit True
+                            ])
+                        ,V a1
+                        ])
+            }
+          ]
+  }
 
 return []
 checkAllProps :: IO Bool
