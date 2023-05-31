@@ -98,7 +98,7 @@ optHandlers =
   ,option "--only-c" Nothing "Only print generated C" $ nullaryOpt $
       optOnlyC .~ True
 
-  ,option "--simplifier-fuel" (Just "<n>") "Run n simplifier steps" $ withOptParameter $ \n ->
+  ,option "--simplifier-fuel" (Just "<n>") "Run <n> simplifier steps" $ withOptParameter $ \n ->
       optSimplifierFuel .~ Fuel (read n)
 
   ,option "--simplifier-log" Nothing "Enable logging for each simplifier stage" $ nullaryOpt $
