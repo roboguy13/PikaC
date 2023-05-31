@@ -56,7 +56,9 @@ runSimplifyM :: (Logger m, Ppr a) => SimplifyFuel -> (a -> SimplifyM m a) -> a -
 runSimplifyM fuel fn initial =
   runSimplifyM' fuel $ do
     logM $ "With fuel " ++ show fuel ++ ", running simplifier on:\n" ++ ppr' initial
-    fn initial
+    r <- fn initial
+    logM "Simplifer done.\n"
+    pure r
 
 runQuiet :: (Ppr a) => SimplifyFuel -> (a -> SimplifyM Quiet a) -> a -> a
 runQuiet fuel fn initial =
