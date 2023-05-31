@@ -34,12 +34,12 @@ data Command
       String
       [CExpr] -- Input parameters
       [CExpr] -- Output parameters
-  | IntoMalloc CName Int -- TODO: Convert this and Let to use Bind from unbound-generics
-  | Let CName CLoc
+  | IntoMalloc Int (Bind CName [Command])
+  | Let CLoc (Bind CName [Command])
   | Free CName
   | Decl CName
   | Nop
-  deriving (Show, Eq, Ord, Generic)
+  deriving (Show, Generic)
 
 data CFunction =
   CFunction
@@ -53,31 +53,44 @@ instance Alpha Command
 instance Alpha CExpr
 
 instance Ppr Command where
-  ppr (Decl n) = hsep [text "loc", ppr n <> text " = NULL;"]
-  ppr (Assign loc e) =
-    writeLoc loc e
-    -- hsep [text "*" <> ppr loc, text "=", ppr e] <> text ";"
+  ppr = runFreshM . go
+    where
+      go :: Command -> FreshM Doc
+      go (Decl n) = do
+        pure $ hsep [text "loc", ppr n <> text " = NULL;"]
+      go (Assign loc e) =
+        pure $ writeLoc loc e
+        -- hsep [text "*" <> ppr loc, text "=", ppr e] <> text ";"
 
-  ppr (IfThenElse c t f) =
-    foldr1 ($$) [hsep [text "if (" <> ppr c <> text ")", text "{"]
-        ,nest 1 (vcat (map ppr t))
-        ,hsep [text "}", text "else", text "{"]
-        ,nest 1 (hsep (map ppr f))
-        ,text "}"
-        ]
+      go (IfThenElse c t f) = do
+        tDoc <- mapM go t
+        fDoc <- mapM go f
+        pure $ foldr1 ($$) [hsep [text "if (" <> ppr c <> text ")", text "{"]
+            ,nest 1 (vcat tDoc)
+            ,hsep [text "}", text "else", text "{"]
+            ,nest 1 (hsep fDoc)
+            ,text "}"
+            ]
 
-  ppr (Call f inArgs outArgs) =
-    text f <> text "(" <> hsep (punctuate (text ",") (map ppr inArgs ++ map ppr outArgs)) <> text ");"
+      go (Call f inArgs outArgs) =
+        pure $ text f <> text "(" <> hsep (punctuate (text ",") (map ppr inArgs ++ map ppr outArgs)) <> text ");"
 
-  ppr (IntoMalloc target size) =
-    hsep [text "loc", ppr target, text "=", text "(loc)malloc(" <> ppr size <> text " * sizeof(loc));"]
+      go (IntoMalloc size bnd) = do
+        (target, body) <- unbind bnd
+        bodyDocs <- mapM go body
+        pure $ text "{" $$ hsep [text "loc", ppr target, text "=", text "(loc)malloc(" <> ppr size <> text " * sizeof(loc));"] $$ vcat bodyDocs $$ text "}"
 
-  ppr (Free x) =
-    hsep [text "free(", ppr x, text ");"]
+      go (Free x) =
+        pure $ hsep [text "free(", ppr x, text ");"]
 
-  -- ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr (Deref y)) <> ";"
-  ppr (Let x y) = text "loc" <+> ppr x <+> text "=" <+> readLoc y
-  ppr Nop = mempty --text ";"
+      -- ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr (Deref y)) <> ";"
+      go (Let x bnd) = do
+        (var, body) <- unbind bnd
+        bodyDocs <- mapM go body
+        pure $
+          text "{" $$ (text "loc" <+> ppr var <+> text "=" <+> readLoc x)
+          $$ vcat bodyDocs $$ text "}"
+      go Nop = pure mempty --text ";"
 
 writeLoc :: Ppr b => CLoc -> b -> Doc
 writeLoc (x :+ i) y =

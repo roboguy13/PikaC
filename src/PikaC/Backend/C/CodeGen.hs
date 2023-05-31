@@ -46,22 +46,22 @@ codeGenFn fnDef = runFreshM $ do
 
   (inVars0, bnd1) <- unbind $ _fnDefBranches fnDef
   (outVars0, branches) <- unbind bnd1
+  let inParams = map (convertName . modedNameName) inVars0
+      outParams = map (convertName . modedNameName) outVars0
 
-  inVars <- mapM fresh (map modedNameName inVars0)
-  outVars <- mapM fresh (map modedNameName outVars0)
-
-  let outParams = map convertName outVars
-      inParams = map convertName inVars
+  -- inParams <- mapM fresh (map (convertName . modedNameName) inVars0)
+  -- outParams <- mapM fresh (map (convertName . modedNameName) outVars0)
 
   let params = inParams ++ outParams
 
   body <- mapM (convertBranch outParams) branches
 
-  pure $ C.CFunction
-    { C.cfunctionName = fnName
-    , C.cfunctionParams = params
-    , C.cfunctionBody = [flattenBranchCmds inParams (zip branches body)]
-    }
+  trace ("params = " ++ show params)
+    $ pure $ C.CFunction
+      { C.cfunctionName = fnName
+      , C.cfunctionParams = params
+      , C.cfunctionBody = [flattenBranchCmds inParams (zip branches body)]
+      }
 
 -- genAsn ::
 --   Bind [ModedName PikaCore.Expr] PikaCore.ExprAssertion ->
@@ -86,16 +86,24 @@ flattenBranchCmds allNames ((branch, cmds) : rest) =
 convertBranch :: [C.CName] -> PikaCore.FnDefBranch -> FreshM [C.Command]
 convertBranch outVars branch = do
   body <- convertBranchBody outVars $ _fnDefBranchBody branch
-  pure (concatMap (map setupInput) (_fnDefBranchInputAssertions branch)
-         ++ body)
+  pure $ setupInputs (concat (_fnDefBranchInputAssertions branch)) body
+
+setupInputs :: [PointsTo PikaCore.Expr] -> [C.Command] -> [C.Command]
+setupInputs [] cmds = cmds
+setupInputs (p:ps) cmds =
+  [setupInput p (setupInputs ps cmds)]
 
 -- | Take inputs heaplets like (x+2) :-> v and generate v = *(x+2)
-setupInput :: PointsTo PikaCore.Expr -> C.Command
-setupInput ((PikaCore.V lhs :+ i) :-> PikaCore.V rhs) =
-  C.Let (convertName rhs) (C.V (convertName lhs) :+ i)
+setupInput :: PointsTo PikaCore.Expr -> [C.Command] -> C.Command
+setupInput ((PikaCore.V lhs :+ i) :-> PikaCore.V rhs) body =
+  C.Let (C.V (convertName lhs) :+ i)
+    $ bind (convertName rhs) body
+setupInput e _ = error $ "setupInput: " ++ ppr' e
+  -- C.Let (convertName rhs) (C.V (convertName lhs) :+ i)
 
 convertName :: PikaCore.ExprName -> C.CName
-convertName = string2Name . name2String
+-- convertName = string2Name . name2String
+convertName = string2Name . show
 
 convertBranchBody :: [C.CName] -> PikaCore.Expr -> FreshM [C.Command]
 convertBranchBody outVars = go
@@ -136,6 +144,7 @@ convertBranchBody outVars = go
               (getAppArgs args)
               (map (C.V . convertName) unmodedVars)
             ] ++ body'
+        -- TODO: Add a case for SslAssertion
         _ -> error $ "Expected variable, variable list or function application in with-in. Found " ++ ppr' e
 
     go (PikaCore.SslAssertion bnd) = do
@@ -192,9 +201,11 @@ codeGenPointsTo p = error $ "codeGenPointsTo: " ++ ppr' p
 convertLoc :: Loc PikaCore.Expr -> Loc CExpr
 convertLoc (x :+ i) = convertBase x :+ i
 
-codeGenAllocation :: Allocation PikaCore.Expr -> Command
-codeGenAllocation (Alloc x sz) =
-  C.IntoMalloc (string2Name (name2String x)) sz
+codeGenAllocation :: Allocation PikaCore.Expr -> [Command] -> Command
+codeGenAllocation (Alloc x sz) cmds =
+  C.IntoMalloc sz
+    $ bind (string2Name (name2String x))
+        cmds
 
 -- codeGenPointsTo :: PointsTo CExpr -> Command
 -- codeGenPointsTo ((lhs :+ i) :-> rhs) =
