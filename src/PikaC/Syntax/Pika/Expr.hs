@@ -5,6 +5,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE LambdaCase #-}
 
 module PikaC.Syntax.Pika.Expr
   where
@@ -29,10 +30,13 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Ppr
 import PikaC.Utils
 
-import Control.Lens
+import Control.Lens hiding (elements)
 import Control.Lens.TH
 
 import Data.Data
+
+import Data.Validity
+import Test.QuickCheck
 
 data Expr
   = V ExprName
@@ -75,6 +79,22 @@ instance IsNested Expr where
   isNested (Sub {}) = True
   isNested (Equal {}) = True
   isNested (LName {}) = False
+
+instance Plated Expr where
+  plate f (V x) = pure $ V x
+  plate f (IntLit i) = pure $ IntLit i
+  plate f (BoolLit b) = pure $ BoolLit b
+  plate f (ApplyLayout e a) =
+    ApplyLayout <$> plate f e <*> pure a
+  plate f (App k xs) =
+    App k <$> traverse (plate f) xs
+  plate f (Add x y) =
+    Add <$> plate f x <*> plate f y
+  plate f (Sub x y) =
+    Sub <$> plate f x <*> plate f y
+  plate f (Equal x y) =
+    Equal <$> plate f x <*> plate f y
+  plate f (LName x) = pure $ LName x
 
 -- example :: Expr
 -- example =
@@ -160,70 +180,186 @@ reduceLayouts = go
     go (Equal x y) = Equal (go x) (go y)
     go (LName x) = LName x
 
--- Tests
-sllLayout :: Layout Expr
-sllLayout =
-  Layout
-    { _layoutName = "Sll"
-    , _layoutAdt = AdtName "List"
-    , _layoutBranches =
-        let x = string2Name "x"
-        in
-        bind [Moded Out x]
-          [LayoutBranch
-            (PatternMatch
-              (bind (Pattern "Nil" [])
-                (bind [] mempty)))
+--
+-- Property tests --
+--
 
-          ,let h = string2Name "h"
-               t = string2Name "t"
-               nxt = string2Name "nxt"
-           in
-           LayoutBranch
-             (PatternMatch
-               (bind (Pattern "Cons" [h, t])
-                 (bind [Exists $ Moded In nxt]
-                   $ LayoutBody
-                       [LPointsTo $ (V x :+ 0) :-> V h
-                       ,LPointsTo $ (V x :+ 1) :-> V nxt
-                       ,LApply "Sll"
-                          (V t)
-                          [V nxt]
-                       ])))
-          ]
-    }
+isConcreteExpr :: Expr -> Validation
+isConcreteExpr = mconcat . map go . universe
+  where
+    go (LName {}) = invalid "Concrete expression should not have an LName"
+    go (LayoutLambda {}) = invalid "Concrete expression should not have a layout lambda"
+    go _ = mempty
 
-dllLayout :: Layout Expr
-dllLayout =
-  Layout
-    { _layoutName = "Dll"
-    , _layoutAdt = AdtName "List"
-    , _layoutBranches =
-        let x = string2Name "x"
-            z = string2Name "z"
-        in
-        bind [Moded Out x, Moded In z]
-          [LayoutBranch
-            (PatternMatch
-              (bind (Pattern "Nil" [])
-                (bind [] mempty)))
+genConcreteExpr' ::
+   [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
+   [(LayoutName, [(String, [Maybe LayoutName])])] -> -- Layouts with their constructors and those constructors' arities
+   [(ExprName, Maybe LayoutName)] -> -- Local names
+   Int -> -- Generator size
+   Gen Expr
+genConcreteExpr' fnSigs layouts locals size =
+  oneof
+    [genSimpleExpr' (getSimpleLocals locals) size
+    ,do
+      fnSig <- elements fnSigs
+      genCall fnSigs layouts locals size fnSig
+    ,do
+      constructorSig <- elements layouts
+      genConstructorApp fnSigs layouts locals size constructorSig
+    ]
 
-          ,let h = string2Name "h"
-               t = string2Name "t"
-               nxt = string2Name "nxt"
-           in
-           LayoutBranch
-             (PatternMatch
-               (bind (Pattern "Cons" [h, t])
-                 (bind [Exists $ Moded In nxt]
-                   $ LayoutBody
-                       [LPointsTo $ (V x :+ 0) :-> V h
-                       ,LPointsTo $ (V x :+ 1) :-> V nxt
-                       ,LPointsTo $ (V x :+ 2) :-> V z
-                       ,LApply "Dll"
-                          (V t)
-                          [V nxt, V x]
-                       ])))
-          ]
-    }
+genForLayout :: 
+   [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
+   [(LayoutName, [(String, [Maybe LayoutName])])] -> -- Layouts with their constructors and those constructors' arities
+   [(ExprName, Maybe LayoutName)] -> -- Local names
+   Int -> -- Generator size
+   LayoutName ->
+   Gen Expr
+genForLayout fnSigs layouts locals size layoutName =
+  oneof
+    [do
+      elements locals >>= \case
+        (_, Nothing) -> discard
+        (var, Just layoutName') -> do
+          when (layoutName' /= layoutName) discard
+          pure $ V var
+
+    ,do
+      layout@(layoutName', constructors) <- elements layouts
+      when (layoutName' /= layoutName) discard
+      genConstructorApp fnSigs layouts locals size layout
+
+    ,do
+      fnSig@(fn, inLayouts, outLayout) <- elements fnSigs
+      when (outLayout /= layoutName) discard
+      genCall fnSigs layouts locals size fnSig
+    ]
+
+-- | On Nothing, generate a simple expression
+genForMaybeLayout ::
+   [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
+   [(LayoutName, [(String, [Maybe LayoutName])])] -> -- Layouts with their constructors and those constructors' arities
+   [(ExprName, Maybe LayoutName)] -> -- Local names
+   Int -> -- Generator size
+   Maybe LayoutName ->
+   Gen Expr
+genForMaybeLayout fnSigs layouts locals size Nothing = genSimpleExpr' (getSimpleLocals locals) size
+  where
+genForMaybeLayout fnSigs layouts locals size (Just layoutName) =
+  genForLayout fnSigs layouts locals size layoutName
+
+getSimpleLocals :: [(ExprName, Maybe LayoutName)] -> [ExprName]
+getSimpleLocals ((x, Nothing):xs) = x : getSimpleLocals xs
+getSimpleLocals ((_, Just _):xs) = getSimpleLocals xs
+
+genCall :: 
+   [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
+   [(LayoutName, [(String, [Maybe LayoutName])])] -> -- Layouts with their constructors and those constructors' arities
+   [(ExprName, Maybe LayoutName)] -> -- Local names
+   Int -> -- Generator size
+   (String, [Maybe LayoutName], LayoutName) ->
+   Gen Expr
+genCall fnSigs layouts locals size (fn, inLayouts, outLayout) = do
+  let newSize = size `div` length (inLayouts ++ [Just outLayout])
+  App fn <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) inLayouts
+
+genConstructorApp ::
+   [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
+   [(LayoutName, [(String, [Maybe LayoutName])])] -> -- Layouts with their constructors and those constructors' arities
+   [(ExprName, Maybe LayoutName)] -> -- Local names
+   Int -> -- Generator size
+   (LayoutName, [(String, [Maybe LayoutName])]) ->
+   Gen Expr
+genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
+  (cName, arity) <- elements constructorSigs
+  let newSize = size `div` length arity
+  App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity
+
+genSimpleExpr' :: [ExprName] -> Int -> Gen Expr
+genSimpleExpr' [] _ =
+  oneof
+    [IntLit <$> arbitrary
+    ,BoolLit <$> arbitrary
+    ]
+genSimpleExpr' locals 0 =
+  oneof
+    [V <$> elements locals
+    ,genSimpleExpr' [] 0
+    ]
+genSimpleExpr' locals size =
+  oneof
+    [genSimpleExpr' locals 0
+    ,Add <$> halvedGen <*> halvedGen
+    ,Sub <$> halvedGen <*> halvedGen
+    ,Equal <$> halvedGen <*> halvedGen
+    ]
+  where
+    halvedGen = genSimpleExpr' locals (size `div` 2)
+
+-- -- Tests
+-- sllLayout :: Layout Expr
+-- sllLayout =
+--   Layout
+--     { _layoutName = "Sll"
+--     , _layoutAdt = AdtName "List"
+--     , _layoutBranches =
+--         let x = string2Name "x"
+--         in
+--         bind [Moded Out x]
+--           [LayoutBranch
+--             (PatternMatch
+--               (bind (Pattern "Nil" [])
+--                 (bind [] mempty)))
+--
+--           ,let h = string2Name "h"
+--                t = string2Name "t"
+--                nxt = string2Name "nxt"
+--            in
+--            LayoutBranch
+--              (PatternMatch
+--                (bind (Pattern "Cons" [h, t])
+--                  (bind [Exists $ Moded In nxt]
+--                    $ LayoutBody
+--                        [LPointsTo $ (V x :+ 0) :-> V h
+--                        ,LPointsTo $ (V x :+ 1) :-> V nxt
+--                        ,LApply "Sll"
+--                           (V t)
+--                           [V nxt]
+--                        ])))
+--           ]
+--     }
+--
+-- dllLayout :: Layout Expr
+-- dllLayout =
+--   Layout
+--     { _layoutName = "Dll"
+--     , _layoutAdt = AdtName "List"
+--     , _layoutBranches =
+--         let x = string2Name "x"
+--             z = string2Name "z"
+--         in
+--         bind [Moded Out x, Moded In z]
+--           [LayoutBranch
+--             (PatternMatch
+--               (bind (Pattern "Nil" [])
+--                 (bind [] mempty)))
+--
+--           ,let h = string2Name "h"
+--                t = string2Name "t"
+--                nxt = string2Name "nxt"
+--            in
+--            LayoutBranch
+--              (PatternMatch
+--                (bind (Pattern "Cons" [h, t])
+--                  (bind [Exists $ Moded In nxt]
+--                    $ LayoutBody
+--                        [LPointsTo $ (V x :+ 0) :-> V h
+--                        ,LPointsTo $ (V x :+ 1) :-> V nxt
+--                        ,LPointsTo $ (V x :+ 2) :-> V z
+--                        ,LApply "Dll"
+--                           (V t)
+--                           [V nxt, V x]
+--                        ])))
+--           ]
+--     }
 
