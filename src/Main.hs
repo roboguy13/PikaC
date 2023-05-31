@@ -1,3 +1,6 @@
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
+
 module Main
   where
 
@@ -13,51 +16,181 @@ import PikaC.Syntax.ParserUtils
 
 import PikaC.Stage.ToPikaCore
 import PikaC.Stage.ToPikaCore.SimplifyM
+import qualified PikaC.Stage.ToPikaCore.Simplify as Simplify
 
 -- import PikaC.Backend.C.CodeGen
 
 import PikaC.Ppr
+
+import Control.Lens
 
 import Control.Monad
 
 import System.Environment
 import System.Exit
 
+import Data.List
+import Data.Maybe
+
+import Data.Bifunctor
+
+import Text.Printf
+
+data Options =
+  Options
+    { _optHelp :: Bool
+    , _optNoC :: Bool
+    , _optOnlyC :: Bool
+    , _optSimplifierFuel :: SimplifyFuel
+    , _optSimplifierLog :: Bool
+    , _optSelfTest :: Bool
+    }
+  deriving (Show)
+
+makeLenses ''Options
+
+defaultOpts :: Options
+defaultOpts =
+  Options False False False Unlimited False False
+
+type OptionUpdate = ([String], Options) -> ([String], Options)
+
+data OptionHandler =
+  OptionHandler
+    { optHandlerName :: String
+    , optHandlerArgDescription :: Maybe String
+    , optHandlerDescription :: String
+    , optHandlerUpdate :: OptionUpdate
+    }
+
+findOptionHandler :: String -> [OptionHandler] -> OptionHandler
+findOptionHandler opt handlers =
+  case find go handlers of
+    Nothing -> error $ "Unrecognized option " ++ show opt
+    Just h -> h
+  where
+    go h = optHandlerName h == opt
+
+withOptParameter :: (String -> (Options -> Options)) -> String -> OptionUpdate
+withOptParameter f optName ([], _) = error $ "Option " ++ optName ++ " expects a parameter"
+withOptParameter f _optName (x:xs, opts) = (xs, f x opts)
+
+nullaryOpt :: (Options -> Options) -> String -> OptionUpdate
+nullaryOpt f _ p = second f p
+
+option :: String -> Maybe String -> String -> (String -> OptionUpdate) -> OptionHandler
+option optName argDescription description update =
+  OptionHandler
+    { optHandlerName = optName
+    , optHandlerDescription = description
+    , optHandlerArgDescription = argDescription
+    , optHandlerUpdate = update optName
+    }
+
+optHandlers :: [OptionHandler]
+optHandlers =
+  [option "--help" Nothing "Display this message" $ nullaryOpt $
+      optHelp .~ True
+
+  ,option "--no-c" Nothing "Disable C generation" $ nullaryOpt $
+      optNoC .~ True
+
+  ,option "--only-c" Nothing "Only print generated C" $ nullaryOpt $
+      optOnlyC .~ True
+
+  ,option "--simplifier-fuel" (Just "<n>") "Run n simplifier steps" $ withOptParameter $ \n ->
+      optSimplifierFuel .~ Fuel (read n)
+
+  ,option "--simplifier-log" Nothing "Enable logging for each simplifier stage" $ nullaryOpt $
+      optSimplifierLog .~ True
+
+  ,option "--self-test" Nothing "Run property tests" $ nullaryOpt $
+      optSelfTest .~ True
+  ]
+
+printHelp :: IO ()
+printHelp = mapM_ go optHandlers
+  where
+    longestOptNameLen = maximum $ map (length . optHandlerName) optHandlers
+    go h =
+      printf ("%-" ++ show longestOptNameLen ++ "s %s   %s\n")
+        (optHandlerName h)
+        (fromMaybe "" (optHandlerArgDescription h))
+        (optHandlerDescription h)
+
+-- option :: String -> String -> (([String], Options) -> ([String], Options)) -> OptionHandler
+-- option optName description setter orig@(opts, args)
+--   | optName `elem` args = (setter opts, delete optName args)
+--   | otherwise           = orig
+
+parseOptions' :: Options -> [String] -> ([String], Options)
+parseOptions' opts [] = ([], opts)
+parseOptions' opts (x:xs)
+  | isOption x =
+      let h = findOptionHandler x optHandlers
+          (xs', opts') = optHandlerUpdate h (xs, opts)
+      in
+      parseOptions' opts' xs'
+
+  | otherwise = first (x:) $ parseOptions' opts xs
+
+parseOptions :: [String] -> ([String], Options)
+parseOptions = parseOptions' defaultOpts
+
+isOption :: String -> Bool
+isOption ('-':_) = True
+isOption _ = False
+
 main :: IO ()
 main = do
   args <- getArgs
-  case args of
-    [fileName] -> do
-      fileData <- readFile fileName
 
-      let pikaModule = parse'' fileName parsePikaModule fileData
-          layouts = moduleLayouts pikaModule
+  let (args', opts) = parseOptions args 
 
-      mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
+  if (_optSelfTest opts)
+    then void Simplify.checkAllProps
+    else case args' of
+      [] | null args -> printHelp
+      _ | _optHelp opts -> printHelp
+      [fileName] -> do
 
-      case mapM_ (modeCheck layouts) layouts of
-        Left e -> do
-          putStrLn $ render $ text "Mode error:" <+> ppr e
-          exitFailure
-        Right () -> pure ()
+        fileData <- readFile fileName
 
-      withModule pikaModule
-    _ -> error "Wrong number of arguments. Expected 1"
+        let pikaModule = parse'' fileName parsePikaModule fileData
+            layouts = moduleLayouts pikaModule
 
-withModule :: PikaModule -> IO ()
-withModule pikaModule = do
+        mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
+
+        case mapM_ (modeCheck layouts) layouts of
+          Left e -> do
+            putStrLn $ render $ text "Mode error:" <+> ppr e
+            exitFailure
+          Right () -> pure ()
+
+        withModule opts pikaModule
+      _ -> error "Expected file name"
+
+withModule :: Options -> PikaModule -> IO ()
+withModule opts pikaModule = do
   forM_ (moduleGenerates pikaModule) $ \fnName ->
-    generateFn pikaModule fnName
+    generateFn opts pikaModule fnName
 
-generateFn :: PikaModule -> String -> IO ()
-generateFn pikaModule fnName = do
+generateFn :: Options -> PikaModule -> String -> IO ()
+generateFn opts pikaModule fnName = do
   putStrLn $ "*** " <> fnName <> " ***"
 
   putStrLn "- PikaCore:"
-  let pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName -- TODO: Add command line options to expose the simplifier options
+  pikaCore <- getPikaCore
   putStrLn $ ppr' pikaCore
   -- putStrLn $ show pikaCore
 
   -- putStrLn "- C:"
   -- putStrLn $ ppr' $ codeGenFn pikaCore
+  where
+    fuel = _optSimplifierFuel opts
 
+    getPikaCore
+      | _optSimplifierLog opts =
+          runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+      | otherwise =
+        pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
