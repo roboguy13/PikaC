@@ -12,6 +12,7 @@ import PikaC.Syntax.PikaCore.FnDef
 import PikaC.Syntax.ParserUtils
 
 import PikaC.Stage.ToPikaCore
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 -- import PikaC.Backend.C.CodeGen
 
@@ -53,7 +54,7 @@ generateFn pikaModule fnName = do
   putStrLn $ "*** " <> fnName <> " ***"
 
   putStrLn "- PikaCore:"
-  let pikaCore = toPikaCore (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+  let pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName -- TODO: Add command line options to expose the simplifier options
   putStrLn $ ppr' pikaCore
   -- putStrLn $ show pikaCore
 

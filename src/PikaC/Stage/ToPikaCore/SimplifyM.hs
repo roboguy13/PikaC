@@ -4,11 +4,18 @@
 module PikaC.Stage.ToPikaCore.SimplifyM
   (SimplifyFuel (..)
   ,SimplifyM
-  ,runSimplifyM
-  ,runQuiet
+  ,runSimplifyFn
+  ,runSimplifyFn'
+  -- ,runSimplifyM''
+
   ,Quiet
   ,LogIO
+  ,runQuiet
   ,runLogIO
+  ,runSimplifyQuiet
+  ,runSimplifyLogIO
+
+
   ,fixedPoint
   ,Logger (..)
   ,step
@@ -23,6 +30,7 @@ import Unbound.Generics.LocallyNameless
 
 import Control.Monad.State
 import Control.Monad.Identity
+import Control.Monad.Morph
 
 import Data.Proxy
 
@@ -37,7 +45,10 @@ data SimplifyFuel = Unlimited | Fuel Int
 newtype Quiet a = Quiet (Identity a)
   deriving (Functor, Applicative, Monad)
 
-newtype LogIO a = LogIO (IO a)
+runQuiet :: Quiet a -> a
+runQuiet (Quiet (Identity x)) = x
+
+newtype LogIO a = LogIO { runLogIO :: IO a }
   deriving (Functor, Applicative, Monad)
 
 instance Logger Quiet where
@@ -52,26 +63,50 @@ newtype SimplifyM m a = SimplifyM (FreshMT (StateT SimplifyFuel m) a)
 instance Logger m => Logger (SimplifyM m) where
   logM = SimplifyM . lift . lift . logM
 
-runSimplifyM :: (Logger m, Ppr a) => SimplifyFuel -> (a -> SimplifyM m a) -> a -> m a
-runSimplifyM fuel fn initial =
-  runSimplifyM' fuel $ do
+
+runSimplifyFn :: (Logger m, Ppr a) => SimplifyFuel -> (a -> SimplifyM m a) -> a -> m a
+runSimplifyFn fuel fn = runFreshMT . runSimplifyFn' fuel fn
+
+runSimplifyFn' :: (Logger m, Ppr a) => SimplifyFuel -> (a -> SimplifyM m a) -> a -> FreshMT m a
+runSimplifyFn' fuel fn initial =
+  runSimplifyM'' fuel $ do
     logM $ "With fuel " ++ show fuel ++ ", running simplifier on:\n" ++ ppr' initial
     r <- fn initial
     logM "Simplifer done.\n"
     pure r
 
-runQuiet :: (Ppr a) => SimplifyFuel -> (a -> SimplifyM Quiet a) -> a -> a
-runQuiet fuel fn initial =
-  let Quiet (Identity r) = runSimplifyM fuel fn initial
+runSimplifyQuiet :: (Ppr a) => SimplifyFuel -> (a -> SimplifyM Quiet a) -> a -> a
+runSimplifyQuiet fuel fn initial =
+  let Quiet (Identity r) = runSimplifyFn fuel fn initial
   in r
 
-runLogIO :: (Ppr a) => SimplifyFuel -> (a -> SimplifyM LogIO a) -> a -> IO a
-runLogIO fuel fn initial =
-  let LogIO m = runSimplifyM fuel fn initial
+runSimplifyLogIO :: (Ppr a) => SimplifyFuel -> (a -> SimplifyM LogIO a) -> a -> IO a
+runSimplifyLogIO fuel fn initial =
+  let LogIO m = runSimplifyFn fuel fn initial
   in m
 
 runSimplifyM' :: Monad m => SimplifyFuel -> SimplifyM m a -> m a
 runSimplifyM' fuel (SimplifyM act) = evalStateT (runFreshMT act) fuel
+
+runSimplifyM'' :: Monad m => SimplifyFuel -> SimplifyM m a -> FreshMT m a
+runSimplifyM'' fuel (SimplifyM act) = FreshMT $ do
+  ix <- get
+  let z = contFreshMT act ix
+  lift $ evalStateT z fuel
+
+-- liftFreshMT :: Monad m => FreshMT m a -> SimplifyM m a
+-- liftFreshMT act = SimplifyM (lift (_ act))
+
+-- runSimplifyM'' :: Monad m => SimplifyFuel -> SimplifyM m a -> FreshMT m a
+-- runSimplifyM'' fuel (SimplifyM act) =
+--   evalStateT _ fuel
+
+-- runSimplifyM :: SimplifyFuel -> (a -> SimplifyM m a) -> a -> Fresh (m a)
+-- runSimplifyM fuel f initial = undefined
+
+
+-- runSimplifyFreshM :: SimplifyFuel -> (a -> SimplifyM m a) -> a -> FreshMT m a
+-- runSimplifyFreshM fuel fn initial = undefined
 
 liftState :: Monad m => StateT SimplifyFuel m a -> SimplifyM m a
 liftState m = SimplifyM (lift m)

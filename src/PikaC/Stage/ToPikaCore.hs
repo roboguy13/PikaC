@@ -23,7 +23,9 @@ import PikaC.Ppr
 
 import PikaC.Stage.ToPikaCore.Monad
 import PikaC.Stage.ToPikaCore.Simplify
+
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 import PikaC.Utils
 
@@ -56,8 +58,8 @@ import Data.Char
 --      well-moded.
 --   2. There should be no LayoutLambda's
 --
-toPikaCore :: [Layout Pika.Expr] -> [Pika.FnDef] -> Pika.FnDef -> PikaCore.FnDef
-toPikaCore layouts0 globalFns fn = runFreshM . runPikaIntern' $ do
+toPikaCore :: forall m. Logger m => SimplifyFuel -> [Layout Pika.Expr] -> [Pika.FnDef] -> Pika.FnDef -> m PikaCore.FnDef
+toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
   let (argTypes, resultType) = splitFnType (_typeSigTy (Pika.fnDefTypeSig fn))
 
   layouts <- mapM (runPikaConvert'' mempty globalFns . convertLayout) layouts0
@@ -78,16 +80,16 @@ toPikaCore layouts0 globalFns fn = runFreshM . runPikaIntern' $ do
   branches' <-
     runPikaConvert'' layouts globalFns $ mapM (convertBranch openedArgLayouts) $ Pika.fnDefBranches fn
 
-  simplifyFnDef $
+  piLift . lift . runSimplifyFn @m simplifyFuel simplifyFnDef $
   -- pure $
     PikaCore.FnDef
-      { PikaCore._fnDefName = Pika.fnDefName fn
+      { PikaCore._fnDefName = PikaCore.FnName $ Pika.fnDefName fn
       , PikaCore._fnDefBranches =
           bind (concat inParams)
             (bind outParams branches')
       }
 
-convertBranch :: [Maybe ([ModedName PikaCore.Expr], OpenedLayout PikaCore.Expr)] -> Pika.FnDefBranch -> PikaConvert PikaCore.FnDefBranch
+convertBranch :: forall m. Monad m => [Maybe ([ModedName PikaCore.Expr], OpenedLayout PikaCore.Expr)] -> Pika.FnDefBranch -> PikaConvert m PikaCore.FnDefBranch
 convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
 
   let argMatches = map (map _layoutMatch) . map snd $ catMaybes openedArgLayouts
@@ -95,7 +97,7 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
   openedArgBranches <- mapM openPatternMatch $ concat argMatches
   openedLayoutBodies0 <- map snd <$>
     (mapM (freshOpen . snd) openedArgBranches
-      :: PikaConvert [([Name PikaCore.Expr], LayoutBody PikaCore.Expr)])
+      :: PikaConvert m [([Name PikaCore.Expr], LayoutBody PikaCore.Expr)])
 
   matches1 <- mapM convertPattern $ patternMatchesPats matches0
 
@@ -114,7 +116,7 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
     , PikaCore._fnDefBranchBody = bodyExpr'
     }
 
-convertPatternMatches :: Maybe [LayoutBody PikaCore.Expr] -> PatternMatches Pika.Expr Pika.Expr -> PikaConvert (PatternMatches PikaCore.Expr PikaCore.Expr)
+convertPatternMatches :: Monad m => Maybe [LayoutBody PikaCore.Expr] -> PatternMatches Pika.Expr Pika.Expr -> PikaConvert m (PatternMatches PikaCore.Expr PikaCore.Expr)
 convertPatternMatches argLayoutBodies =
   onPatternMatches internExprName (convertExpr argLayoutBodies)
 
@@ -122,19 +124,19 @@ getParameters :: Fresh m => Maybe ([Moded PikaCore.ExprName], OpenedLayout PikaC
 getParameters Nothing = ((:[]) . Moded In) <$> fresh (string2Name "ww")
 getParameters (Just (vars, _)) = pure vars
 
-convertAppHereUsing :: HasCallStack =>
+convertAppHereUsing :: (Monad m, HasCallStack) =>
   Maybe [LayoutBody PikaCore.Expr] -> Pika.Expr ->
   Layout PikaCore.Expr ->
-  PikaConvert PikaCore.Expr
+  PikaConvert m PikaCore.Expr
 convertAppHereUsing opened e layout = do
   let params0 = getLayoutParams layout
   params <- mapM (fresh . modedNameName) params0
   let modedParams = zipWith Moded (map getMode params0) params
   convertApp opened e (modedParams, PikaCore.LayoutV (map PikaCore.V params))
 
-convertAppHere :: HasCallStack =>
+convertAppHere :: (Monad m, HasCallStack) =>
   Maybe [LayoutBody PikaCore.Expr] -> Pika.Expr ->
-  PikaConvert PikaCore.Expr
+  PikaConvert m PikaCore.Expr
 convertAppHere opened e@(Pika.ApplyLayout _ layoutName) = do
   layout <- lookupLayoutM (name2String layoutName)
   convertAppHereUsing opened e layout
@@ -147,39 +149,39 @@ convertAppHere opened e@(Pika.App f args)
       convertAppHereUsing opened e layout
 convertAppHere opened e = convertExpr opened e
 
-convertApps :: HasCallStack =>
+convertApps :: (Monad m, HasCallStack) =>
   Maybe [LayoutBody PikaCore.Expr] -> Pika.Expr ->
   [([ModedName PikaCore.Expr], PikaCore.Expr)] ->
-  PikaConvert PikaCore.Expr
+  PikaConvert m PikaCore.Expr
 convertApps opened e [] = convertExpr opened e
 convertApps opened e ((vs, z) : rest) = undefined
   -- convertApp opened e vs (
 
-convertApp :: HasCallStack =>
+convertApp :: (Monad m, HasCallStack) =>
   Maybe [LayoutBody PikaCore.Expr] -> Pika.Expr ->
   ([ModedName PikaCore.Expr], PikaCore.Expr) ->
-  PikaConvert PikaCore.Expr
+  PikaConvert m PikaCore.Expr
 convertApp openedArgLayouts (Pika.ApplyLayout app@(Pika.App f args) layoutName) (vs, z)
   -- | isConstructor f =
   --     lowerConstructor openedArgLayouts f args (name2String layoutName)
   -- | otherwise =
   | not (isConstructor f) =
-      lowerApp openedArgLayouts f args (name2String layoutName) (vs, z)
+      lowerApp openedArgLayouts (PikaCore.FnName f) args (name2String layoutName) (vs, z)
 convertApp openedArgLayouts e0@(Pika.App f args) (vs, z)
   | isConstructor f = error $ "convertApp: Found constructor that's not applied to a layout: " ++ ppr' e0
   | otherwise = do
         -- TODO: Handle base types
       TyVar layoutName <- lookupFnResultType f
-      lowerApp openedArgLayouts f args (name2String layoutName) (vs, z)
+      lowerApp openedArgLayouts (PikaCore.FnName f) args (name2String layoutName) (vs, z)
 convertApp openedArgLayouts e (vs, z) =
   PikaCore.WithIn
     <$> convertExpr openedArgLayouts e
     <*> pure (bind vs z)
 
-lowerApp :: 
-  Maybe [LayoutBody PikaCore.Expr] -> String -> [Pika.Expr] -> String ->
+lowerApp ::  Monad m =>
+  Maybe [LayoutBody PikaCore.Expr] -> PikaCore.FnName -> [Pika.Expr] -> String ->
   ([ModedName PikaCore.Expr], PikaCore.Expr) ->
-  PikaConvert PikaCore.Expr
+  PikaConvert m PikaCore.Expr
 lowerApp openedArgLayouts f args layoutName (vs, z) = do
   args' <- mapM (convertExpr openedArgLayouts) args
   pure $
@@ -187,10 +189,10 @@ lowerApp openedArgLayouts f args layoutName (vs, z) = do
       (PikaCore.App f args')
       (bind vs z)
 
-lowerConstructor :: 
+lowerConstructor :: Monad m =>
   Maybe [LayoutBody PikaCore.Expr] -> String -> [Pika.Expr] -> String ->
   -- ([ModedName PikaCore.Expr], PikaCore.Expr) ->
-  PikaConvert PikaCore.Expr
+  PikaConvert m PikaCore.Expr
 lowerConstructor openedArgLayouts f args layoutName
   | not (isConstructor f) = error $ "lowerConstructor: Requires constructor, got " ++ f
   | otherwise = do
@@ -203,7 +205,7 @@ lowerConstructor openedArgLayouts f args layoutName
       convertLApplies params body
 
 -- LApply --> WithIn
-convertLApply :: String -> PikaCore.Expr -> [PikaCore.Expr] -> PikaCore.Expr -> PikaConvert PikaCore.Expr
+convertLApply :: Monad m => String -> PikaCore.Expr -> [PikaCore.Expr] -> PikaCore.Expr -> PikaConvert m PikaCore.Expr
 convertLApply layoutName exprArg layoutVarExprs restExpr = do
   let layoutVars = map getV layoutVarExprs
 
@@ -217,10 +219,10 @@ convertLApply layoutName exprArg layoutVarExprs restExpr = do
       (bind (zipWith Moded paramModes layoutVars)
         restExpr)
 
-convertLApplies ::
+convertLApplies :: Monad m =>
   [ModedName PikaCore.Expr] ->
   [LayoutHeaplet PikaCore.Expr] ->
-  PikaConvert PikaCore.Expr
+  PikaConvert m PikaCore.Expr
 convertLApplies names heaplets = do
   let (pointsTos, applies) = splitLayoutHeaplets heaplets
   go applies (PikaCore.SslAssertion (bind names pointsTos))
@@ -230,10 +232,10 @@ convertLApplies names heaplets = do
       convertLApply layoutName exprArg layoutVarExprs
         =<< go xs z
 
-convertExpr :: HasCallStack => Maybe [LayoutBody PikaCore.Expr] -> Pika.Expr -> PikaConvert PikaCore.Expr
+convertExpr :: forall m. (Monad m, HasCallStack) => Maybe [LayoutBody PikaCore.Expr] -> Pika.Expr -> PikaConvert m PikaCore.Expr
 convertExpr openedArgLayouts = go
   where
-    go :: Pika.Expr -> PikaConvert PikaCore.Expr
+    go :: Pika.Expr -> PikaConvert m PikaCore.Expr
     go (Pika.V x) = do
       x' <- internExprName x
       case lookupVar openedArgLayouts x' of
@@ -290,7 +292,7 @@ instance Subst [ModedName Pika.Expr] Pika.Expr
 instance Subst [ModedName Pika.Expr] Mode
 instance Subst [ModedName Pika.Expr] AdtName
 
-convertLayout :: HasCallStack => Layout Pika.Expr -> PikaConvert (Layout PikaCore.Expr)
+convertLayout :: (Monad m, HasCallStack) => Layout Pika.Expr -> PikaConvert m (Layout PikaCore.Expr)
 convertLayout layout0 = do
   branches <- onBind (mapM internModedExprName) (mapM convertLayoutBranch) $ _layoutBranches layout0
   -- params <- mapM internModedExprName $ _layoutSigParams $ _layoutSig layout0
@@ -302,19 +304,19 @@ convertLayout layout0 = do
     , _layoutAdt = _layoutAdt layout0
     }
 
-convertLayoutBranch :: HasCallStack => LayoutBranch Pika.Expr -> PikaConvert (LayoutBranch PikaCore.Expr)
+convertLayoutBranch :: forall m. (Monad m, HasCallStack) => LayoutBranch Pika.Expr -> PikaConvert m (LayoutBranch PikaCore.Expr)
 convertLayoutBranch (LayoutBranch branch) = do
     LayoutBranch <$> onPatternMatch internExprName goExists branch
   where
     goExists ::
       Bind [Exists Pika.Expr] (LayoutBody Pika.Expr) ->
-      PikaConvert (Bind [Exists PikaCore.Expr] (LayoutBody PikaCore.Expr))
+      PikaConvert m (Bind [Exists PikaCore.Expr] (LayoutBody PikaCore.Expr))
     goExists = onBind (mapM internExists) (fmap LayoutBody . go . _unLayoutBody)
 
-    go :: [LayoutHeaplet Pika.Expr] -> PikaConvert [LayoutHeaplet PikaCore.Expr]
+    go :: [LayoutHeaplet Pika.Expr] -> PikaConvert m [LayoutHeaplet PikaCore.Expr]
     go = traverse go'
 
-    go' :: LayoutHeaplet Pika.Expr -> PikaConvert (LayoutHeaplet PikaCore.Expr)
+    go' :: LayoutHeaplet Pika.Expr -> PikaConvert m (LayoutHeaplet PikaCore.Expr)
     go' (LApply layoutName patVar vs) = do
       patVar' <- convertExpr mempty patVar
       vs' <- mapM internExprName (map getName vs)
@@ -325,7 +327,7 @@ convertLayoutBranch (LayoutBranch branch) = do
       b' <- convertExpr mempty b
       pure (LPointsTo ((PikaCore.V a' :+ i) :-> b'))
 
-convertPattern :: Pattern Pika.Expr -> PikaConvert (Pattern PikaCore.Expr)
+convertPattern :: Monad m => Pattern Pika.Expr -> PikaConvert m (Pattern PikaCore.Expr)
 convertPattern (PatternVar v) =
   PatternVar <$> internExprName v
 convertPattern (Pattern constructor vars) =

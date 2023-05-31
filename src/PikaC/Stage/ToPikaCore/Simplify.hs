@@ -73,7 +73,7 @@ myTraceWith f x = trace (f x) x
 propPreserves_valid :: (FnDef -> SimplifyM Quiet FnDef) -> Property
 propPreserves_valid pass =
   forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
-    let result = runQuiet Unlimited pass fnDef
+    let result = runSimplifyQuiet Unlimited pass fnDef
     in
     case prettyValidate result of
       -- Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False

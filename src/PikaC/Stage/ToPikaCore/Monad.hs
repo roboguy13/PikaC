@@ -52,38 +52,44 @@ newtype PikaConvertState =
 
 makeLenses ''PikaConvertState
 
-newtype PikaIntern a = PikaIntern { getPikaIntern :: StateT PikaConvertState FreshM a }
+newtype PikaIntern m a = PikaIntern { getPikaIntern :: StateT PikaConvertState (FreshMT m) a }
   deriving (Functor, Applicative, Monad, MonadState PikaConvertState, Fresh)
 
-runPikaIntern' :: PikaIntern a -> FreshM a
+runPikaIntern' :: Monad m => PikaIntern m a -> FreshMT m a
 runPikaIntern' (PikaIntern m) =
   evalStateT m (PikaConvertState mempty)
 
 type MonadPikaIntern m = (Fresh m, MonadState PikaConvertState m)
 
-newtype PikaConvert a = PikaConvert (ReaderT PikaConvertEnv PikaIntern a)
+newtype PikaConvert m a = PikaConvert (ReaderT PikaConvertEnv (PikaIntern m) a)
   deriving (Functor, Applicative, Monad, MonadState PikaConvertState, MonadReader PikaConvertEnv, Fresh)
 
-instance MonadFail PikaConvert where
+instance Monad m => MonadFail (PikaConvert m) where
   fail = error
 
-runPikaConvert :: LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert a -> a
-runPikaConvert layouts globalFns =
-  runFreshM . runPikaConvert' layouts globalFns
+piLift :: Monad m => FreshMT m a -> PikaIntern m a
+piLift = PikaIntern . lift
 
-runPikaConvert' :: LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert a -> FreshM a
+pcLift :: Monad m => FreshMT m a -> PikaConvert m a
+pcLift = PikaConvert . lift . piLift
+
+runPikaConvert :: Monad m => LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> m a
+runPikaConvert layouts globalFns =
+  runFreshMT . runPikaConvert' layouts globalFns
+
+runPikaConvert' :: Monad m => LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> FreshMT m a
 runPikaConvert' layouts globalFns =
   runPikaIntern' . runPikaConvert'' layouts globalFns
 
-runPikaConvert'' :: LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert a -> PikaIntern a
+runPikaConvert'' :: LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> PikaIntern m a
 runPikaConvert'' layouts globalFns (PikaConvert m) = runReaderT m (PikaConvertEnv layouts globalFns)
 
-lookupLayoutM :: String -> PikaConvert (Layout PikaCore.Expr)
+lookupLayoutM :: Monad m => String -> PikaConvert m (Layout PikaCore.Expr)
 lookupLayoutM layoutName = do
   layouts <- asks _layoutEnv
   pure $ lookupLayout layouts layoutName
 
-lookupFnDef :: HasCallStack => String -> PikaConvert Pika.FnDef
+lookupFnDef :: (Monad m, HasCallStack) => String -> PikaConvert m Pika.FnDef
 lookupFnDef name = go <$> asks _globalFns
   where
     go [] = error $ "lookupFnDef: Cannot find function " ++ name
@@ -91,10 +97,10 @@ lookupFnDef name = go <$> asks _globalFns
       | Pika.fnDefName x == name = x
       | otherwise = go xs
 
-lookupFnTypeSig :: HasCallStack => String -> PikaConvert TypeSig
+lookupFnTypeSig :: (Monad m, HasCallStack) => String -> PikaConvert m TypeSig
 lookupFnTypeSig name = Pika.fnDefTypeSig <$> lookupFnDef name
 
-lookupFnResultType :: HasCallStack => String -> PikaConvert Type
+lookupFnResultType :: (Monad m, HasCallStack) => String -> PikaConvert m Type
 lookupFnResultType fnName = do
   sig <- lookupFnTypeSig fnName
   case _typeSigLayoutConstraints sig of
