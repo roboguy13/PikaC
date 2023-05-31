@@ -29,6 +29,7 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Type
 
 import Control.Lens hiding (elements)
+import Control.Lens.Extras
 import Control.Lens.Action
 
 import GHC.Generics hiding (to)
@@ -383,19 +384,41 @@ instance Validity Expr where
 exprIsOk :: Expr -> Validation
 exprIsOk = mconcat . map go . universe
   where
+    go (App _ _ []) = invalid "Application must have at least one argument"
+    go (App _ [] _) = invalid "Application must have at least one output size"
+    go (App _ szs _)
+      | not (all (> 0) szs) = invalid "All sizes in application must by positive"
     go (SslAssertion (B _ [])) = invalid "Empty assertion"
     go (WithIn _ (B [] _)) = invalid "with-in with empty variable list"
     go _ = mempty
+
+exprBasicArgs :: Expr -> Validation
+exprBasicArgs = mconcat . map go . universe
+  where
+    go (App _ _ xs) =
+      check (all (not . is _App) xs) "No nested applications"
+      <> mconcat (map goWithIn (filter (is _WithIn) xs))
+    go _ = mempty
+
+    goWithIn (WithIn b (B _ e)) =
+      check (isSimpleArg b) "All with-ins that appear as arguments must only bind basic expressions"
+      <> check (isSimpleArg e) "All with-ins that appear as arguments must have basic bodies"
+      -- check (not (is _App e)) "No applications in with-in that are themselves arguments to applications"
+    goWithIn _ = mempty
 
 exprIsSimplified :: Expr -> Validation
 exprIsSimplified e0 = exprIsOk e0 <> mconcat (map go (universe e0))
   where
     go (App _ _ xs) =
-      check (all isBasic xs) "Function should be applied to base expressions"
+      check (all isSimpleArg xs) "Function should be applied to base expressions"
     go (WithIn (WithIn _ _) _) = invalid "Nested with-ins"
     go (SslAssertion (B _ xs)) =
       decorate "in assertion" $ mconcat $ map validate xs
     go _ = mempty
+
+isSimpleArg :: Expr -> Bool
+isSimpleArg (LayoutV {}) = True
+isSimpleArg e = isBasic e
 
 genValidExpr :: [Name Expr] -> Gen Expr
 genValidExpr bvs = sized (genValidExpr' bvs)

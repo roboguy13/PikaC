@@ -143,7 +143,8 @@ instance Arbitrary FnDef where
   shrink = filter isValid . genericShrink
 
 instance Arbitrary FnDefBranch where
-  arbitrary = genValidBranch [] [] -- NOTE: Only closed FnDefBranch's
+  arbitrary = error "Arbitrary FnDefBranch"
+  -- arbitrary = genValidBranch [] [] -- NOTE: Only closed FnDefBranch's
   shrink = genericShrink
 
 --   shrink fnDef = do
