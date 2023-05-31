@@ -254,7 +254,6 @@ getLayoutParams layout =
 unbindLayout :: (Fresh m, Typeable a, Alpha a) => Layout a -> m ([ModedName a], [LayoutBranch a])
 unbindLayout = unbind . _layoutBranches
 
-
 instance (Subst (Moded a) (Exists a), Alpha a, Typeable a, Subst (Moded a) a) => Subst (Moded a) (LayoutBranch a)
 instance Subst (Moded a) a => Subst (Moded a) (Pattern a)
 instance Subst (Moded a) a => Subst (Moded a) (LayoutBody a)
@@ -481,6 +480,31 @@ getPointsTos b@(LayoutBody xs0) = go xs0
     go [] = []
     go (LApply {} : xs) = go xs
     go (LPointsTo p : xs) = p : go xs
+
+getLApplies :: LayoutBody a -> [(String, a, [a])]
+getLApplies b@(LayoutBody xs0) = go xs0
+  where
+    go [] = []
+    go ((LApply n e vs) : xs) = (n, e, vs) : go xs
+    go (LPointsTo {} : xs) = go xs
+
+layoutMaxAllocs :: forall a. (IsName a a, Subst a (Layout a), Subst a (LayoutBranch a), Typeable a, Alpha a) => [Layout a] -> [LayoutBody a] -> [Allocation a]
+layoutMaxAllocs layouts = toMaxAllocs . concatMap (go . _unLayoutBody)
+  where
+    go :: [LayoutHeaplet a] -> [Allocation a]
+    go [] = []
+    go (LApply n e vs : xs) =
+      let layout = lookupLayout layouts n
+          branches = instantiate (_layoutBranches layout) vs
+      in
+        concatMap (go' vs) branches ++ go xs
+    go (LPointsTo {} : xs) = go xs
+
+    go' vs (LayoutBranch (PatternMatch m)) =
+      let B _ bnd1 = m
+          B _ body = bnd1
+      in
+      findAllocations (map getName vs) $ getPointsTos body
 
 -- -- A e [x ...]
 -- substLApplies

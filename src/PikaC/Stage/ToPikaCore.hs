@@ -109,10 +109,13 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
   bodyExpr' <- convertExpr (Just openedLayoutBodies) bodyExpr
 
   -- inAsns <- zipWithM getAssertion openedArgLayouts $ patternMatchesPats matches
+  layouts <- asks _layoutEnv
   let inAsns = map getPointsTos openedLayoutBodies
+      allocs = layoutMaxAllocs layouts openedLayoutBodies
 
   pure $ PikaCore.FnDefBranch
     { PikaCore._fnDefBranchInputAssertions = inAsns
+    , PikaCore._fnDefBranchInAllocs = allocs
     , PikaCore._fnDefBranchBody = bodyExpr'
     }
 

@@ -26,6 +26,7 @@ import Unbound.Generics.LocallyNameless.Bind
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
+import PikaC.Syntax.Type
 
 import Control.Lens hiding (elements)
 import Control.Lens.Action
@@ -78,6 +79,7 @@ data Expr
 
   | App FnName [Expr] -- | Fully saturated function application
   deriving (Show, Generic)
+
 
 type FnName = FnName' String
 newtype FnName' a = FnName a
@@ -241,6 +243,8 @@ getPointsToExpr e = e ^!! (cosmos . _SslAssertion . to unbind' . acts . _2 . tra
 --   ppr (LayoutArg xs) = text "{" <+> hsep (punctuate (text ",") (map ppr xs)) <+> text "}"
 
 instance Subst (Exists Expr) Expr
+instance Subst Expr (Layout Expr)
+instance Subst Expr AdtName
 
 instance Ppr Expr where
   ppr = runFreshM . pprExpr

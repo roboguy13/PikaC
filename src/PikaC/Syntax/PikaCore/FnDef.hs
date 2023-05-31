@@ -49,6 +49,7 @@ data FnDefBranch =
   FnDefBranch
   -- { _fnDefOutputParams :: [ModedName Expr]
   { _fnDefBranchInputAssertions :: [ExprAssertion]
+  , _fnDefBranchInAllocs :: [Allocation Expr]
   , _fnDefBranchBody :: Expr
   }
   deriving (Show, Generic)
@@ -115,6 +116,7 @@ pprBranch outParams doc branch = do
     pure $ (doc <+>
       sep
         [ hsep [hsep $ punctuate (text " ") (map ppr (_fnDefBranchInputAssertions branch))
+                , hsep $ map ppr (_fnDefBranchInAllocs branch)
                 , text "==>"
                 , text "{" <+> hsep (punctuate (text ",") (map ppr outParams)) <+> text "}"
                 , text ":="
@@ -141,6 +143,7 @@ instance Arbitrary FnDef where
 instance Arbitrary FnDefBranch where
   arbitrary = genValidBranch [] [] -- NOTE: Only closed FnDefBranch's
   shrink = genericShrink
+
 --   shrink fnDef = do
 --     let (inVars, bnd1) = unsafeUnbind $ _fnDefBranches fnDef
 --         (outVars, branches) = unsafeUnbind bnd1
@@ -220,7 +223,8 @@ genValidBranch' outVars modedBvs size = do
     -- TODO: Figure this out:
     -- e <- genValidExpr' (asnName : bvs) (size `div` 2)
     e <- genValidExpr' bvs (size `div` 2)
-    pure $ FnDefBranch inAsns e
+    allocs <- genValidAllocations $ concat inAsns
+    pure $ FnDefBranch inAsns allocs e
   where
     bvs = map modedNameName modedBvs
     asnName = newName bvs
@@ -228,4 +232,13 @@ genValidBranch' outVars modedBvs size = do
     genAsnVar names = do
       name <- elements names
       pure $ V name
+
+genValidAllocations :: IsName a a => [PointsTo a] -> Gen [Allocation a]
+genValidAllocations = mapM genValidAllocation
+
+genValidAllocation :: IsName a a => PointsTo a -> Gen (Allocation a)
+genValidAllocation (_ :-> rhs) = do
+  sz <- choose (0, 5)
+  let n = getName rhs
+  pure (Alloc n sz)
 

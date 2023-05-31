@@ -25,12 +25,16 @@ import Unbound.Generics.LocallyNameless
 import GHC.Generics
 import Data.Data
 
+import Data.Ord
+
 import Control.Lens.Plated
 import Control.Lens hiding (elements)
 
 import Control.Monad
 
 import Test.QuickCheck
+
+import GHC.Stack
 
 type LayoutArg a = [Name a]
 
@@ -113,11 +117,25 @@ locIx (_ :+ i) = i
 -- pointsToNames :: Eq a => [PointsTo a] -> [a]
 -- pointsToNames = nub . map (locBase . pointsToLhs)
 
-data Allocation a = Alloc (Name a) Int
-  deriving (Show)
+data Allocation a = Alloc { allocName :: Name a, allocSize :: Int }
+  deriving (Show, Generic)
+
+instance Ppr a => Ppr (Allocation a) where
+  ppr (Alloc n sz) = text "[[" <> ppr n <> text "," <> text (show sz) <> text "]]"
 
 locsPossiblyWrittenTo :: [PointsTo a] -> [Loc a]
 locsPossiblyWrittenTo = map pointsToLhs
+
+lookupAllocation :: HasCallStack => [Allocation a] -> Name a -> Int
+lookupAllocation allocs n =
+  case find ((== n) . allocName) allocs of
+    Just r -> allocSize r
+    Nothing -> error $ "Cannot find allocation for " ++ ppr' n
+
+toMaxAllocs :: [Allocation a] -> [Allocation a]
+toMaxAllocs allocs0 = map go $ fastNub $ map allocName allocs0
+  where
+    go n = maximumBy (comparing allocSize) $ filter ((== n) . allocName) allocs0
 
 findAllocations :: forall a. (Alpha a, IsName a a) => [Name a] -> [PointsTo a] -> [Allocation a]
 findAllocations names xs = map toAlloc locMaximums
@@ -136,7 +154,14 @@ findAllocations names xs = map toAlloc locMaximums
     toAlloc :: Loc a -> Allocation a
     toAlloc (x :+ i) = Alloc (getName x) (i + 1)
 
+instance Subst a a => Subst a (Allocation a)
+instance (Alpha a, Typeable a) => Alpha (Allocation a)
+
 -- Property testing --
+
+instance Arbitrary a => Arbitrary (Allocation a) where
+  arbitrary = Alloc <$> arbitrary <*> choose (0, 10)
+  shrink = genericShrink
 
 instance (IsBase a, Arbitrary a) => Arbitrary (Loc a) where
   arbitrary = liftA2 (:+) (arbitrary `suchThat` isVar) arbitrary
