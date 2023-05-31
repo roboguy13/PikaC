@@ -79,7 +79,7 @@ instance Ppr Command where
       go (IntoMalloc size bnd) = do
         (target, body) <- unbind bnd
         bodyDocs <- mapM go body
-        pure $ text "{" $$ hsep [text "loc", ppr target, text "=", text "(loc)malloc(" <> ppr size <> text " * sizeof(loc));"] $$ vcat bodyDocs $$ text "}"
+        pure $ hsep [text "loc", ppr target, text "=", text "(loc)malloc(" <> ppr size <> text " * sizeof(loc));"] $$ vcat bodyDocs
 
       go (Free x) =
         pure $ hsep [text "free(", ppr x, text ");"]
@@ -89,8 +89,8 @@ instance Ppr Command where
         (var, body) <- unbind bnd
         bodyDocs <- mapM go body
         pure $
-          text "{" $$ (text "loc" <+> ppr var <+> text "=" <+> readLoc x)
-          $$ vcat bodyDocs $$ text "}"
+          (text "loc" <+> ppr var <+> text "=" <+> readLoc x)
+          $$ vcat bodyDocs
       go Nop = pure mempty --text ";"
 
 writeLoc :: Ppr b => CLoc -> b -> Doc
