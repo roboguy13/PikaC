@@ -111,17 +111,13 @@ optHandlers =
 printHelp :: IO ()
 printHelp = mapM_ go optHandlers
   where
-    longestOptNameLen = maximum $ map (length . optHandlerName) optHandlers
+    namesWithArgs =
+      map (\h -> optHandlerName h ++ " " ++ fromMaybe "" (optHandlerArgDescription h)) optHandlers
+    longestOptLen = maximum $ map length namesWithArgs
     go h =
-      printf ("%-" ++ show longestOptNameLen ++ "s %s   %s\n")
-        (optHandlerName h)
-        (fromMaybe "" (optHandlerArgDescription h))
+      printf ("%-" ++ show longestOptLen ++ "s   %s\n")
+        (optHandlerName h ++ " " ++ fromMaybe "" (optHandlerArgDescription h))
         (optHandlerDescription h)
-
--- option :: String -> String -> (([String], Options) -> ([String], Options)) -> OptionHandler
--- option optName description setter orig@(opts, args)
---   | optName `elem` args = (setter opts, delete optName args)
---   | otherwise           = orig
 
 parseOptions' :: Options -> [String] -> ([String], Options)
 parseOptions' opts [] = ([], opts)
@@ -193,4 +189,5 @@ generateFn opts pikaModule fnName = do
       | _optSimplifierLog opts =
           runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
       | otherwise =
-        pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+
