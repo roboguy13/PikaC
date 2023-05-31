@@ -121,6 +121,7 @@ instance Subst Expr (Pattern Expr)
 
 instance Subst (Moded Expr) Expr
 instance Subst (Moded Expr) AdtName
+instance Subst Expr (Layout Expr)
 
 makePrisms ''Expr
 

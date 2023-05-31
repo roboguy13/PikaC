@@ -488,23 +488,34 @@ getLApplies b@(LayoutBody xs0) = go xs0
     go ((LApply n e vs) : xs) = (n, e, vs) : go xs
     go (LPointsTo {} : xs) = go xs
 
-layoutMaxAllocs :: forall a. (IsName a a, Subst a (Layout a), Subst a (LayoutBranch a), Typeable a, Alpha a) => [Layout a] -> [LayoutBody a] -> [Allocation a]
-layoutMaxAllocs layouts = toMaxAllocs . concatMap (go . _unLayoutBody)
+maxAllocsForLayout :: forall a. (HasVar a, IsName a a, Subst a (Layout a), Subst a (LayoutBranch a), Typeable a, Alpha a) => Layout a -> [Name a] -> [Allocation a]
+maxAllocsForLayout layout params =
+    let branches = instantiate (_layoutBranches layout) (map mkVar params)
+    in
+      concatMap go branches
+  where
+    go (LayoutBranch (PatternMatch m)) =
+      let B _ bnd1 = m
+          B _ body = bnd1
+      in
+      findAllocations params $ getPointsTos body
+
+layoutLAppliesMaxAllocs :: forall a. (HasVar a, IsName a a, Subst a (Layout a), Subst a (LayoutBranch a), Typeable a, Alpha a) => [Layout a] -> [LayoutBody a] -> [Allocation a]
+layoutLAppliesMaxAllocs layouts = toMaxAllocs . concatMap (go . _unLayoutBody)
   where
     go :: [LayoutHeaplet a] -> [Allocation a]
     go [] = []
     go (LApply n e vs : xs) =
       let layout = lookupLayout layouts n
-          branches = instantiate (_layoutBranches layout) vs
       in
-        concatMap (go' vs) branches ++ go xs
+        maxAllocsForLayout layout (map getName vs) ++ go xs
     go (LPointsTo {} : xs) = go xs
 
-    go' vs (LayoutBranch (PatternMatch m)) =
-      let B _ bnd1 = m
-          B _ body = bnd1
-      in
-      findAllocations (map getName vs) $ getPointsTos body
+    -- go' vs (LayoutBranch (PatternMatch m)) =
+    --   let B _ bnd1 = m
+    --       B _ body = bnd1
+    --   in
+    --   findAllocations (map getName vs) $ getPointsTos body
 
 -- -- A e [x ...]
 -- substLApplies

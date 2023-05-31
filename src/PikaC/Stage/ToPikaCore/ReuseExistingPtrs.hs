@@ -57,7 +57,7 @@ go asns (Sub x y) = liftA2 Sub (go asns x) (go asns y)
 go asns (Equal x y) = liftA2 Equal (go asns x) (go asns y)
 go asns (Not x) = fmap Not (go asns x)
 go asns (And x y) = liftA2 And (go asns x) (go asns y)
-go asns (App f xs) = App f <$> mapM (go asns) xs
+go asns (App f sz xs) = App f sz <$> mapM (go asns) xs
 go asns (WithIn (SslAssertion asnBnd) bodyBnd) = do
   (asnVars, asn) <- unbind asnBnd
   (bodyVars, body) <- unbind bodyBnd

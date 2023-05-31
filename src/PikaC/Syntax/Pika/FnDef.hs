@@ -4,6 +4,8 @@ module PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Type
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.Expr
+import PikaC.Syntax.Pika.Layout
+import PikaC.Syntax.Heaplet
 
 import PikaC.Ppr
 import PikaC.Utils
@@ -26,6 +28,22 @@ newtype FnDefBranch =
     -- , fnBranchBody :: Bind [ExprName] Expr
     -- }
   deriving (Show)
+
+getResultAllocSize :: [Layout Expr] -> FnDef -> [ExprName] -> [Allocation Expr]
+getResultAllocSize layouts fnDef outParams =
+  let TypeSig _ ty = fnDefTypeSig fnDef
+      (_, TyVar layoutName) = splitFnType ty
+      layout = lookupLayout layouts (name2String layoutName)
+  in
+  maxAllocsForLayout layout outParams
+
+getResultAllocSizeInts :: [Layout Expr] -> FnDef -> [Int]
+getResultAllocSizeInts layouts fnDef =
+  let TypeSig _ ty = fnDefTypeSig fnDef
+      (_, TyVar layoutName) = splitFnType ty
+      layout = lookupLayout layouts (name2String layoutName)
+  in
+  map allocSize $ getResultAllocSize layouts fnDef $ map modedNameName $ getLayoutParams layout
 
 instance Ppr FnDef where
   ppr fn =

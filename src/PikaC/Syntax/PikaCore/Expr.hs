@@ -64,6 +64,8 @@ data Expr
   -- | App (Expr a) (LayoutArg a)
   | WithIn                -- with
       Expr
+      -- [Allocation Expr]
+      -- [Int] -- Allocation sizes for the names
       (Bind [ModedName Expr]
         Expr)
       -- Expr                --     := e
@@ -77,7 +79,10 @@ data Expr
       -- (LayoutArg Expr)     --     {x ...}
       -- ExprAssertion     --   { (x+1) :-> e ** ... }
 
-  | App FnName [Expr] -- | Fully saturated function application
+  | App -- | Fully saturated function application
+      FnName
+      [Int] -- | Allocation size for results
+      [Expr]
   deriving (Show, Generic)
 
 
@@ -124,7 +129,7 @@ instance Plated Expr where
     let z = plate (traverseOf (traversed.pointsToRhsLens) f) b
     in
     SslAssertion . B a <$> z
-  plate f (App x ys) = App x <$> traverse f ys
+  plate f (App x sz ys) = App x sz <$> traverse f ys
 
 type PointsToExpr = PointsTo Expr
 type ExprAssertion = [PointsToExpr]
@@ -132,7 +137,7 @@ type ExprAssertion = [PointsToExpr]
 makePrisms ''Expr
 
 instance HasApp Expr where
-  mkApp = App . FnName
+  mkApp x y = App (FnName x) [] y
 
 -- example :: SimpleExpr
 -- example =
@@ -245,6 +250,10 @@ getPointsToExpr e = e ^!! (cosmos . _SslAssertion . to unbind' . acts . _2 . tra
 instance Subst (Exists Expr) Expr
 instance Subst Expr (Layout Expr)
 instance Subst Expr AdtName
+instance Subst (Exists Expr) (Allocation Expr)
+instance Subst (Moded (Name Expr)) (Allocation Expr)
+instance Subst (Moded Expr) (Allocation Expr)
+instance Subst (Name Expr) (Allocation Expr)
 
 instance Ppr Expr where
   ppr = runFreshM . pprExpr
@@ -256,7 +265,7 @@ pprExpr (WithIn e bnd) = do
   (vars, body) <- freshOpen @_ @Name bnd
   bodyDoc <- pprExpr body
   eDoc <- pprExpr e
-  pure $ sep [hsep [text "with {", hsep . punctuate (text ",") $ map go vars, text "} :=", eDoc], text "in", bodyDoc]
+  pure $ sep [hsep ([text "with {", hsep . punctuate (text ",") $ map go vars, text "} :=", eDoc]), text "in", bodyDoc]
     where
       go x = text "<" <> ppr x <> text ">"
 
@@ -288,9 +297,9 @@ pprExpr (And x y) = do
   xDoc <- pprExprP x
   yDoc <- pprExprP y
   pure $ sep [xDoc, text "&&", yDoc]
-pprExpr (App f x) = do
+pprExpr (App f sz x) = do
   xDoc <- mapM pprExprP x
-  pure $ ppr f <+> hsep xDoc
+  pure $ ppr f <+> (text "[[" <> text (show sz) <> text "]]") <+> hsep xDoc
 
 pprExprP :: Expr -> FreshM Doc
 pprExprP e
@@ -326,6 +335,9 @@ isBase _ = False
 getV :: HasCallStack => Expr -> Name Expr
 getV (V x) = x
 getV e = error $ "getV: " ++ ppr' e
+
+modedExpr :: ModedName Expr -> Moded Expr
+modedExpr (Moded m v) = Moded m (V v)
 
 -- Property testing --
 
@@ -434,14 +446,15 @@ genValidExpr' bvs size =
 
     ,do
       isBinary <- arbitrary :: Gen Bool
+      sz <- choose (1, 3)
       if isBinary
         then do
           x <- halvedGen
           y <- halvedGen
-          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [x, y]
+          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [sz] <*> pure [x, y]
         else do
           x <- genValidExpr' bvs (size - 1)
-          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [x]
+          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [sz] <*> pure [x]
     ]
   where
     halvedGen = halvedGenWith bvs

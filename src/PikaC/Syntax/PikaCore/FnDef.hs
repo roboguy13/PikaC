@@ -69,6 +69,8 @@ instance Alpha FnDef
 
 instance Subst Expr FnDefBranch
 
+instance Subst (Moded Expr) FnDefBranch
+
 instance Ppr FnDef where
   ppr def = runFreshM $ do
       let bnd1@(B vs _) = openBind (_fnDefBranches def)
@@ -232,13 +234,4 @@ genValidBranch' outVars modedBvs size = do
     genAsnVar names = do
       name <- elements names
       pure $ V name
-
-genValidAllocations :: IsName a a => [PointsTo a] -> Gen [Allocation a]
-genValidAllocations = mapM genValidAllocation
-
-genValidAllocation :: IsName a a => PointsTo a -> Gen (Allocation a)
-genValidAllocation (_ :-> rhs) = do
-  sz <- choose (0, 5)
-  let n = getName rhs
-  pure (Alloc n sz)
 

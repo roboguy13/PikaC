@@ -1,5 +1,14 @@
 -- | Take function calls in SslAssertions and pull them out
--- into 'with's
+-- into 'with's:
+--
+--    layout { ... } { ... ** z :-> f a ** ... }
+--
+--      ===>
+--
+--    with {x} := f a
+--    in
+--    layout { ... } { ... ** z :-> x ** ... }
+--
 {-# LANGUAGE TupleSections #-}
 
 module PikaC.Stage.ToPikaCore.NestedCalls
@@ -32,20 +41,20 @@ simplifyOne (SslAssertion bnd) = do
   (vars, body) <- unbind bnd
   v <- fresh (string2Name "zz")
   pure $ do
-    (newAsn, (f, args)) <- setOneCall (V v) body
+    (newAsn, (f, sz, args)) <- setOneCall (V v) body
     pure $ WithIn
-      (App f args)
+      (App f sz args)
       $ bind [Moded In v] -- TODO: How should the mode work here?
         $ SslAssertion (bind vars newAsn)
 
 simplifyOne _ = pure Nothing
 
-setOneCall :: Expr -> ExprAssertion -> Maybe (ExprAssertion, (FnName, [Expr]))
+setOneCall :: Expr -> ExprAssertion -> Maybe (ExprAssertion, (FnName, [Int], [Expr]))
 setOneCall newExpr = go Nothing
   where
     go found [] = fmap ([], ) found
     go found@(Just{}) (x:xs) = first (x:) <$> go found xs
-    go Nothing ((p :-> App f args):xs) =
-      first ((p :-> newExpr) :) <$> go (Just (f, args)) xs
+    go Nothing ((p :-> App f sz args):xs) =
+      first ((p :-> newExpr) :) <$> go (Just (f, sz, args)) xs
     go found (x:xs) = first (x:) <$> go found xs
 

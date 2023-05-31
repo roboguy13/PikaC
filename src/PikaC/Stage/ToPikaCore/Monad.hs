@@ -40,7 +40,8 @@ newtype LayoutVarSubst = LayoutVarSubst [(Pika.ExprName, (String, LayoutArg Pika
 
 data PikaConvertEnv =
   PikaConvertEnv
-  { _layoutEnv :: LayoutEnv PikaCore.Expr
+  { _origLayoutEnv :: LayoutEnv Pika.Expr
+  , _layoutEnv :: LayoutEnv PikaCore.Expr
   , _globalFns :: [Pika.FnDef]
   -- , _layoutVarSubst :: LayoutVarSubst
   }
@@ -73,16 +74,16 @@ piLift = PikaIntern . lift
 pcLift :: Monad m => FreshMT m a -> PikaConvert m a
 pcLift = PikaConvert . lift . piLift
 
-runPikaConvert :: Monad m => LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> m a
-runPikaConvert layouts globalFns =
-  runFreshMT . runPikaConvert' layouts globalFns
+runPikaConvert :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> m a
+runPikaConvert origLayouts layouts globalFns =
+  runFreshMT . runPikaConvert' origLayouts layouts globalFns
 
-runPikaConvert' :: Monad m => LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> FreshMT m a
-runPikaConvert' layouts globalFns =
-  runPikaIntern' . runPikaConvert'' layouts globalFns
+runPikaConvert' :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> FreshMT m a
+runPikaConvert' origLayouts layouts globalFns =
+  runPikaIntern' . runPikaConvert'' origLayouts layouts globalFns
 
-runPikaConvert'' :: LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> PikaIntern m a
-runPikaConvert'' layouts globalFns (PikaConvert m) = runReaderT m (PikaConvertEnv layouts globalFns)
+runPikaConvert'' :: LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> PikaIntern m a
+runPikaConvert'' origLayouts layouts globalFns (PikaConvert m) = runReaderT m (PikaConvertEnv origLayouts layouts globalFns)
 
 lookupLayoutM :: Monad m => String -> PikaConvert m (Layout PikaCore.Expr)
 lookupLayoutM layoutName = do
@@ -170,9 +171,6 @@ freshLayoutParams layout =
   let B vs _ = _layoutBranches layout
   in
   mapM freshModed vs
-
-modedExpr :: ModedName PikaCore.Expr -> Moded PikaCore.Expr
-modedExpr (Moded m v) = Moded m (PikaCore.V v)
 
 -- applyLayout'' :: Layout PikaCore.Expr -> String -> [PType PikaCore.Expr] -> LayoutBody PikaCore.Expr
 -- applyLayout'' layout c args =

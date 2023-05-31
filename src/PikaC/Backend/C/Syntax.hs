@@ -47,6 +47,7 @@ data CFunction =
     , cfunctionParams :: [CName]
     , cfunctionBody :: [Command]
     }
+  deriving (Show)
 
 instance Alpha Command
 

@@ -186,6 +186,7 @@ generateFn opts pikaModule fnName =
         when (not (_optNoC opts)) $ do
           putStrLn "- C:"
           putStrLn $ ppr' $ codeGenFn pikaCore
+          print $ codeGenFn pikaCore
   where
     fuel = _optSimplifierFuel opts
 

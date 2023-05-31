@@ -37,12 +37,12 @@ layoutToWith' :: forall m. Fresh m => Expr -> m Expr
 layoutToWith' = rewriteM go
   where
     go :: Expr -> m (Maybe Expr)
-    go (App f args) = do
+    go (App f sz args) = do
       (asns, newArgs) <- getAndReplaceAsns args
 
       case asns of
         [] -> pure Nothing
-        _ -> pure . Just $ mkWithIns asns (App f newArgs)
+        _ -> pure . Just $ mkWithIns asns (App f sz newArgs)
 
     go _ = pure Nothing
 
@@ -64,6 +64,9 @@ getAndReplaceAsns (SslAssertion bnd:xs)
 
       freshArgs <- mapM fresh (map modedNameName arg)
       let arg' = argExpr freshArgs
+          -- allocs =
+          --   map allocSize $
+          --   findAllocations (map modedNameName arg) e
 
       pure ((map modedNameName arg, e, freshArgs) : asns, arg' : rest)
 

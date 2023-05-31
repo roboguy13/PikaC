@@ -197,3 +197,15 @@ genValidLoc names genA = do
   v <- mkVar <$> elements names
   pure (v :+ i)
 
+genValidAllocations :: IsName a a => [PointsTo a] -> Gen [Allocation a]
+genValidAllocations = mapM genValidAllocation
+
+genValidAllocation :: IsName a a => PointsTo a -> Gen (Allocation a)
+genValidAllocation (_ :-> rhs) = do
+  genValidAllocationForName rhs
+
+genValidAllocationForName :: IsName a a => a -> Gen (Allocation a)
+genValidAllocationForName n = do
+  sz <- choose (0, 5)
+  pure (Alloc (getName n) sz)
+

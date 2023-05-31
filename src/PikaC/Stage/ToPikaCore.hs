@@ -62,7 +62,7 @@ toPikaCore :: forall m. Logger m => SimplifyFuel -> [Layout Pika.Expr] -> [Pika.
 toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
   let (argTypes, resultType) = splitFnType (_typeSigTy (Pika.fnDefTypeSig fn))
 
-  layouts <- mapM (runPikaConvert'' mempty globalFns . convertLayout) layouts0
+  layouts <- mapM (runPikaConvert'' layouts0 mempty globalFns . convertLayout) layouts0
   -- outParams <- generateParams layouts resultType
 
   let argLayouts = map (lookupTypeLayout layouts) argTypes
@@ -78,7 +78,7 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
   -- inAsns <- mapM getAssertion 
 
   branches' <-
-    runPikaConvert'' layouts globalFns $ mapM (convertBranch openedArgLayouts) $ Pika.fnDefBranches fn
+    runPikaConvert'' layouts0 layouts globalFns $ mapM (convertBranch openedArgLayouts) $ Pika.fnDefBranches fn
 
   piLift . lift . runSimplifyFn @m simplifyFuel simplifyFnDef $
   -- pure $
@@ -111,7 +111,7 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
   -- inAsns <- zipWithM getAssertion openedArgLayouts $ patternMatchesPats matches
   layouts <- asks _layoutEnv
   let inAsns = map getPointsTos openedLayoutBodies
-      allocs = layoutMaxAllocs layouts openedLayoutBodies
+      allocs = layoutLAppliesMaxAllocs layouts openedLayoutBodies
 
   pure $ PikaCore.FnDefBranch
     { PikaCore._fnDefBranchInputAssertions = inAsns
@@ -185,11 +185,14 @@ lowerApp ::  Monad m =>
   Maybe [LayoutBody PikaCore.Expr] -> PikaCore.FnName -> [Pika.Expr] -> String ->
   ([ModedName PikaCore.Expr], PikaCore.Expr) ->
   PikaConvert m PikaCore.Expr
-lowerApp openedArgLayouts f args layoutName (vs, z) = do
+lowerApp openedArgLayouts (PikaCore.FnName f) args layoutName (vs, z) = do
   args' <- mapM (convertExpr openedArgLayouts) args
+  fnDef <- lookupFnDef f
+  layouts <- asks _origLayoutEnv
+  let szs = Pika.getResultAllocSizeInts layouts fnDef
   pure $
     PikaCore.WithIn
-      (PikaCore.App f args')
+      (PikaCore.App (PikaCore.FnName f) szs args')
       (bind vs z)
 
 lowerConstructor :: Monad m =>

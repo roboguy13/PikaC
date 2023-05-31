@@ -33,7 +33,7 @@ callOfWith :: Logger m => FnDef -> SimplifyM m FnDef
 callOfWith = step "callOfWith" $ onFnDef (rewriteM go)
 
 go :: Fresh m => Expr -> m (Maybe Expr)
-go (App f args) = do
+go (App f sz args) = do
   (withs, newArgs) <- getAndReplaceWiths args
 
   case withs of
@@ -41,7 +41,7 @@ go (App f args) = do
     _ ->
       -- let newArgs = instUsing $ zip withs newArgsBnd
       -- in
-      let r = mkWithIns withs (App f newArgs)
+      let r = mkWithIns withs (App f sz newArgs)
       in
       pure . Just $ r
 go _ = pure Nothing
