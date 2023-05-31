@@ -299,7 +299,7 @@ pprExpr (And x y) = do
   pure $ sep [xDoc, text "&&", yDoc]
 pprExpr (App f sz x) = do
   xDoc <- mapM pprExprP x
-  pure $ ppr f <+> (text "[[" <> text (show sz) <> text "]]") <+> hsep xDoc
+  pure $ ppr f <+> (text "[" <> text (show sz) <> text "]") <+> hsep xDoc
 
 pprExprP :: Expr -> FreshM Doc
 pprExprP e
@@ -321,16 +321,16 @@ instance IsNested Expr where
   isNested (WithIn {}) = True
   isNested (SslAssertion {}) = True
 
-isBase :: Expr -> Bool
-isBase (V x) = True
-isBase (IntLit i) = True
-isBase (BoolLit b) = True
-isBase (Add x y) = True
-isBase (Sub x y) = True
-isBase (Equal x y) = True
-isBase (Not x) = True
-isBase (And x y) = True
-isBase _ = False
+isBasic :: Expr -> Bool
+isBasic (V x) = True
+isBasic (IntLit i) = True
+isBasic (BoolLit b) = True
+isBasic (Add x y) = True
+isBasic (Sub x y) = True
+isBasic (Equal x y) = True
+isBasic (Not x) = True
+isBasic (And x y) = True
+isBasic _ = False
 
 getV :: HasCallStack => Expr -> Name Expr
 getV (V x) = x
@@ -385,6 +385,16 @@ exprIsOk = mconcat . map go . universe
   where
     go (SslAssertion (B _ [])) = invalid "Empty assertion"
     go (WithIn _ (B [] _)) = invalid "with-in with empty variable list"
+    go _ = mempty
+
+exprIsSimplified :: Expr -> Validation
+exprIsSimplified e0 = exprIsOk e0 <> mconcat (map go (universe e0))
+  where
+    go (App _ _ xs) =
+      check (all isBasic xs) "Function should be applied to base expressions"
+    go (WithIn (WithIn _ _) _) = invalid "Nested with-ins"
+    go (SslAssertion (B _ xs)) =
+      decorate "in assertion" $ mconcat $ map validate xs
     go _ = mempty
 
 genValidExpr :: [Name Expr] -> Gen Expr

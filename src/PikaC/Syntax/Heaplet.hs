@@ -33,6 +33,7 @@ import Control.Lens hiding (elements)
 import Control.Monad
 
 import Test.QuickCheck
+import Data.Validity
 
 import GHC.Stack
 
@@ -181,6 +182,15 @@ genValidAssertion :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen [Point
 genValidAssertion names genA size = do
   i <- choose (1, 4)
   replicateM i (genValidPointsTo names genA (size `div` i))
+
+instance (IsBase a, Validity a) => Validity (PointsTo a) where
+  validate (lhs :-> rhs) =
+    validate lhs <>
+    validate rhs
+
+instance IsBase a => Validity (Loc a) where
+  validate (x :+ _) =
+    check (isVar x) "Loc base name is variable"
 
 genValidPointsTo :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen (PointsTo a)
 genValidPointsTo names genA size = do

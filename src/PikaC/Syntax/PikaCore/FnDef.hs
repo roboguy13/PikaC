@@ -169,26 +169,29 @@ instance Arbitrary FnDefBranch where
 
 -- | Function definitions should be well-scoped
 instance Validity FnDef where
-  validate (FnDef _ (B inVars (B outVars branches))) =
-    let vars = inVars ++ outVars
-    in
-    mconcat $ map (validBranch (map modedNameName outVars) vars) branches
+  validate = validateFnDefWith validate
     -- check (isClosed @_ @Expr branches) "No free variables"
 
 -- TODO: Make sure we are properly accounting for names "bound" by input assertions
-validBranch :: [Name Expr] -> [ModedName Expr] -> FnDefBranch -> Validation
-validBranch outVars modedBvs branch =
+validBranch :: (Expr -> Validation) -> [Name Expr] -> [ModedName Expr] -> FnDefBranch -> Validation
+validBranch v outVars modedBvs branch =
     check (all (`elem` bvs) bodyFvs) "Well-scoped"
     <> check (not (null (_fnDefBranchInputAssertions branch))) "Has at least one parameter"
     <> check (any (not . null) (_fnDefBranchInputAssertions branch)) "At least one non-empty parameter"
     <> check (null (inAsnVars `intersect` outVars)) "Input variables should not include output variables"
-    <> annotate (_fnDefBranchBody branch) "Branch body expression is ok"
+    <> decorate "Branch body expression is ok" (v (_fnDefBranchBody branch))
   where
     bodyFvs = toListOf @(Name Expr) fv (_fnDefBranchBody branch)
 
     inAsnVars = toListOf fv (_fnDefBranchInputAssertions branch)
 
     bvs = map modedNameName modedBvs `union` inAsnVars
+
+validateFnDefWith :: (Expr -> Validation) -> FnDef -> Validation
+validateFnDefWith v (FnDef _ (B inVars (B outVars branches))) =
+  let vars = inVars ++ outVars
+  in
+  mconcat $ map (validBranch v (map modedNameName outVars) vars) branches
 
 genValidFnDef :: Gen FnDef
 genValidFnDef = do

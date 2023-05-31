@@ -71,15 +71,29 @@ myTraceWith f x = trace (f x) x
 -- Property testing --
 --
 
-propPreserves_valid :: (FnDef -> SimplifyM Quiet FnDef) -> Property
-propPreserves_valid pass =
+propPreserves_validation ::
+  (FnDef -> Validation) ->
+  (FnDef -> SimplifyM Quiet FnDef) ->
+  Property
+propPreserves_validation v pass =
   forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
     let result = runSimplifyQuiet Unlimited pass fnDef
     in
-    case prettyValidate result of
+    case prettyValidation (v result) of
       -- Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False
-      Left msg -> counterexample ("Counterexample result:\n" ++ msg) False
-      Right _ -> property True
+      Just msg -> counterexample ("Counterexample result:\n" ++ msg) False
+      Nothing -> property True
+
+
+propPreserves_valid :: (FnDef -> SimplifyM Quiet FnDef) -> Property
+propPreserves_valid = propPreserves_validation validate
+  -- forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
+  --   let result = runSimplifyQuiet Unlimited pass fnDef
+  --   in
+  --   case prettyValidate result of
+  --     -- Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False
+  --     Left msg -> counterexample ("Counterexample result:\n" ++ msg) False
+  --     Right _ -> property True
 
 prop_genValidFnDef_sane :: Property
 prop_genValidFnDef_sane =
@@ -124,6 +138,13 @@ prop_valid_renameResultLayout =
 prop_valid_simplifyFnDef :: Property
 prop_valid_simplifyFnDef =
   withMaxSuccess 5000 $ propPreserves_valid simplifyFnDef
+
+prop_simplified_simplifyFnDef :: Property
+prop_simplified_simplifyFnDef =
+  withMaxSuccess 5000 $
+    propPreserves_validation
+      (validateFnDefWith exprIsSimplified)
+      simplifyFnDef
 
 -- testFn :: FnDef
 -- testFn =
