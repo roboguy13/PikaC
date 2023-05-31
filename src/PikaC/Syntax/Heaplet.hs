@@ -119,13 +119,13 @@ data Allocation a = Alloc (Name a) Int
 locsPossiblyWrittenTo :: [PointsTo a] -> [Loc a]
 locsPossiblyWrittenTo = map pointsToLhs
 
-findAllocations :: forall a. (Eq a, IsName a a) => [Name a] -> [PointsTo a] -> [Allocation a]
+findAllocations :: forall a. (Alpha a, IsName a a) => [Name a] -> [PointsTo a] -> [Allocation a]
 findAllocations names xs = map toAlloc locMaximums
   where
       -- Grouped by base name. Only include locations that have base names
       -- included in the 'names' argument
     locGroups :: [[Loc a]]
-    locGroups = groupBy ((==) `on` locBase) . filter ((`elem` names) . getName . locBase) $ map pointsToLhs xs
+    locGroups = groupBy (aeq `on` locBase) . filter ((`elem` names) . getName . locBase) $ map pointsToLhs xs
 
     locMaximums :: [Loc a]
     locMaximums = map (foldr1 go) locGroups

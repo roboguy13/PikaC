@@ -18,7 +18,7 @@ import PikaC.Stage.ToPikaCore
 import PikaC.Stage.ToPikaCore.SimplifyM
 import qualified PikaC.Stage.ToPikaCore.Simplify as Simplify
 
--- import PikaC.Backend.C.CodeGen
+import PikaC.Backend.C.CodeGen
 
 import PikaC.Ppr
 
@@ -172,16 +172,20 @@ withModule opts pikaModule = do
     generateFn opts pikaModule fnName
 
 generateFn :: Options -> PikaModule -> String -> IO ()
-generateFn opts pikaModule fnName = do
-  putStrLn $ "*** " <> fnName <> " ***"
+generateFn opts pikaModule fnName =
+    if _optOnlyC opts
+      then (putStrLn . ppr' . codeGenFn) =<< getPikaCore
+      else do
+        putStrLn $ "*** " <> fnName <> " ***"
 
-  putStrLn "- PikaCore:"
-  pikaCore <- getPikaCore
-  putStrLn $ ppr' pikaCore
-  -- putStrLn $ show pikaCore
+        putStrLn "- PikaCore:"
+        pikaCore <- getPikaCore
+        putStrLn $ ppr' pikaCore
+        -- putStrLn $ show pikaCore
 
-  -- putStrLn "- C:"
-  -- putStrLn $ ppr' $ codeGenFn pikaCore
+        when (not (_optNoC opts)) $ do
+          putStrLn "- C:"
+          putStrLn $ ppr' $ codeGenFn pikaCore
   where
     fuel = _optSimplifierFuel opts
 

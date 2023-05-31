@@ -319,6 +319,10 @@ isBase (Not x) = True
 isBase (And x y) = True
 isBase _ = False
 
+getV :: HasCallStack => Expr -> Name Expr
+getV (V x) = x
+getV e = error $ "getV: " ++ ppr' e
+
 -- Property testing --
 
 instance Arbitrary FnName where

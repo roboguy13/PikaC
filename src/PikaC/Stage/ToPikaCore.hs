@@ -207,7 +207,7 @@ lowerConstructor openedArgLayouts f args layoutName
 -- LApply --> WithIn
 convertLApply :: Monad m => String -> PikaCore.Expr -> [PikaCore.Expr] -> PikaCore.Expr -> PikaConvert m PikaCore.Expr
 convertLApply layoutName exprArg layoutVarExprs restExpr = do
-  let layoutVars = map getV layoutVarExprs
+  let layoutVars = map PikaCore.getV layoutVarExprs
 
   layout <- lookupLayoutM layoutName
   let params = getLayoutParams layout

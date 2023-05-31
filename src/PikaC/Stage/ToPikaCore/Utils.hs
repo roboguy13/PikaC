@@ -27,10 +27,6 @@ onFnDef f fnDef = do
           (bind outParams branches')
     }
 
-getV :: HasCallStack => Expr -> Name Expr
-getV (V x) = x
-getV e = error $ "getV: " ++ ppr' e
-
 -- argExpr :: Fresh m => [Name Expr] -> m Expr
 -- argExpr [v] = V <$> fresh v
 -- argExpr vs = LayoutV <$> mapM (fmap V . fresh) vs

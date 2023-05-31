@@ -34,7 +34,7 @@ data Command
       String
       [CExpr] -- Input parameters
       [CExpr] -- Output parameters
-  | IntoMalloc CName Int
+  | IntoMalloc CName Int -- TODO: Convert this and Let to use Bind from unbound-generics
   | Let CName CLoc
   | Free CName
   | Decl CName
