@@ -19,6 +19,7 @@ import PikaC.Syntax.PikaCore.FnDef
 import PikaC.Syntax.Pika.Layout
 
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 import Control.Lens
 
@@ -26,8 +27,8 @@ import Unbound.Generics.LocallyNameless
 
 import Debug.Trace
 
-withSubst :: Fresh m => FnDef -> m FnDef
-withSubst = onFnDef (rewriteM go)
+withSubst :: Logger m => FnDef -> SimplifyM m FnDef
+withSubst = step "withSubst" $ onFnDef (rewriteM go)
 
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (WithIn (LayoutV vs) bnd) = do

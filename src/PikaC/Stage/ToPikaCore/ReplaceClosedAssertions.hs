@@ -19,6 +19,7 @@ import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 import PikaC.Utils
 
 import Data.List
@@ -30,8 +31,8 @@ import Control.Lens
 
 import Unbound.Generics.LocallyNameless
 
-replaceClosedAssertions :: Fresh m => FnDef -> m FnDef
-replaceClosedAssertions = onFnDef (rewriteM go)
+replaceClosedAssertions :: Logger m => FnDef -> SimplifyM m FnDef
+replaceClosedAssertions = step "replaceClosedAssertions" $ onFnDef (rewriteM go)
 
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (SslAssertion bnd) = do

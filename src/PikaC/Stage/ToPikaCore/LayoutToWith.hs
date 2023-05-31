@@ -21,6 +21,7 @@ import PikaC.Syntax.Pika.Layout
 
 import PikaC.Utils
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 import Control.Lens
 
@@ -29,8 +30,11 @@ import Unbound.Generics.LocallyNameless.Bind
 
 import Debug.Trace
 
-layoutToWith :: forall m. Fresh m => Expr -> m Expr
-layoutToWith = rewriteM go
+layoutToWith :: Logger m => FnDef -> SimplifyM m FnDef
+layoutToWith = step "layoutToWith" $ onFnDef layoutToWith'
+
+layoutToWith' :: forall m. Fresh m => Expr -> m Expr
+layoutToWith' = rewriteM go
   where
     go :: Expr -> m (Maybe Expr)
     go (App f args) = do

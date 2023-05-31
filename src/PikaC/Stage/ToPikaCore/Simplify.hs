@@ -23,6 +23,8 @@ import PikaC.Stage.ToPikaCore.WithSubst
 import PikaC.Stage.ToPikaCore.ReuseExistingPtrs
 import PikaC.Stage.ToPikaCore.ReplaceClosedAssertions
 
+import PikaC.Stage.ToPikaCore.SimplifyM
+
 import PikaC.Stage.ToPikaCore.Utils
 
 import Unbound.Generics.LocallyNameless
@@ -36,15 +38,15 @@ import Debug.Trace
 import Test.QuickCheck
 import Data.Validity
 
-simplifyFnDef :: Fresh m => FnDef -> m FnDef
+simplifyFnDef :: Logger m => FnDef -> SimplifyM m FnDef
 simplifyFnDef =
   renameResultLayout <=< -- NOTE: This should go last
-  -- fixedPoint
+  fixedPoint
     (
       reuseExistingPtrs <=<
       replaceClosedAssertions <=<
       callOfWith <=<
-      onFnDef layoutToWith <=<
+      layoutToWith <=<
       -- withLayoutV <=< -- TODO: This doesn't seem to work
       withOfWith <=<
       withSubst <=<
@@ -57,21 +59,21 @@ simplifyFnDef =
 myTraceWith :: (a -> String) -> a -> a
 myTraceWith f x = trace (f x) x
 
-fixedPoint :: Fresh m => (FnDef -> m FnDef) -> FnDef -> m FnDef
-fixedPoint f x = do
-  y <- f x
-  if aeq y x
-    then pure y
-    else fixedPoint f y
+-- fixedPoint :: Fresh m => (FnDef -> m FnDef) -> FnDef -> m FnDef
+-- fixedPoint f x = do
+--   y <- f x
+--   if aeq y x
+--     then pure y
+--     else fixedPoint f y
 
 --
 -- Property testing --
 --
 
-propPreserves_valid :: (FnDef -> FreshM FnDef) -> Property
+propPreserves_valid :: (FnDef -> SimplifyM Quiet FnDef) -> Property
 propPreserves_valid pass =
   forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
-    let result = runFreshM (pass fnDef)
+    let result = runQuiet Unlimited pass fnDef
     in
     case prettyValidate result of
       -- Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False
@@ -112,7 +114,7 @@ prop_valid_withSubst =
 
 prop_valid_layoutToWith :: Property
 prop_valid_layoutToWith =
-  withMaxSuccess 5000 $ propPreserves_valid (onFnDef layoutToWith)
+  withMaxSuccess 5000 $ propPreserves_valid layoutToWith
 
 prop_valid_renameResultLayout :: Property
 prop_valid_renameResultLayout =

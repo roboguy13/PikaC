@@ -27,6 +27,7 @@ import PikaC.Syntax.Heaplet
 
 import PikaC.Utils
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 import Data.Bifunctor
 
@@ -35,9 +36,9 @@ import Control.Lens
 import Unbound.Generics.LocallyNameless
 
 -- TODO: Make sure names aren't captured
-withOfWith :: Fresh m => FnDef -> m FnDef
+withOfWith :: Logger m => FnDef -> SimplifyM m FnDef
 withOfWith =
- onFnDef (rewriteM withOfWithOne)
+  step "withOfWith" $ onFnDef (rewriteM withOfWithOne)
 
 -- withOfWithBranch :: Fresh m => FnDefBranch -> m FnDefBranch
 -- withOfWithBranch =

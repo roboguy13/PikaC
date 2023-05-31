@@ -21,6 +21,7 @@ import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 import PikaC.Utils
 
 import Data.List
@@ -30,8 +31,8 @@ import Control.Monad
 
 import Unbound.Generics.LocallyNameless
 
-reuseExistingPtrs :: Fresh m => FnDef -> m FnDef
-reuseExistingPtrs fnDef = do
+reuseExistingPtrs :: Logger m => FnDef -> SimplifyM m FnDef
+reuseExistingPtrs = step "reuseExistingPtrs" $ \fnDef -> do
   (inVars, bnd1) <- unbind $ _fnDefBranches fnDef
   (outVars, branches) <- unbind bnd1
 

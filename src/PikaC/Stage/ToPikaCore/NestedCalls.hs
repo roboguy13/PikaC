@@ -14,6 +14,7 @@ import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 import Data.Bifunctor
 
@@ -23,13 +24,8 @@ import Unbound.Generics.LocallyNameless
 
 import Debug.Trace
 
-simplifyNestedCalls :: Fresh m => FnDef -> m FnDef
-simplifyNestedCalls = onFnDef (rewriteM simplifyOne)
-  -- fnDefBranches.traversed %%~ simplifyNestedCallsBranch
-
--- simplifyNestedCallsBranch :: Fresh m => FnDefBranch -> m FnDefBranch
--- simplifyNestedCallsBranch =
---   fnDefBranchBody %%~ rewriteM simplifyOne
+simplifyNestedCalls :: Logger m => FnDef -> SimplifyM m FnDef
+simplifyNestedCalls = step "simplifyNestedCalls" $ onFnDef (rewriteM simplifyOne)
 
 simplifyOne :: Fresh m => Expr -> m (Maybe Expr)
 simplifyOne (SslAssertion bnd) = do

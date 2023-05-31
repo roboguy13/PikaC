@@ -24,6 +24,7 @@ import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Heaplet
 
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 import PikaC.Utils
 import PikaC.Ppr
@@ -34,8 +35,8 @@ import Unbound.Generics.LocallyNameless
 
 import Debug.Trace
 
-renameResultLayout :: Fresh m => FnDef -> m FnDef
-renameResultLayout fnDef = do
+renameResultLayout :: Logger m => FnDef -> SimplifyM m FnDef
+renameResultLayout = step "renameResultLayout" $ \fnDef -> do
   (inputs, bnd1) <- unbind $ _fnDefBranches fnDef
   (outputs, branches) <- unbind bnd1
   branches' <- mapM (onFnDefBranch (go (map modedNameName outputs))) branches

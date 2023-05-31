@@ -20,6 +20,7 @@ import PikaC.Syntax.Pika.Layout
 import PikaC.Utils
 
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 import Control.Lens
 
@@ -28,8 +29,8 @@ import Unbound.Generics.LocallyNameless.Bind
 
 import Debug.Trace
 
-callOfWith :: Fresh m => FnDef -> m FnDef
-callOfWith = onFnDef (rewriteM go)
+callOfWith :: Logger m => FnDef -> SimplifyM m FnDef
+callOfWith = step "callOfWith" $ onFnDef (rewriteM go)
 
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (App f args) = do

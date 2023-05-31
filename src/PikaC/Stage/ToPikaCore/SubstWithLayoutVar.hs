@@ -16,6 +16,7 @@ import PikaC.Syntax.PikaCore.FnDef
 import PikaC.Syntax.Pika.Layout
 
 import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.SimplifyM
 
 import Control.Lens
 
@@ -23,9 +24,9 @@ import Unbound.Generics.LocallyNameless
 
 import Debug.Trace
 
-substWithLayoutVar :: Fresh m => FnDef -> m FnDef
+substWithLayoutVar :: Logger m => FnDef -> SimplifyM m FnDef
 substWithLayoutVar =
-  onFnDef (rewriteM substWithLayoutVar'Expr)
+  step "substWithLayoutVar" $ onFnDef (rewriteM substWithLayoutVar'Expr)
   -- (fnDefBranches.traverse.fnDefBranchBody) %~ rewrite substWithLayoutVar'Expr
 
 substWithLayoutVar'Expr :: Fresh m => Expr -> m (Maybe Expr)
