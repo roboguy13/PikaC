@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module PikaC.Syntax.Pika.FnDef
   where
 
@@ -12,13 +14,24 @@ import PikaC.Utils
 
 import Unbound.Generics.LocallyNameless
 
+import Test.QuickCheck
+
+import Data.List
+
+import Data.Bifunctor
+
+import GHC.Generics
+
+import Control.Monad
+import Debug.Trace
+
 data FnDef =
   FnDef
     { fnDefName :: String
     , fnDefTypeSig :: TypeSig
     , fnDefBranches :: [FnDefBranch]
     }
-  deriving (Show)
+  deriving (Show, Generic)
 
 newtype FnDefBranch =
   FnDefBranch
@@ -27,7 +40,7 @@ newtype FnDefBranch =
     -- { fnBranchPats :: [Pattern Expr]
     -- , fnBranchBody :: Bind [ExprName] Expr
     -- }
-  deriving (Show)
+  deriving (Show, Generic)
 
 getResultAllocSize :: [Layout Expr] -> FnDef -> [ExprName] -> [Allocation Expr]
 getResultAllocSize layouts fnDef outParams =
@@ -59,4 +72,99 @@ instance Ppr FnDefBranch where
       [ hsep (map ppr (patternMatchesPats matches) ++ [text ":="])
       , nest 1 $ ppr (openBind bnd) <> text ";"
       ]
+
+--
+-- Property tests
+--
+
+instance Arbitrary FnDefBranch where
+  arbitrary = error "Arbitrary FnDefBranch"
+  shrink = genericShrink
+
+instance Arbitrary FnDef where
+  arbitrary = error "Arbitrary FnDef"
+  shrink = genericShrink
+
+genFnSig ::
+   [(LayoutName, [(String, [Maybe LayoutName])])] ->
+   Gen (String, [Maybe LayoutName], LayoutName)
+genFnSig layoutSigs = do
+  fnName <- genFnName
+  argCount <- choose (1, 3)
+  args <- map Just <$> replicateM argCount (elements (map fst layoutSigs))
+  result <- elements (map fst layoutSigs)
+  pure (fnName, args, result)
+
+genFnName :: Gen String
+genFnName = do
+  x <- elements "fgh"
+  n <- choose (0, 8) :: Gen Int
+  pure (x : show n)
+
+genFnDef :: 
+   [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
+   [(LayoutName, [(String, [Maybe LayoutName])])] -> -- Layouts with their constructors and those constructors' arities
+   Int ->
+   (String, [Maybe LayoutName], LayoutName) ->
+   Gen FnDef
+genFnDef fnSigs layouts size (fnName, inLayouts, outLayout) = do
+  -- branches <- mapM (genFnDefBranch fnSigs layouts outLayout) inLayouts
+  let constructorLists = map lookupConstructorList inLayouts
+      params = sequenceA $ transpose constructorLists
+  branches <- mapM (genFnDefBranch fnSigs layouts outLayout size) params
+  pure $
+    FnDef
+    { fnDefName = fnName
+    , fnDefTypeSig =
+        TypeSig
+        {_typeSigLayoutConstraints = []
+        ,_typeSigTy = foldr1 FnType $ map goType (inLayouts ++ [Just outLayout])
+        }
+    , fnDefBranches = branches
+    }
+  where
+    lookupConstructorList Nothing = undefined
+    lookupConstructorList (Just layoutName) = trace ("layoutName = " ++ show layoutName) $
+
+      let Just r = lookup layoutName layouts
+      in r
+
+    goType (Just layoutName) = TyVar layoutName
+    goType Nothing = IntType -- For now, we just assume every base type is an Int
+
+genFnDefBranch ::
+   [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
+   [(LayoutName, [(String, [Maybe LayoutName])])] -> -- Layouts with their constructors and those constructors' arities
+   LayoutName -> -- Output layout
+   Int ->
+   [(String, [Maybe LayoutName])] -> -- Input layouts
+   Gen FnDefBranch
+genFnDefBranch fnSigs layouts outLayout size inLayouts = do
+  let locals = mkFreshVars $ map snd inLayouts
+  body <- genForLayout fnSigs layouts (concat locals) size outLayout
+  pure $ FnDefBranch
+    { fnBranchMatch =
+        PatternMatches
+          $ bind (toPatterns $ zip (map fst inLayouts) $ map (map fst) locals)
+            $ body
+    }
+
+toPatterns :: [(String, [ExprName])] -> [Pattern Expr]
+toPatterns = map (uncurry Pattern)
+
+mkFreshVars :: [[Maybe LayoutName]] -> [[(ExprName, Maybe LayoutName)]]
+mkFreshVars = go 0
+  where
+    go :: Int -> [[Maybe LayoutName]] -> [[(ExprName, Maybe LayoutName)]]
+    go n [] = []
+    go n (xs:xss) =
+      let (n', xs') = go' n xs
+      in
+      xs' : go n' xss
+
+    go' n [] = (n, [])
+    go' n (x:xs) =
+      let (n', r) = go' (n+1) xs
+      in
+      (n', (string2Name ('v':show n), x) : r)
 

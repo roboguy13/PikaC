@@ -105,6 +105,13 @@ instance Plated Expr where
 --     (LayoutName' (string2Name "TestLayout"))
 
 instance HasVar Expr where mkVar = V
+instance IsBase Expr where
+  isVar (V {}) = True
+  isVar _ = False
+
+  isLit (IntLit {}) = True
+  isLit (BoolLit {}) = True
+  isLit _ = False
 
 instance Subst Expr AdtName
 
@@ -116,8 +123,6 @@ instance Subst Expr Expr where
 instance Subst Expr a => Subst Expr (Loc a)
 
 type ExprName = Name Expr
-
-type LayoutName = TypeName
 
 -- newtype LayoutName' = LayoutName' LayoutName
 --   deriving (Eq, Ord, Show, Generic)
@@ -183,6 +188,10 @@ reduceLayouts = go
 --
 -- Property tests --
 --
+
+instance Arbitrary Expr where
+  arbitrary = error "Arbitrary Expr"
+  shrink = genericShrink
 
 isConcreteExpr :: Expr -> Validation
 isConcreteExpr = mconcat . map go . universe
@@ -273,7 +282,9 @@ genConstructorApp ::
 genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
   (cName, arity) <- elements constructorSigs
   let newSize = size `div` length arity
-  App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity
+  ApplyLayout
+    <$> (App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
+    <*> pure layout
 
 genSimpleExpr' :: [ExprName] -> Int -> Gen Expr
 genSimpleExpr' [] _ =

@@ -29,6 +29,8 @@ import GHC.Generics
 
 import Data.Typeable
 
+import Test.QuickCheck
+
 data Pattern a
   = PatternVar (Name a)
   | Pattern String [Name a]
@@ -50,6 +52,10 @@ newtype PatternMatches a b =
 
 instance (Typeable a, Alpha b) => Alpha (PatternMatch a b)
 instance (Typeable a, Alpha b) => Alpha (PatternMatches a b)
+
+instance (Typeable a, Typeable b, Alpha b, Arbitrary a, Arbitrary b) => Arbitrary (PatternMatches a b) where
+  arbitrary = PatternMatches <$> arbitrary
+  shrink = genericShrink
 
 openPatternMatch :: (Fresh m, HasVar a, Subst a b, Alpha b, Alpha a, Typeable a) =>
   PatternMatch a b -> m ([Name a], b)
@@ -131,6 +137,10 @@ applyPatternMatches' matches args =
 instance (Typeable a) => Alpha (Pattern a)
 instance Subst (Name a) (Pattern a)
 instance Subst (Pattern a) AdtName
+
+instance (Typeable a, Alpha b, Arbitrary b) => Arbitrary (PatternMatch a b) where
+  arbitrary = error "Arbitrary PatternMatch"
+  shrink = genericShrink
 
 class HasApp a where
   mkApp :: String -> [a] -> a

@@ -8,6 +8,8 @@ import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Parser
 
+import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
+
 import PikaC.TypeChecker.Mode
 
 import PikaC.Syntax.PikaCore.FnDef
@@ -35,6 +37,9 @@ import Data.Maybe
 import Data.Bifunctor
 
 import Text.Printf
+
+import Test.QuickCheck
+import Data.Validity
 
 data Options =
   Options
@@ -195,4 +200,21 @@ generateFn opts pikaModule fnName =
           runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
       | otherwise =
           pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+
+--
+-- Property tests --
+--
+
+-- TODO: Move these into another module
+
+-- | Converts to "basic args form"
+prop_basicArgs_toPikaCore :: Property
+prop_basicArgs_toPikaCore =
+  forAllShrinkShow genModule (const []) show $ \pikaModule ->
+    let (fnName:_) = moduleGenerates pikaModule
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+    in
+    case prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
+      Just msg -> counterexample ("Counterexample result:\n" ++ msg) False
+      Nothing -> property True
 

@@ -31,6 +31,8 @@ import Data.Data
 
 import Control.Lens
 
+import Control.Monad
+
 import GHC.Stack
 
 import Data.Kind
@@ -175,6 +177,20 @@ instance (Alpha a, Alpha b, Arbitrary b) => Arbitrary (Bind a b) where
 instance Arbitrary (Name a) where
   arbitrary = error "Arbitrary (Name a)"
   shrink _ = []
+
+arbitraryAlpha :: Gen Char
+arbitraryAlpha = arbitrary `suchThat` (`elem` ['a'..'z'])
+
+genNameString :: Gen String
+genNameString = do
+  n <- choose (1, 4)
+  replicateM n arbitraryAlpha
+
+noDups :: Ord a => [a] -> Bool
+noDups xs = fastNub xs == xs
+
+disjoint :: Eq a => [a] -> [a] -> Bool
+disjoint xs ys = null (xs `intersect` ys)
 
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)

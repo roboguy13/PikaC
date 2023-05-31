@@ -19,6 +19,9 @@ import Data.Data
 
 import Control.Lens.TH
 
+import Test.QuickCheck
+import Control.Monad
+
 data Type
   = IntType
   | BoolType
@@ -42,7 +45,24 @@ data TypeSig =
   { _typeSigLayoutConstraints :: [LayoutConstraint]
   , _typeSigTy :: Type
   }
-  deriving (Show)
+  deriving (Show, Generic)
+
+instance Arbitrary Type where
+  arbitrary = error "Arbitrary Type"
+  shrink = genericShrink
+    -- oneof
+    --   [ IntType
+    --   , BoolType
+    --   , FnType
+    --   ]
+
+instance Arbitrary TypeSig where
+  arbitrary = error "Arbitrary TypeSig"
+  shrink = genericShrink
+
+instance Arbitrary LayoutConstraint where
+  arbitrary = error "Arbitrary LayoutConstraint"
+  shrink = genericShrink
 
 instance Ppr TypeSig where
   ppr (TypeSig [] ty) = ppr ty
@@ -55,8 +75,11 @@ instance Ppr TypeSig where
       ,ppr ty
       ]
 
-newtype AdtName = AdtName String
+newtype AdtName = AdtName { unAdtName :: String }
   deriving (Show, Eq, Ord, Generic, Data)
+
+instance Arbitrary AdtName where
+  arbitrary = error "Arbitrary AdtName"
 
 -- newtype TypeVar = TypeVar { unTypeVar :: TypeName } deriving (Show, Generic)
 type TypeName = Name Type
@@ -74,7 +97,7 @@ instance Alpha AdtName
 -- instance Subst a AdtName where isvar _ = Nothing -- We never replace a concrete layout name with anything else
 
 data LayoutConstraint = TypeName :~ AdtName
-  deriving (Show)
+  deriving (Show, Generic)
 
 -- instance Bound LayoutTypeArg where
 
@@ -96,4 +119,32 @@ instance IsNested Type where
   isNested (TyVar x) = False
 
 makeLenses ''TypeSig
+
+--
+-- Property tests --
+--
+
+
+data AdtArg = BaseArg | RecArg
+  deriving (Show, Eq, Generic)
+
+genAdtSig :: Gen (AdtName, [(String, [AdtArg])])
+genAdtSig = do
+  n <- choose (1, 3)
+  liftA2 (,) genAdtName (replicateM n genConstructor)
+
+-- | Constructor name and arity
+genConstructor :: Gen (String, [AdtArg])
+genConstructor = do
+  n <- choose (0, 3) :: Gen Int
+  args <- replicateM n $ oneof [pure BaseArg, pure RecArg]
+  liftA2 (,) genConstructorName (pure args)
+
+genAdtName :: Gen AdtName
+genAdtName = AdtName <$> fmap (:[]) (elements ['A'..'Z'])
+
+genConstructorName :: Gen String
+genConstructorName = do
+  n <- choose (1, 3)
+  replicateM n (elements ['A'..'Z'])
 

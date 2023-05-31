@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module PikaC.Syntax.Pika.Parser
   where
 
@@ -21,13 +23,24 @@ import Data.Maybe
 
 import Unbound.Generics.LocallyNameless (string2Name, bind)
 
+import Test.QuickCheck hiding (label)
+
+import Control.Monad
+import GHC.Generics
+
+import Debug.Trace
+
 data PikaModule =
   PikaModule
   { moduleLayouts :: [Layout Expr]
   , moduleFnDefs :: [FnDef]
   , moduleGenerates :: [String]
   }
-  deriving (Show)
+  deriving (Show, Generic)
+
+isTrivialModule :: PikaModule -> Bool
+isTrivialModule (PikaModule x y z) =
+  null x || null y || null z
 
 instance Semigroup PikaModule where
   PikaModule xs1 ys1 zs1 <> PikaModule xs2 ys2 zs2 =
@@ -265,4 +278,64 @@ parseLayoutName = label "layout name" $ lexeme parseUppercaseName
 
 parsePatternVar :: Parser ExprName
 parsePatternVar = label "pattern variable" $ string2Name <$> lexeme parseLowercaseName
+
+--
+-- Property tests --
+--
+
+instance Arbitrary PikaModule where
+  arbitrary = error "Arbitrary PikaModule"
+  shrink (PikaModule x y z) =
+    let x' = map shrink x
+        y' = map shrink y
+        z' = map shrink z
+    in
+    PikaModule <$> x' <*> y' <*> z'
+  -- shrink = filter (not . isTrivialModule) . genericShrink
+
+genModule :: Gen PikaModule
+genModule = sized genModule'
+
+genModule' :: Int -> Gen PikaModule
+genModule' size = do
+  adtCount <- choose (1, 2)
+  fnCount <- choose (1, 2)
+  layoutCount <- choose (1, 2)
+
+  let dividedSize = size `div` (adtCount + fnCount + layoutCount)
+      -- TODO: This should probably be weighted more towards generating
+      -- functions
+
+  adtSigs <- replicateM adtCount genAdtSig
+  layouts <- replicateM layoutCount $ genLayout @Expr adtSigs dividedSize
+
+  let layoutSigs =
+        zipWith convertAdtSig
+          (map (string2Name . _layoutName) layouts)
+          adtSigs
+  fnSigs <- replicateM fnCount (genFnSig layoutSigs)
+
+  fns <- mapM (genFnDef fnSigs layoutSigs dividedSize)  fnSigs
+
+  trace ("adtSigs = " ++ show adtSigs ++ "; layoutSigs = " ++ show layoutSigs ++ "; fnSigs = " ++ show fnSigs) $ pure $ PikaModule
+    { moduleLayouts = layouts
+    , moduleFnDefs = fns
+    , moduleGenerates = map fnDefName fns
+    }
+  where
+    convertAdtSig ::
+      LayoutName ->
+      (AdtName, [(String, [AdtArg])]) ->
+      (LayoutName, [(String, [Maybe LayoutName])])
+    convertAdtSig lName (_, args) =
+      (lName, map (go lName) args)
+
+    go ::
+      LayoutName ->
+      (String, [AdtArg]) ->
+      (String, [Maybe LayoutName])
+    go lName (cName, xs) = (cName, map (go' lName) xs)
+
+    go' lName BaseArg = Nothing
+    go' lName RecArg = Just lName
 

@@ -37,7 +37,7 @@ import Data.Typeable
 
 import Data.Bifunctor
 
-import Control.Lens
+import Control.Lens hiding (elements)
 import Control.Lens.TH
 
 import GHC.Generics
@@ -45,6 +45,9 @@ import GHC.Generics
 import Data.List
 
 import Control.Applicative
+import Control.Monad
+
+import Test.QuickCheck
 
 -- newtype Operand a b = Operand (Var a b)
 --   deriving (Functor, Applicative, Monad, Show)
@@ -280,7 +283,7 @@ instance (Alpha a, Typeable a) => Alpha (Layout a)
 
 type LayoutEnv a = [Layout a]
 
-lookupLayout :: LayoutEnv a -> String -> Layout a
+lookupLayout :: HasCallStack => LayoutEnv a -> String -> Layout a
 lookupLayout [] name = error $ "lookupLayout: Cannot find layout " ++ name
 lookupLayout (x:xs) name
   | _layoutName x == name = x
@@ -524,6 +527,112 @@ instance (Typeable a, Show a, Alpha a) => Alpha (LayoutHeaplet a)
 
 instance (Show a, Typeable a, Alpha a) => Alpha (LayoutBody a)
 instance (Show a, Typeable a, Alpha a) => Alpha (LayoutBranch a)
+
+type LayoutName = TypeName
+
+-- getLayoutSig ::
+--   Layout a ->
+--   (AdtName, [(String, Int)]) ->
+--   (LayoutName, [(String, [Maybe LayoutName])])
+-- getLayoutSig layout adtSig =
+--   let B params branches = _layoutBranches layout
+--   in
+--   (string2Name $ _layoutName layout, map go branches)
+--   where
+--     go (LayoutBranch (PatternMatch (B (Pattern cName patVars) (B existVars body)))) = undefined
+
+--
+-- Property tests --
+--
+
+instance (Typeable a, Alpha a, IsBase a, Arbitrary a) => Arbitrary (Layout a) where
+  arbitrary = error "Arbitrary Layout"
+  shrink = genericShrink
+
+instance (Alpha a, Typeable a, IsBase a, Arbitrary a) => Arbitrary (LayoutBranch a) where
+  arbitrary = error "Arbitrary LayoutBranch"
+  shrink = genericShrink
+
+instance (IsBase a, Arbitrary a) => Arbitrary (LayoutBody a) where
+  arbitrary = error "Arbitrary LayoutBody"
+  shrink = genericShrink
+
+instance (IsBase a, Arbitrary a) => Arbitrary (LayoutHeaplet a) where
+  arbitrary = error "Arbitrary LayoutHeaplet"
+  shrink = genericShrink
+
+-- NOTE: Only Out mode parameters for now
+genLayout :: (Typeable a, Alpha a, HasVar a, IsName a a) =>
+  [(AdtName, [(String, [AdtArg])])] ->  -- ADTs and their constructor names and the constructor arities
+  Int ->
+  Gen (Layout a)
+genLayout adts size = do
+  (adtName, constructors) <- elements adts
+  lName <- genLayoutName adtName
+  n <- choose (1, 3)
+  params <- map string2Name <$> genParamNames n
+
+  let dividedSize = size `div` length constructors
+
+  branches <- mapM (genLayoutBranch lName params dividedSize) constructors
+
+  pure $
+    Layout
+    { _layoutName = lName
+    , _layoutAdt = adtName
+    , _layoutBranches =
+        bind (map (Moded Out) params)
+          branches
+    }
+
+-- TODO: Remove unused existentials and layout parameters
+genLayoutBranch :: (Typeable a, Alpha a, HasVar a, IsName a a) =>
+  String ->
+  [Name a] ->
+  Int ->
+  (String, [AdtArg]) ->
+  Gen (LayoutBranch a)
+genLayoutBranch layoutName params size (constructor, arity) = do
+  n <- choose (1, 3)
+  patVars <- fmap (map string2Name) (genParamNames (length arity)) `suchThat` disjoint params
+  let namesSoFar = patVars ++ params
+  existsNames <- fmap (map string2Name) (genParamNames n) `suchThat` disjoint namesSoFar
+  k <- choose (2, 7)
+  let dividedSize = size `div` k
+  body <- replicateM k (genLayoutHeaplet layoutName patVars params existsNames dividedSize) `suchThat` noDupPointsToLhs
+  pure $
+    LayoutBranch
+      $ PatternMatch
+          $ bind (Pattern constructor patVars)
+            $ bind (map (Exists . Moded In) existsNames)
+              $ LayoutBody body
+
+noDupPointsToLhs :: IsName a a => [LayoutHeaplet a] -> Bool
+noDupPointsToLhs = noDups . map (getName . locBase . pointsToLhs) . getPointsTos . LayoutBody
+
+genLayoutHeaplet :: (HasVar a) =>
+  String ->
+  [Name a] ->
+  [Name a] ->
+  [Name a] ->
+  Int ->
+  Gen (LayoutHeaplet a)
+genLayoutHeaplet layoutName patVars params existVars size = do
+  oneof
+    [ LPointsTo <$> (genValidPointsTo params (\_ -> mkVar <$> elements (patVars ++ existVars)) size)
+
+    , LApply layoutName <$> fmap mkVar (elements patVars) <*> fmap (map mkVar) (replicateM (length params) (elements (existVars `union` params)))
+    ]
+
+genLayoutName :: AdtName -> Gen String
+genLayoutName (AdtName adtName) = do
+  i <- choose (0,4) :: Gen Int
+  pure (adtName ++ "_layout" ++ show i)
+
+
+genParamNames :: Int -> Gen [String]
+genParamNames n =
+  replicateM n genNameString `suchThat` noDups
 
 -- -- | A name mapping gotten by applying a layout. This can be used
 -- -- for recursively applying layouts

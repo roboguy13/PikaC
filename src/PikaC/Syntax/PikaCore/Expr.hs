@@ -497,6 +497,3 @@ newName :: [Name Expr] -> Name Expr
 newName [] = string2Name "a"
 newName ns = last . runFreshM $ mapM fresh ns
 
-arbitraryAlpha :: Gen Char
-arbitraryAlpha = arbitrary `suchThat` (`elem` ['a'..'z'])
-
