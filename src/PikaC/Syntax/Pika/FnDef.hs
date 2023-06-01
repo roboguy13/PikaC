@@ -60,7 +60,7 @@ getResultAllocSizeInts layouts fnDef =
 
 instance Ppr FnDef where
   ppr fn =
-    sep
+    vcat
       (hsep [text (fnDefName fn), text ":", ppr (fnDefTypeSig fn)] <> text ";"
         :
         map (\branch -> text (fnDefName fn) <+> ppr branch) (fnDefBranches fn)
