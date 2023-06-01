@@ -37,6 +37,8 @@ import Data.Validity
 
 import GHC.Stack
 
+import Control.DeepSeq
+
 type LayoutArg a = [Name a]
 
 instance Ppr a => Ppr (LayoutArg a) where
@@ -58,6 +60,9 @@ pointsToRhsLens =
 -- data Loc = LocName :+ Int
 data Loc a = a :+ Int
   deriving (Show, Functor, Eq, Ord, Generic)
+
+instance NFData a => NFData (PointsTo a)
+instance NFData a => NFData (Loc a)
 
 instance Plated (PointsTo a) where
   plate _ = pure

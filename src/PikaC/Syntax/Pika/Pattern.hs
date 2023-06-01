@@ -6,6 +6,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Syntax.Pika.Pattern
   where
@@ -31,10 +32,14 @@ import Data.Typeable
 
 import Test.QuickCheck
 
+import Control.DeepSeq
+
 data Pattern a
   = PatternVar (Name a)
   | Pattern String [Name a]
   deriving (Show, Generic)
+
+instance NFData a => NFData (Pattern a)
 
 makeLenses ''Pattern
 
@@ -49,6 +54,13 @@ newtype PatternMatch a b =
 newtype PatternMatches a b =
   PatternMatches { getPatternMatches :: Bind [Pattern a] b }
   deriving (Show, Generic)
+
+instance (NFData a, NFData b) => NFData (PatternMatch a b)
+instance (NFData a, NFData b) => NFData (PatternMatches a b)
+
+instance (Alpha a, Typeable a, WellScoped (Name a) a) => WellScoped (Pattern a) a where
+  wellScoped inScopeVars x =
+    wellScoped (concatMap getNames inScopeVars) x
 
 instance (Typeable a, Alpha b) => Alpha (PatternMatch a b)
 instance (Typeable a, Alpha b) => Alpha (PatternMatches a b)

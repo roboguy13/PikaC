@@ -13,6 +13,7 @@ import PikaC.Ppr
 import PikaC.Utils
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
 
 import Test.QuickCheck
 
@@ -24,6 +25,10 @@ import GHC.Generics
 
 import Control.Monad
 import Debug.Trace
+
+import Data.Validity
+
+import Control.DeepSeq
 
 data FnDef =
   FnDef
@@ -41,6 +46,9 @@ newtype FnDefBranch =
     -- , fnBranchBody :: Bind [ExprName] Expr
     -- }
   deriving (Show, Generic)
+
+instance NFData FnDef
+instance NFData FnDefBranch
 
 getResultAllocSize :: [Layout Expr] -> FnDef -> [ExprName] -> [Allocation Expr]
 getResultAllocSize layouts fnDef outParams =
@@ -76,6 +84,13 @@ instance Ppr FnDefBranch where
 --
 -- Property tests
 --
+
+instance Validity FnDef where
+  validate (FnDef _ _ branches) = mconcat (map validate branches)
+
+instance Validity FnDefBranch where
+  validate (FnDefBranch (PatternMatches (B pats body))) =
+    wellScoped pats body
 
 instance Arbitrary FnDefBranch where
   arbitrary = error "Arbitrary FnDefBranch"

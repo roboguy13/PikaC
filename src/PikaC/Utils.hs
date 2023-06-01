@@ -8,6 +8,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE DefaultSignatures #-}
 
 module PikaC.Utils
   where
@@ -29,7 +30,7 @@ import Unbound.Generics.LocallyNameless.Unsafe
 import Data.Typeable
 import Data.Data
 
-import Control.Lens hiding (elements)
+import Control.Lens hiding (elements, from)
 
 import Control.Monad
 
@@ -41,6 +42,8 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary
 
 import GHC.Generics
+
+import Data.Validity
 
 -- openBind :: (IsName a b, HasVar b, Alpha a, Alpha b, Subst b b) => Bind [a] b -> b
 openBind :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1) =>
@@ -135,6 +138,15 @@ instance IsName (Name a) a where
 class HasNames a b | a -> b where
   getNames :: a -> [Name b]
 
+class ConvertibleNames a b where
+  getNamesAs :: a -> [b]
+
+instance a ~ b => ConvertibleNames (Name a) (Name b) where
+  getNamesAs x = [x]
+
+instance a ~ b => ConvertibleNames [Name a] (Name b) where
+  getNamesAs = id
+
 class IsBase a where
   isVar :: a -> Bool
   isLit :: a -> Bool
@@ -160,11 +172,85 @@ getBv (B v _) = v
 isClosed :: forall a (b :: Type). (Alpha a, Typeable a, Typeable b) => a -> Bool
 isClosed = null . toListOf @(Name b) (fv @a)
 
-shrinkName :: Name a -> [Name a]
-shrinkName = genericShrink
-
 qcSubseqs :: [a] -> [[a]]
 qcSubseqs = drop 1 . init . subsequences
+
+newtype IsClosed a b = IsClosed (Bind a b)
+  deriving (Show, Generic)
+
+-- -- | Closed "relative" to the list of Names
+-- data RelativelyClosed a b =
+--   RelativelyClosed
+--     [Name a]
+--     (
+
+instance (Typeable a, Typeable b, Alpha a, Alpha b) => Validity (IsClosed a b) where
+  validate (IsClosed bnd) =
+    check (null (toListOf (fv @(Bind a b) @_ @a) bnd))
+      "is closed"
+
+-- class Binder n a where
+--   getVarsBoundBy :: a -> [Name n]
+--
+-- instance HasNames a n => Binder n (Bind a b) where
+--   getVarsBoundBy (B v _) = getNames v
+
+-- class (Typeable n, Alpha n, Alpha a) => WellScoped n a | a -> n where
+class (Typeable a, Alpha a) => WellScoped n a where
+  wellScoped :: [n] -> a -> Validation
+
+  default wellScoped :: (Generic a, GWellScoped n (Rep a)) =>
+    [n] -> a -> Validation
+  wellScoped inScopes = gWellScoped inScopes . from
+
+instance (Typeable a, Alpha a, WellScoped (Name a) b) => WellScoped (Name a) (Bind [Name a] b) where
+  wellScoped inScopeVars (B v body) =
+    let bodyFvs = toListOf (fv @b @_ @a) body
+        everyInScope = inScopeVars ++ v
+    in
+    check (all @[] (`elem` everyInScope) bodyFvs)
+      "Well scoped (WellScoped instance)"
+
+instance (Alpha a, Typeable a) => WellScoped (Name a) (Name a) where
+  wellScoped inScopeVars v =
+    check (v `elem` inScopeVars)
+      "Well scoped (WellScoped instance for Name)"
+
+instance WellScoped a b => WellScoped a [b]
+
+class GWellScoped n f where
+  gWellScoped :: [n] -> f a -> Validation
+
+instance GWellScoped n U1 where
+  gWellScoped _ _ = mempty
+
+instance GWellScoped n V1 where
+  gWellScoped _ _ = mempty
+
+instance (GWellScoped n a, GWellScoped n b) =>
+    GWellScoped n (a :*: b) where
+  gWellScoped inScopes (x :*: y) =
+    gWellScoped inScopes x <> gWellScoped inScopes y
+
+instance (GWellScoped n a, GWellScoped n b) =>
+    GWellScoped n (a :+: b) where
+  gWellScoped inScopes (L1 x) = gWellScoped inScopes x
+  gWellScoped inScopes (R1 y) = gWellScoped inScopes y
+
+
+instance (GWellScoped n a, Datatype c) => GWellScoped n (M1 D c a) where
+  gWellScoped inScopes m1 = gWellScoped inScopes (unM1 m1)
+
+instance (GWellScoped n a, Constructor c) => GWellScoped n (M1 C c a) where
+  gWellScoped inScopes m1 = gWellScoped inScopes (unM1 m1) `annotateValidation` conName m1
+
+instance (GWellScoped n a, Selector c) => GWellScoped n (M1 S c a) where
+  gWellScoped inScopes m1 = gWellScoped inScopes (unM1 m1) `annotateValidation` selName m1
+
+instance (WellScoped n a) => GWellScoped n (K1 R a) where
+  gWellScoped inScopes (K1 x) = wellScoped inScopes x
+
+annotateValidation = flip decorate
 
 instance (Alpha a, Alpha b, Arbitrary b) => Arbitrary (Bind a b) where
   arbitrary = error "Arbitrary (Bind a b)"
@@ -212,6 +298,9 @@ useNItems n [] = pure ([], [])
 useNItems n xs = do
   xs' <- shuffle xs
   pure $ splitAt n xs'
+
+discardM :: Gen a
+discardM = discard --pure undefined `suchThat` const False
 
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)

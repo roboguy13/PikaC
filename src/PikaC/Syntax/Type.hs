@@ -22,6 +22,8 @@ import Control.Lens.TH
 import Test.QuickCheck
 import Control.Monad
 
+import Control.DeepSeq
+
 data Type
   = IntType
   | BoolType
@@ -119,6 +121,12 @@ instance IsNested Type where
   isNested (TyVar x) = False
 
 makeLenses ''TypeSig
+
+instance NFData AdtName
+
+instance NFData Type
+instance NFData TypeSig
+instance NFData LayoutConstraint
 
 --
 -- Property tests --

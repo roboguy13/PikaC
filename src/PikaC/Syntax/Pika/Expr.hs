@@ -38,6 +38,8 @@ import Data.Data
 import Data.Validity
 import Test.QuickCheck
 
+import Control.DeepSeq
+
 import Debug.Trace
 
 data Expr
@@ -54,6 +56,8 @@ data Expr
   -- | Not Expr
   -- | And Expr Expr
   deriving (Show, Generic)
+
+instance NFData Expr
 
 instance HasApp Expr where
   mkApp = App
@@ -191,6 +195,16 @@ reduceLayouts = go
 -- Property tests --
 --
 
+instance WellScoped (Name Expr) Expr
+-- TODO: Figure out a way to handle this case properly
+instance WellScoped (Name Expr) (Bind LayoutName Expr) where
+  wellScoped inScopeVars (B v body) =
+    wellScoped inScopeVars body
+instance WellScoped (Name Expr) (Name Type) where
+  wellScoped _ _ = mempty
+instance WellScoped a Bool where
+  wellScoped _ _ = mempty
+
 instance Arbitrary Expr where
   arbitrary = error "Arbitrary Expr"
   shrink (App f xs) = do
@@ -238,10 +252,10 @@ genForLayout fnSigs layouts locals size layoutName =
   oneof $
     if not (null locals)
       then [elements' locals >>= \case
-            (_, Nothing) -> discard
+            (_, Nothing) -> discardM
             (var, Just layoutName') -> do
               if layoutName' /= layoutName
-                then discard
+                then discardM
                 else pure $ V var]
       else []
     ++
@@ -249,13 +263,13 @@ genForLayout fnSigs layouts locals size layoutName =
     [do
       layout@(layoutName', constructors) <- elements' layouts
       if layoutName' /= layoutName
-        then discard
+        then discardM
         else genConstructorApp fnSigs layouts locals (size-1) layout
 
     ,do
       fnSig@(fn, inLayouts, outLayout) <- elements' fnSigs
       if outLayout /= layoutName
-        then discard
+        then discardM
         else genCall fnSigs layouts locals size fnSig
     ]
 
@@ -295,7 +309,7 @@ genConstructorApp ::
    Int -> -- Generator size
    (LayoutName, [(String, [Maybe LayoutName])]) ->
    Gen Expr
-genConstructorApp _      _       _      size _ | size <= 0 = discard
+genConstructorApp _      _       _      size _ | size <= 0 = discardM
 genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
   (cName, arity) <- elements' constructorSigs
   let newSize = size `div` length arity

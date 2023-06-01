@@ -53,6 +53,8 @@ import Debug.Trace
 
 import Data.Validity
 
+import Control.DeepSeq
+
 -- newtype Operand a b = Operand (Var a b)
 --   deriving (Functor, Applicative, Monad, Show)
 
@@ -86,6 +88,14 @@ newtype LayoutBranch a =
             (LayoutBody a))
     }
     deriving (Show, Generic)
+
+instance NFData a => NFData (Layout a)
+instance NFData a => NFData (LayoutBranch a)
+instance NFData a => NFData (Moded a)
+instance NFData a => NFData (Exists a)
+instance NFData a => NFData (LayoutBody a)
+instance NFData a => NFData (LayoutHeaplet a)
+instance NFData Mode
 
 
 -- | A layout where the layout parameters have been substituted
@@ -549,11 +559,59 @@ type LayoutName = TypeName
 -- Property tests --
 --
 
-instance (Alpha a, Typeable a, Show a) => Validity (Layout a) where
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (ModedName a) (Layout a)
+
+instance WellScoped a Char where
+  wellScoped _ _ = mempty
+
+instance WellScoped a AdtName where
+  wellScoped _ _ = mempty
+
+instance (Typeable a, Alpha a, WellScoped (Name a) a) =>
+  WellScoped (ModedName a) (Bind [ModedName a] [LayoutBranch a]) where
+    wellScoped inScopeVars (B vs body) =
+      let inScopeVars' :: [Name a]
+          inScopeVars' = map modedNameName inScopeVars
+
+          body' :: Bind [Name a] [LayoutBranch a]
+          body' = B (map modedNameName vs) body
+      in
+      wellScoped @(Name a)
+        inScopeVars'
+        body'
+
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutBranch a)
+instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (PatternMatch a b) where
+  wellScoped inScopeVars (PatternMatch bnd) =
+    wellScoped inScopeVars bnd
+
+instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) =>
+    WellScoped (Name a) (Bind (Pattern a) b) where
+  wellScoped inScopeVars (B pat body) =
+    wellScoped inScopeVars (B (getNames pat) body)
+
+instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (Bind [Exists a] b) where
+  wellScoped inScopeVars (B vars body) =
+    wellScoped inScopeVars (B (map getExists vars) body)
+
+instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) (Bind [Name a] b)) => WellScoped (Name a) (Bind [ModedName a] b) where
+  wellScoped inScopeVars (B vars body) =
+    wellScoped inScopeVars (B (map modedNameName vars) body)
+
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutBody a)
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutHeaplet a)
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (PointsTo a)
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (Loc a)
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) Int where
+  wellScoped _ _ = mempty
+
+
+instance (Alpha a, Typeable a, Show a, WellScoped (Name a) a) => Validity (Layout a) where
   validate layout =
     let (B _ branches) = _layoutBranches layout
     in
-    mconcat $ map validate branches
+    wellScoped @(ModedName a) [] layout <>
+    mconcat (map validate branches)
 
 instance (Alpha a, Typeable a, Show a) => Validity (LayoutBranch a) where
   validate branch@(LayoutBranch (PatternMatch (B (PatternVar _) _))) =
@@ -570,7 +628,7 @@ allExistsAreUsed (LayoutBranch (PatternMatch (B (Pattern cName params) (B existV
   check (all (`elem` bodyFvs) (map (modedNameName . getExists) existVars))
     "All existentials in a layout branch must be used"
 
-instance (Typeable a, Alpha a, IsBase a, Arbitrary a) => Arbitrary (Layout a) where
+instance (Typeable a, Alpha a, IsBase a, Arbitrary a, WellScoped (Name a) a) => Arbitrary (Layout a) where
   arbitrary = error "Arbitrary Layout"
   shrink layout = filter isValid $ do
     branches' <- shrink $ _layoutBranches layout
@@ -651,7 +709,7 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   let lhs's = map (fmap getName) $ map pointsToLhs (getPointsTos (LayoutBody body))
 
   if (not (noDups lhs's))
-    then discard
+    then discardM
     else pure $
       LayoutBranch
         $ PatternMatch
@@ -708,7 +766,7 @@ genExistHeaplets :: (HasVar a) =>
   [Name a] ->
   Int ->
   Gen ([Name a], [LayoutHeaplet a])
-genExistHeaplets layoutName [] params existVars size | size <= 0 = discard
+genExistHeaplets layoutName [] params existVars size | size <= 0 = discardM
 genExistHeaplets layoutName [] params existVars size = pure ([], mempty)
 genExistHeaplets layoutName (patVar:patVars) params existVars size = do
 

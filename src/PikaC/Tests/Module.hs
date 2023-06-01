@@ -26,12 +26,25 @@ import Control.Exception
 import System.IO
 import System.Exit
 
+import Control.DeepSeq
+
+prop_wellScoped_modFns :: Property
+prop_wellScoped_modFns =
+  withMaxSuccess 700 $ ioProperty $
+  catch (evaluate $
+    forAll genModule $ \pikaModule ->
+      case pikaModule `deepseq` prettyValidation (mconcat (map validate (moduleFnDefs pikaModule))) of
+        Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
+        Nothing -> property True
+        ) $ \(SomeException e) -> error $ "caught an exception: " ++ show e
+
 -- | Converts to "basic args form"
 prop_basicArgs_toPikaCore :: Property
 prop_basicArgs_toPikaCore =
   -- forAllShrinkShow genModule (const []) show $ \pikaModule ->
   withMaxSuccess 700 $
-  forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
+  -- forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
+  forAllShow genModule ppr' $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
         pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
     in

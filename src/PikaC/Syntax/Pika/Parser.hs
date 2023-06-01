@@ -35,6 +35,8 @@ import GHC.Generics
 
 import Debug.Trace
 
+import Control.DeepSeq
+
 data PikaModule =
   PikaModule
   { moduleLayouts :: [Layout Expr]
@@ -42,6 +44,8 @@ data PikaModule =
   , moduleGenerates :: [String]
   }
   deriving (Show, Generic)
+
+instance NFData PikaModule
 
 instance Ppr PikaModule where
   ppr (PikaModule layouts fns generates) =
