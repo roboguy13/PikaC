@@ -610,7 +610,7 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   body2 <- replicateM additionalHeaplets $ genLayoutHeaplet layoutName patVars params existsNames size
   let body = body1 ++ body2
 
-  when (noDupsAeq $ map pointsToLhs (getPointsTos (LayoutBody body)))
+  when (not (noDupsAeq $ map pointsToLhs (getPointsTos (LayoutBody body))))
     discard
 
   pure $
