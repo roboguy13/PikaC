@@ -147,6 +147,7 @@ scoped m = do
 -- this function?
 internExprName :: forall m. MonadPikaIntern m => Pika.ExprName -> m PikaCore.ExprName
 internExprName n = pure (string2Name (name2String n))
+-- internExprName n = pure (string2Name (name2String n))
   -- do
   --   assocs <- gets _pikaToPcExprNameMap
   --   case lookup n assocs of

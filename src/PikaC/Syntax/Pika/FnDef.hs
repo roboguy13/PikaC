@@ -91,8 +91,8 @@ genFnSig ::
 genFnSig layoutSigs = do
   fnName <- genFnName
   argCount <- choose (1, 3)
-  args <- map Just <$> replicateM argCount (elements (map fst layoutSigs))
-  result <- elements (map fst layoutSigs)
+  args <- map Just <$> replicateM argCount (elements' (map fst layoutSigs))
+  result <- elements' (map fst layoutSigs)
   pure (fnName, args, result)
 
 genFnName :: Gen String
@@ -140,6 +140,7 @@ genFnDefBranch ::
    [(String, [Maybe LayoutName])] -> -- Input layouts
    Gen FnDefBranch
 genFnDefBranch fnSigs layouts outLayout size inLayouts = do
+  () <- traceM $ "genFn layouts = " ++ show layouts
   let locals = mkFreshVars $ map snd inLayouts
   body <- genForLayout fnSigs layouts (concat locals) size outLayout
   pure $ FnDefBranch

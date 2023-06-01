@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PikaC.Syntax.Pika.Parser
   where
@@ -10,6 +11,7 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Heaplet
+import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 
 import PikaC.Syntax.Type.Parser
 import PikaC.Syntax.Type
@@ -310,32 +312,51 @@ genModule' size = do
   layouts <- replicateM layoutCount $ genLayout @Expr adtSigs dividedSize
 
   let layoutSigs =
-        zipWith convertAdtSig
-          (map (string2Name . _layoutName) layouts)
-          adtSigs
+        map (convertSig adtSigs) layouts
+
+  -- let layoutSigs =
+  --       zipWith convertAdtSig
+  --         (map (string2Name . _layoutName) layouts)
+  --         adtSigs
   fnSigs <- replicateM fnCount (genFnSig layoutSigs)
 
   fns <- mapM (genFnDef fnSigs layoutSigs dividedSize)  fnSigs
 
-  trace ("adtSigs = " ++ show adtSigs ++ "; layoutSigs = " ++ show layoutSigs ++ "; fnSigs = " ++ show fnSigs) $ pure $ PikaModule
+  trace ("adtSigs = " ++ show adtSigs ++ "; layoutSigs = " ++ show layoutSigs ++ "; fnSigs = " ++ show fnSigs ++ "\nlayouts = " ++ show layouts) $ pure $ PikaModule
     { moduleLayouts = layouts
     , moduleFnDefs = fns
     , moduleGenerates = map fnDefName fns
     }
   where
-    convertAdtSig ::
-      LayoutName ->
-      (AdtName, [(String, [AdtArg])]) ->
+    convertSig ::
+      [(AdtName, [(String, [AdtArg])])] ->
+      Layout Expr ->
       (LayoutName, [(String, [Maybe LayoutName])])
-    convertAdtSig lName (_, args) =
-      (lName, map (go lName) args)
+    convertSig adtSigs layout =
+      let Just constructors = lookup (_layoutAdt layout) adtSigs
+      in
+      (string2Name $ _layoutName layout, map go constructors)
+      where
+        go :: (String, [AdtArg]) -> (String, [Maybe LayoutName])
+        go (cName, args) = (cName, map goArg args)
 
-    go ::
-      LayoutName ->
-      (String, [AdtArg]) ->
-      (String, [Maybe LayoutName])
-    go lName (cName, xs) = (cName, map (go' lName) xs)
+        goArg BaseArg = Nothing
+        goArg RecArg = Just $ string2Name $ _layoutName layout
 
-    go' lName BaseArg = Nothing
-    go' lName RecArg = Just lName
+    -- convertAdtSig ::
+    --   LayoutName ->
+    --   (AdtName, [(String, [AdtArg])]) ->
+    --   (LayoutName, [(String, [Maybe LayoutName])])
+    -- convertAdtSig lName (_, args) =
+    --   (lName, map (go lName) args)
+    --
+    -- go ::
+    --   LayoutName ->
+    --   (String, [AdtArg]) ->
+    --   (String, [Maybe LayoutName])
+    -- go lName (cName, xs) = (cName, map (go' lName) xs)
+    --
+    -- go' lName BaseArg = Nothing
+    -- go' lName RecArg = Just lName
+    --
 

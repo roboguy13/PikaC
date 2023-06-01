@@ -29,7 +29,7 @@ import Unbound.Generics.LocallyNameless.Unsafe
 import Data.Typeable
 import Data.Data
 
-import Control.Lens
+import Control.Lens hiding (elements)
 
 import Control.Monad
 
@@ -191,6 +191,10 @@ noDups xs = fastNub xs == xs
 
 disjoint :: Eq a => [a] -> [a] -> Bool
 disjoint xs ys = null (xs `intersect` ys)
+
+elements' :: HasCallStack => [a] -> Gen a
+elements' [] = error "elements' []"
+elements' xs = elements xs
 
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)

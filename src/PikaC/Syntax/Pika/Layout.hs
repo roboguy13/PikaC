@@ -49,6 +49,8 @@ import Control.Monad
 
 import Test.QuickCheck
 
+import Debug.Trace
+
 -- newtype Operand a b = Operand (Var a b)
 --   deriving (Functor, Applicative, Monad, Show)
 
@@ -298,10 +300,10 @@ lookupLayout (x:xs) name
 
 openLayout :: (Fresh m, Alpha a, Typeable a, Subst a (LayoutBranch a), HasVar a) => Layout a -> m ([ModedName a], OpenedLayout a)
 openLayout layout = do
-  let branches@(B vs _) = _layoutBranches layout
-      modes = map getMode vs
-  (vs', opened) <- freshOpen branches
-  pure (zipWith Moded modes vs', opened)
+  let branches = _layoutBranches layout
+      -- modes = map getMode vs
+  -- (vs', opened) <- freshOpen branches
+  unbind branches
 
 instance IsName (Moded (Name a)) a where
   getName = modedNameName
@@ -567,14 +569,16 @@ genLayout :: (Typeable a, Alpha a, HasVar a, IsName a a) =>
   Int ->
   Gen (Layout a)
 genLayout adts size = do
-  (adtName, constructors) <- elements adts
+  (adtName, constructors) <- elements' adts
   lName <- genLayoutName adtName
   n <- choose (1, 3)
   params <- map string2Name <$> genParamNames n
 
   let dividedSize = size `div` length constructors
 
-  branches <- mapM (genLayoutBranch lName params dividedSize) constructors
+  branches <-
+    trace ("constructors = " ++ show constructors)
+    $ mapM (genLayoutBranch lName params dividedSize) constructors
 
   pure $
     Layout
@@ -599,7 +603,7 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   existsNames <- fmap (map string2Name) (genParamNames n) `suchThat` disjoint namesSoFar
   k <- choose (2, 7)
   let dividedSize = size `div` k
-  body <- replicateM k (genLayoutHeaplet layoutName patVars params existsNames dividedSize) `suchThat` noDupPointsToLhs
+  body <- replicateM k (genLayoutHeaplet layoutName patVars params existsNames dividedSize) -- `suchThat` noDupPointsToLhs
   pure $
     LayoutBranch
       $ PatternMatch
@@ -607,8 +611,8 @@ genLayoutBranch layoutName params size (constructor, arity) = do
             $ bind (map (Exists . Moded In) existsNames)
               $ LayoutBody body
 
-noDupPointsToLhs :: IsName a a => [LayoutHeaplet a] -> Bool
-noDupPointsToLhs = noDups . map (getName . locBase . pointsToLhs) . getPointsTos . LayoutBody
+-- noDupPointsToLhs :: IsName a a => [LayoutHeaplet a] -> Bool
+-- noDupPointsToLhs = noDups . map (getName . locBase . pointsToLhs) . getPointsTos . LayoutBody
 
 genLayoutHeaplet :: (HasVar a) =>
   String ->
@@ -618,11 +622,16 @@ genLayoutHeaplet :: (HasVar a) =>
   Int ->
   Gen (LayoutHeaplet a)
 genLayoutHeaplet layoutName patVars params existVars size = do
-  oneof
-    [ LPointsTo <$> (genValidPointsTo params (\_ -> mkVar <$> elements (patVars ++ existVars)) size)
-
-    , LApply layoutName <$> fmap mkVar (elements patVars) <*> fmap (map mkVar) (replicateM (length params) (elements (existVars `union` params)))
+  oneof $
+    [ LPointsTo <$> (genValidPointsTo params (\_ -> mkVar <$> elements' (patVars ++ existVars)) (size - 1))
     ]
+    ++
+    if null patVars
+      then []
+      else [ LApply layoutName
+        <$> fmap mkVar (elements' patVars)
+        <*> fmap (map mkVar) (replicateM (length params) (elements' (existVars `union` params)))
+        ]
 
 genLayoutName :: AdtName -> Gen String
 genLayoutName (AdtName adtName) = do

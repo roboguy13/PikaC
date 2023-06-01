@@ -255,7 +255,10 @@ convertExpr openedArgLayouts = go
     go e@(Pika.ApplyLayout {}) = convertAppHere openedArgLayouts e
     go e@(Pika.App {}) = convertAppHere openedArgLayouts e
     go (Pika.Add x y) = PikaCore.Add <$> go x <*> go y
+    go (Pika.Sub x y) = PikaCore.Sub <$> go x <*> go y
+    go (Pika.Equal x y) = PikaCore.Equal <$> go x <*> go y
     go (Pika.IntLit i) = pure $ PikaCore.IntLit i
+    go (Pika.BoolLit b) = pure $ PikaCore.BoolLit b
 
 lookupVar :: HasCallStack => Maybe [LayoutBody PikaCore.Expr] -> Name PikaCore.Expr -> [Name PikaCore.Expr]
 lookupVar Nothing v = [v]

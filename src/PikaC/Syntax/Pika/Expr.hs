@@ -38,6 +38,8 @@ import Data.Data
 import Data.Validity
 import Test.QuickCheck
 
+import Debug.Trace
+
 data Expr
   = V ExprName
   | IntLit Int
@@ -210,11 +212,11 @@ genConcreteExpr' fnSigs layouts locals size =
   oneof
     [genSimpleExpr' (getSimpleLocals locals) size
     ,do
-      fnSig <- elements fnSigs
-      genCall fnSigs layouts locals size fnSig
+      fnSig <- elements' fnSigs
+      genCall fnSigs layouts locals (size-1) fnSig
     ,do
-      constructorSig <- elements layouts
-      genConstructorApp fnSigs layouts locals size constructorSig
+      constructorSig <- elements' layouts
+      genConstructorApp fnSigs layouts locals (size-1) constructorSig
     ]
 
 genForLayout :: 
@@ -225,21 +227,24 @@ genForLayout ::
    LayoutName ->
    Gen Expr
 genForLayout fnSigs layouts locals size layoutName =
-  oneof
+  oneof $
+    if not (null locals)
+      then [elements' locals >>= \case
+            (_, Nothing) -> discard
+            (var, Just layoutName') -> do
+              when (layoutName' /= layoutName) discard
+              pure $ V var]
+      else []
+    ++
+
     [do
-      elements locals >>= \case
-        (_, Nothing) -> discard
-        (var, Just layoutName') -> do
-          when (layoutName' /= layoutName) discard
-          pure $ V var
-
-    ,do
-      layout@(layoutName', constructors) <- elements layouts
+      layout@(layoutName', constructors) <- elements' layouts
       when (layoutName' /= layoutName) discard
-      genConstructorApp fnSigs layouts locals size layout
+      trace ("generating with " ++ show layout) $
+        genConstructorApp fnSigs layouts locals (size-1) layout
 
     ,do
-      fnSig@(fn, inLayouts, outLayout) <- elements fnSigs
+      fnSig@(fn, inLayouts, outLayout) <- elements' fnSigs
       when (outLayout /= layoutName) discard
       genCall fnSigs layouts locals size fnSig
     ]
@@ -260,6 +265,7 @@ genForMaybeLayout fnSigs layouts locals size (Just layoutName) =
 getSimpleLocals :: [(ExprName, Maybe LayoutName)] -> [ExprName]
 getSimpleLocals ((x, Nothing):xs) = x : getSimpleLocals xs
 getSimpleLocals ((_, Just _):xs) = getSimpleLocals xs
+getSimpleLocals [] = []
 
 genCall :: 
    [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
@@ -280,11 +286,12 @@ genConstructorApp ::
    (LayoutName, [(String, [Maybe LayoutName])]) ->
    Gen Expr
 genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
-  (cName, arity) <- elements constructorSigs
+  (cName, arity) <- elements' constructorSigs
   let newSize = size `div` length arity
-  ApplyLayout
-    <$> (App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
-    <*> pure layout
+  trace ("using layout " ++ show layout ++ " with constructor " ++ cName) $
+    ApplyLayout
+      <$> (App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
+      <*> pure layout
 
 genSimpleExpr' :: [ExprName] -> Int -> Gen Expr
 genSimpleExpr' [] _ =
@@ -294,7 +301,7 @@ genSimpleExpr' [] _ =
     ]
 genSimpleExpr' locals 0 =
   oneof
-    [V <$> elements locals
+    [V <$> elements' locals
     ,genSimpleExpr' [] 0
     ]
 genSimpleExpr' locals size =

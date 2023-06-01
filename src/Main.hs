@@ -24,6 +24,8 @@ import PikaC.Backend.C.CodeGen
 
 import PikaC.Ppr
 
+import qualified PikaC.Tests.Module as TestsModule
+
 import Control.Lens
 
 import Control.Monad
@@ -148,8 +150,11 @@ main = do
 
   let (args', opts) = parseOptions args 
 
-  if (_optSelfTest opts)
-    then void Simplify.checkAllProps
+  if _optSelfTest opts
+    then do
+      TestsModule.checkAllProps
+      Simplify.checkAllProps
+      pure ()
     else case args' of
       [] | null args -> printHelp
       _ | _optHelp opts -> printHelp
@@ -201,20 +206,4 @@ generateFn opts pikaModule fnName =
       | otherwise =
           pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
 
---
--- Property tests --
---
-
--- TODO: Move these into another module
-
--- | Converts to "basic args form"
-prop_basicArgs_toPikaCore :: Property
-prop_basicArgs_toPikaCore =
-  forAllShrinkShow genModule (const []) show $ \pikaModule ->
-    let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
-    in
-    case prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
-      Just msg -> counterexample ("Counterexample result:\n" ++ msg) False
-      Nothing -> property True
 
