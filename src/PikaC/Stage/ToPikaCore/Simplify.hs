@@ -80,8 +80,8 @@ propPreserves_validation precond v pass =
   let precondFnDef = validateFnDefWith precond
       gen = genValidFnDef `suchThat` (validationIsValid . precondFnDef)
   in
-  -- forAllShrinkShow gen (filter (validationIsValid . precondFnDef) . shrink) ppr' $ \fnDef ->
-  forAllShow gen ppr' $ \fnDef ->
+  forAllShrinkShow gen (filter (validationIsValid . precondFnDef) . shrink) ppr' $ \fnDef ->
+  -- forAllShow gen ppr' $ \fnDef ->
     let result = runSimplifyQuiet Unlimited pass fnDef
     in
     case prettyValidation (v result) of

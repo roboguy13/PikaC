@@ -152,8 +152,8 @@ main = do
 
   if _optSelfTest opts
     then do
-      TestsModule.checkAllProps
-      -- Simplify.checkAllProps
+      -- TestsModule.checkAllProps
+      Simplify.checkAllProps
       pure ()
     else case args' of
       [] | null args -> printHelp
