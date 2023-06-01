@@ -128,10 +128,15 @@ makeLenses ''TypeSig
 data AdtArg = BaseArg | RecArg
   deriving (Show, Eq, Generic)
 
+-- | Has at least on non-nullary constructor
+nonUnitSig :: (AdtName, [(String, [AdtArg])]) -> Bool
+nonUnitSig (_, xs) = any (not . null . snd) xs
+
 genAdtSig :: Gen (AdtName, [(String, [AdtArg])])
 genAdtSig = do
   n <- choose (1, 3)
   liftA2 (,) genAdtName (replicateM n genConstructor)
+    `suchThat` nonUnitSig -- Don't generate unit types
 
 -- | Constructor name and arity
 genConstructor :: Gen (String, [AdtArg])

@@ -193,14 +193,11 @@ arbitraryAnyCase =
 
 genNameString :: Gen String
 genNameString = do
-  n <- choose (1, 4)
+  n <- chooseInt (1, 4)
   replicateM n arbitraryAlpha
 
 noDups :: Ord a => [a] -> Bool
-noDups xs = fastNub xs == xs
-
-noDupsAeq :: Alpha a => [a] -> Bool
-noDupsAeq xs = nubBy aeq xs `aeq` xs
+noDups xs = sort (fastNub xs) == sort xs
 
 disjoint :: Eq a => [a] -> [a] -> Bool
 disjoint xs ys = null (xs `intersect` ys)
@@ -208,6 +205,13 @@ disjoint xs ys = null (xs `intersect` ys)
 elements' :: HasCallStack => [a] -> Gen a
 elements' [] = error "elements' []"
 elements' xs = elements xs
+
+-- Get N items from the given list, also return the rest
+useNItems :: Int -> [a] -> Gen ([a], [a])
+useNItems n [] = pure ([], [])
+useNItems n xs = do
+  xs' <- shuffle xs
+  pure $ splitAt n xs'
 
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)

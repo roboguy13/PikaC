@@ -564,15 +564,20 @@ instance (IsBase a, Arbitrary a) => Arbitrary (LayoutHeaplet a) where
   shrink = genericShrink
 
 -- NOTE: Only Out mode parameters for now
-genLayout :: (Typeable a, Alpha a, HasVar a, IsName a a) =>
+genLayout :: (IsNested a, Ppr a, Typeable a, Alpha a, HasVar a, IsName a a) =>
   String ->
   [(AdtName, [(String, [AdtArg])])] ->  -- ADTs and their constructor names and the constructor arities
   Int ->
   Gen (Layout a)
 genLayout lName adts size = do
   (adtName, constructors) <- elements' adts
-  n <- choose (1, 3)
-  params <- map string2Name <$> genParamNames n
+
+  -- n <- choose (1, 3)
+  -- params <- map string2Name <$> genParamNames n
+
+  -- TODO: Generate various numbers of parameters. For now, we always
+  -- generate one parameter.
+  params <- map string2Name <$> genParamNames 1
 
   let dividedSize = size `div` length constructors
 
@@ -588,14 +593,14 @@ genLayout lName adts size = do
     }
 
 -- TODO: Remove unused existentials and layout parameters
-genLayoutBranch :: (Typeable a, Alpha a, HasVar a, IsName a a) =>
+genLayoutBranch :: (IsNested a, Ppr a, Typeable a, Alpha a, HasVar a, IsName a a) =>
   String ->
   [Name a] ->
   Int ->
   (String, [AdtArg]) ->
   Gen (LayoutBranch a)
 genLayoutBranch layoutName params size (constructor, arity) = do
-  n <- choose (1, 3)
+  n <- chooseInt (1, 3)
   patVars <- fmap (map string2Name) (genParamNames (length arity)) `suchThat` disjoint params
   let namesSoFar = patVars ++ params
   existsNames <- fmap (map string2Name) (genParamNames n) `suchThat` disjoint namesSoFar
@@ -605,61 +610,114 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   -- body <- replicateM k (genLayoutHeaplet layoutName patVars params existsNames dividedSize) -- `suchThat` noDupPointsToLhs
   shuffledPatVars <- shuffle patVars
   shuffledParams <- fmap cycle $ shuffle params
-  body1 <- genLayoutRequiredPointsTo layoutName shuffledPatVars shuffledParams dividedSize `suchThat` (\xs -> null patVars || not (null xs)) -- `suchThat` noDupPointsToLhs
-  additionalHeaplets <- choose (0, 8)
-  body2 <- replicateM additionalHeaplets $ genLayoutHeaplet layoutName patVars params existsNames size
-  let body = body1 ++ body2
 
-  when (not (noDupsAeq $ map pointsToLhs (getPointsTos (LayoutBody body))))
-    discard
+  (usedLocs1, body1) <- genLayoutRequiredPointsTo layoutName [] shuffledPatVars shuffledParams dividedSize `suchThat` (\xs -> null patVars || not (null xs)) -- `suchThat` noDupPointsToLhs
 
-  pure $
-    LayoutBranch
-      $ PatternMatch
-          $ bind (Pattern constructor patVars)
-            $ bind (map (Exists . Moded In) existsNames)
-              $ LayoutBody body
+  additionalHeaplets <- chooseInt (0, 8)
+  (usedLocs2, body2) <- genLayoutHeaplets additionalHeaplets usedLocs1 layoutName patVars params existsNames size
+      -- `suchThat` noDupPointsToLhs
+
+  (existsVarsUsed, body3) <- genExistHeaplets layoutName patVars params existsNames size
+
+  let body = body1 ++ body2 ++ body3
+
+  let lhs's = map (fmap getName) $ map pointsToLhs (getPointsTos (LayoutBody body))
+
+  if (not (noDups lhs's))
+    then discard
+    else pure $
+      LayoutBranch
+        $ PatternMatch
+            $ bind (Pattern constructor patVars)
+              $ bind (map (Exists . Moded In) existsVarsUsed)
+                $ LayoutBody body
 
 -- noDupPointsToLhs :: IsName a a => [LayoutHeaplet a] -> Bool
 -- noDupPointsToLhs = noDups . map (getName . locBase . pointsToLhs) . getPointsTos . LayoutBody
 
-genLayoutHeaplet :: (HasVar a) =>
-  String ->
-  [Name a] ->
-  [Name a] ->
-  [Name a] ->
-  Int ->
-  Gen (LayoutHeaplet a)
-genLayoutHeaplet layoutName patVars params existVars size = do
-  oneof $
-    [ LPointsTo <$> (genValidPointsTo params (\_ -> mkVar <$> elements' (patVars ++ existVars)) (size - 1))
-    ]
-    ++
-    if null patVars
-      then []
-      else [ LApply layoutName
-        <$> fmap mkVar (elements' patVars)
-        <*> fmap (map mkVar) (replicateM (length params) (elements' (existVars `union` params)))
-        ]
+noDupPointsToLhs :: IsName a a => [LayoutHeaplet a] -> Bool
+noDupPointsToLhs = noDups . map (fmap getName) . map pointsToLhs . getPointsTos . LayoutBody
 
-genLayoutRequiredPointsTo :: (HasVar a) =>
+genLayoutHeaplets :: (IsName a a, HasVar a) =>
+  Int ->
+  [Loc (Name a)] ->
   String ->
   [Name a] ->
   [Name a] ->
+  [Name a] ->
   Int ->
-  Gen [LayoutHeaplet a]
-genLayoutRequiredPointsTo _          []      _               _ = pure []
-genLayoutRequiredPointsTo _          _       []              _ = pure []
+  Gen ([Loc (Name a)], [LayoutHeaplet a])
+genLayoutHeaplets 0 usedLocs layoutName patVars params existVars size = pure (usedLocs, [])
+genLayoutHeaplets count usedLocs layoutName patVars params existVars size = do
+  (usedLoc, h) <- genLayoutHeaplet usedLocs layoutName patVars params existVars size
+  (usedLocs', hs) <- genLayoutHeaplets (count-1) (usedLoc:usedLocs) layoutName patVars params existVars size
+  pure (usedLocs', h:hs)
+
+genLayoutHeaplet :: (IsName a a, HasVar a) =>
+  [Loc (Name a)] ->
+  String ->
+  [Name a] ->
+  [Name a] ->
+  [Name a] ->
+  Int ->
+  Gen (Loc (Name a), LayoutHeaplet a)
+genLayoutHeaplet usedLocs layoutName patVars params existVars size = do
+    p <- genValidPointsToRestricted usedLocs
+            params (\_ -> mkVar <$> elements' (patVars ++ existVars)) (size - 1)
+      -- `suchThat` ((`notElem` usedLocs) . fmap getName . pointsToLhs)
+    pure (fmap getName (pointsToLhs p), LPointsTo p)
+    -- ++
+    -- if null patVars
+    --   then []
+    --   else [ LApply layoutName
+    --     <$> fmap mkVar (elements' patVars)
+    --     <*> fmap (map mkVar) (replicateM (length params) (elements' (existVars `union` params)))
+    --     ]
+
+genExistHeaplets :: (HasVar a) =>
+  String ->
+  [Name a] ->
+  [Name a] ->
+  [Name a] ->
+  Int ->
+  Gen ([Name a], [LayoutHeaplet a])
+genExistHeaplets layoutName [] params existVars size | size <= 0 = discard
+genExistHeaplets layoutName [] params existVars size = pure ([], mempty)
+genExistHeaplets layoutName (patVar:patVars) params existVars size = do
+
+  -- ix <- chooseInt (1, length existVars)
+  let arity = length params
+  let (here, rest) = splitAt (arity-1) existVars -- We use arity-1 so that we always get at least one item from params when we make xs
+
+
+  xs <- shuffle $ here ++ take (arity - length here) params
+
+  (existVars', heaplets) <- genExistHeaplets layoutName patVars params rest (size-1)
+
+  pure $ (here ++ existVars', LApply layoutName (mkVar patVar) (map mkVar xs) : heaplets)
+
+genLayoutRequiredPointsTo :: (IsName a a, HasVar a) =>
+  String ->
+  [Loc (Name a)] ->
+  [Name a] ->
+  [Name a] ->
+  Int ->
+  Gen ([Loc (Name a)], [LayoutHeaplet a])
+genLayoutRequiredPointsTo _ _          []      _               _ = pure ([], [])
+genLayoutRequiredPointsTo _ _          _       []              _ = pure ([], [])
 -- genLayoutRequiredPointsTo layoutName patVars remainingParams existVars size | size <= 0 = pure []
-genLayoutRequiredPointsTo layoutName (patVar:patVars) (param:remainingParams) size = do
-  here <- LPointsTo <$> (genValidPointsTo [param] (\_ -> pure $ mkVar patVar) size)
-  rest <- genLayoutRequiredPointsTo layoutName patVars remainingParams (size-1)
-  pure $ here : rest
+genLayoutRequiredPointsTo usedLocs layoutName (patVar:patVars) (param:remainingParams) size = do
+  (usedLocs', rest) <- genLayoutRequiredPointsTo usedLocs layoutName patVars remainingParams (size-1)
+  here <- genValidPointsToRestricted usedLocs' [param] (\_ -> pure $ mkVar patVar) size
+  -- here <- (genValidPointsTo [param] (\_ -> pure $ mkVar patVar) size)
+  --           `suchThat` ((`notElem` usedLocs) . fmap getName . pointsToLhs)
+  pure (fmap getName (pointsToLhs here) : usedLocs'
+       , LPointsTo here : rest)
     
 
 genLayoutName :: Gen String
 genLayoutName = do
-  i <- choose (0,4) :: Gen Int
+  i <- chooseInt (0,4) :: Gen Int
   x <- arbitraryUppercase
   prefix <- replicateM i arbitraryAnyCase
   pure (x : prefix ++ "_layout")

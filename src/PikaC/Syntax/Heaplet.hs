@@ -57,7 +57,7 @@ pointsToRhsLens =
 
 -- data Loc = LocName :+ Int
 data Loc a = a :+ Int
-  deriving (Show, Eq, Ord, Generic)
+  deriving (Show, Functor, Eq, Ord, Generic)
 
 instance Plated (PointsTo a) where
   plate _ = pure
@@ -194,18 +194,35 @@ instance IsBase a => Validity (Loc a) where
 
 genValidPointsTo :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen (PointsTo a)
 genValidPointsTo names genA size = do
-    loc <- genValidLoc names halvedGenA
-    rhs <- halvedGenA
+    loc <- genValidLoc names
+    rhs <- genA (size-1)
     pure (loc :-> rhs)
-  where
-    halvedGenA =
-      genA (size `div` 2)
 
-genValidLoc :: HasVar a => [Name a] -> Gen a -> Gen (Loc a)
-genValidLoc names genA = do
-  i <- choose (0, 5)
+-- | Restrict so that it avoids generating LHS locations
+-- in the given list
+genValidPointsToRestricted :: HasVar a =>
+  [Loc (Name a)] ->
+  [Name a] ->
+  (Int -> Gen a) ->
+  Int -> Gen (PointsTo a)
+genValidPointsToRestricted usedLocs names genA size = do
+  loc <- genValidLocNotIn usedLocs names
+  rhs <- genA (size-1)
+  pure (loc :-> rhs)
+
+genValidLoc :: HasVar a => [Name a] -> Gen (Loc a)
+genValidLoc names = do
+  i <- choose (0, 20)
   v <- mkVar <$> elements names
   pure (v :+ i)
+
+genValidLocNotIn :: HasVar a => [Loc (Name a)] -> [Name a] -> Gen (Loc a)
+genValidLocNotIn usedLocs names = do
+  let choices =
+        filter (`notElem` usedLocs) $
+        liftA2 (:+) names [0..20]
+  loc <- elements choices
+  pure $ fmap mkVar loc
 
 genValidAllocations :: IsName a a => [PointsTo a] -> Gen [Allocation a]
 genValidAllocations = mapM genValidAllocation
