@@ -17,6 +17,7 @@ import PikaC.Syntax.Type.Parser
 import PikaC.Syntax.Type
 
 import PikaC.Utils
+import PikaC.Ppr hiding (char)
 
 import Text.Megaparsec
 import Text.Megaparsec.Char
@@ -41,6 +42,13 @@ data PikaModule =
   , moduleGenerates :: [String]
   }
   deriving (Show, Generic)
+
+instance Ppr PikaModule where
+  ppr (PikaModule layouts fns generates) =
+    text "-- Layouts:"
+    $$ vcat (map ppr layouts)
+    $$ text "-- Fn defs:"
+    $$ vcat (map ppr fns)
 
 isTrivialModule :: PikaModule -> Bool
 isTrivialModule (PikaModule x y z) =
