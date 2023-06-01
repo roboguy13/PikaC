@@ -200,7 +200,7 @@ instance IsBase a => Validity (Loc a) where
 genValidPointsTo :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen (PointsTo a)
 genValidPointsTo names genA size = do
     loc <- genValidLoc names
-    rhs <- genA (size-1)
+    rhs <- genA (size `div` 2)
     pure (loc :-> rhs)
 
 -- | Restrict so that it avoids generating LHS locations
