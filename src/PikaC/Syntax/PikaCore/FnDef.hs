@@ -223,14 +223,16 @@ genValidBranch outVars = sized . genValidBranch' outVars
 genValidBranch' :: [Name Expr] -> [ModedName Expr] -> Int -> Gen FnDefBranch
 genValidBranch' outVars modedBvs size = do
     i <- choose (1, 3)
-    inAsns <- replicateM i (genValidAssertion bvs (const $ genAsnVar (asnName : bvs)) (size `div` 2)) `suchThat` any (not . null)
+    let asnBvs = bvs \\ outVars
+        inAsnNames = (asnName : bvs) \\ outVars
+    inAsns <- replicateM i (genValidAssertion asnBvs (const $ genAsnVar inAsnNames) (size `div` 2)) `suchThat` any (not . null)
 
     -- TODO: Figure this out:
     -- e <- genValidExpr' (asnName : bvs) (size `div` 2)
-    e <-
-      if not (null (toListOf fv inAsns `intersect` outVars))
-        then discard
-        else genValidExpr' bvs (size `div` 2)
+    e <- genValidExpr' bvs (size `div` 2)
+      -- if not (null (toListOf fv inAsns `intersect` outVars))
+      --   then discard
+      --   else genValidExpr' bvs (size `div` 2)
     allocs <- genValidAllocations $ concat inAsns
     pure $ FnDefBranch inAsns allocs e
   where
