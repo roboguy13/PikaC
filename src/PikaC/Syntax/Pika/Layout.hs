@@ -705,7 +705,7 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   (usedLocs1, body1) <- genLayoutRequiredPointsTo layoutName [] shuffledPatVars shuffledParams dividedSize `suchThat` (\xs -> null patVars || not (null xs)) -- `suchThat` noDupPointsToLhs
 
   additionalHeaplets <- chooseInt (0, 8)
-  (usedLocs2, body2) <- genLayoutHeaplets additionalHeaplets usedLocs1 layoutName patVars params existsNames size
+  (usedLocs2, body2) <- genLayoutHeaplets additionalHeaplets usedLocs1 layoutName patVars params size
       -- `suchThat` noDupPointsToLhs
 
   (existsVarsUsed, body3) <- genExistHeaplets layoutName patVars params existsNames size
@@ -735,13 +735,13 @@ genLayoutHeaplets :: (IsName a a, HasVar a) =>
   String ->
   [Name a] ->
   [Name a] ->
-  [Name a] ->
   Int ->
   Gen ([Loc (Name a)], [LayoutHeaplet a])
-genLayoutHeaplets 0 usedLocs layoutName patVars params existVars size = pure (usedLocs, [])
-genLayoutHeaplets count usedLocs layoutName patVars params existVars size = do
-  (usedLoc, h) <- genLayoutHeaplet usedLocs layoutName patVars params existVars size
-  (usedLocs', hs) <- genLayoutHeaplets (count-1) (usedLoc:usedLocs) layoutName patVars params existVars size
+genLayoutHeaplets 0 usedLocs layoutName patVars params size = pure (usedLocs, [])
+genLayoutHeaplets _ usedLocs layoutName [] params size = pure (usedLocs, [])
+genLayoutHeaplets count usedLocs layoutName patVars params size = do
+  (usedLoc, h) <- genLayoutHeaplet usedLocs layoutName patVars params size
+  (usedLocs', hs) <- genLayoutHeaplets (count-1) (usedLoc:usedLocs) layoutName patVars params size
   pure (usedLocs', h:hs)
 
 genLayoutHeaplet :: (IsName a a, HasVar a) =>
@@ -749,12 +749,11 @@ genLayoutHeaplet :: (IsName a a, HasVar a) =>
   String ->
   [Name a] ->
   [Name a] ->
-  [Name a] ->
   Int ->
   Gen (Loc (Name a), LayoutHeaplet a)
-genLayoutHeaplet usedLocs layoutName patVars params existVars size = do
+genLayoutHeaplet usedLocs layoutName patVars params size = do
     p <- genValidPointsToRestricted usedLocs
-            params (\_ -> mkVar <$> elements' (patVars ++ existVars)) (size - 1)
+            params (\_ -> mkVar <$> elements' (patVars)) (size - 1)
       -- `suchThat` ((`notElem` usedLocs) . fmap getName . pointsToLhs)
     pure (fmap getName (pointsToLhs p), LPointsTo p)
     -- ++

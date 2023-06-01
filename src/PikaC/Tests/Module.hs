@@ -48,7 +48,7 @@ prop_basicArgs_toPikaCore =
     let (fnName:_) = moduleGenerates pikaModule
         pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
     in
-    case prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
+    case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
       Nothing -> property True
   -- where
