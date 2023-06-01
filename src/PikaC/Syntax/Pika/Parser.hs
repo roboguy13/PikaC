@@ -330,12 +330,11 @@ genModule' size = do
 
   fns <- mapM (genFnDef fnSigs layoutSigs dividedSize) fnSigs
 
-  trace ("layoutSigs = " ++ show layoutSigs ++ "; adtSigs = " ++ show adtSigs) $
-    pure $ PikaModule
-      { moduleLayouts = layouts
-      , moduleFnDefs = fns
-      , moduleGenerates = map fnDefName fns
-      }
+  pure $ PikaModule
+    { moduleLayouts = layouts
+    , moduleFnDefs = fns
+    , moduleGenerates = map fnDefName fns
+    }
   where
     convertSig ::
       [(AdtName, [(String, [AdtArg])])] ->
