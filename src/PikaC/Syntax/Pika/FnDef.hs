@@ -113,8 +113,7 @@ genFnDef fnSigs layouts size (fnName, inLayouts, outLayout) = do
       params = sequenceA constructorLists
       ty = foldr1 FnType $ map goType (inLayouts ++ [Just outLayout])
   branches <- mapM (genFnDefBranch fnSigs layouts outLayout size) params
-  trace ("-------- ty = " ++ ppr' ty ++ "; params = " ++ show params) $
-    pure $
+  pure $
       FnDef
       { fnDefName = fnName
       , fnDefTypeSig =
@@ -125,9 +124,8 @@ genFnDef fnSigs layouts size (fnName, inLayouts, outLayout) = do
       , fnDefBranches = branches
       }
   where
-    lookupConstructorList Nothing = undefined
-    lookupConstructorList (Just layoutName) = trace ("layoutName = " ++ show layoutName) $
-
+    lookupConstructorList Nothing = error "lookupConstructorList: Nothing" -- TODO: Implement this case
+    lookupConstructorList (Just layoutName) = 
       let Just r = lookup layoutName layouts
       in r
 
@@ -142,7 +140,6 @@ genFnDefBranch ::
    [(String, [Maybe LayoutName])] -> -- Input layouts
    Gen FnDefBranch
 genFnDefBranch fnSigs layouts outLayout size inLayouts = do
-  () <- traceM $ "genFn layouts = " ++ show layouts
   let locals = mkFreshVars $ map snd inLayouts
   body <- genForLayout fnSigs layouts (concat locals) size outLayout
   pure $ FnDefBranch

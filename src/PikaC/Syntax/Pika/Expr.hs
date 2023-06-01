@@ -240,8 +240,7 @@ genForLayout fnSigs layouts locals size layoutName =
     [do
       layout@(layoutName', constructors) <- elements' layouts
       when (layoutName' /= layoutName) discard
-      trace ("generating with " ++ show layout) $
-        genConstructorApp fnSigs layouts locals (size-1) layout
+      genConstructorApp fnSigs layouts locals (size-1) layout
 
     ,do
       fnSig@(fn, inLayouts, outLayout) <- elements' fnSigs
@@ -289,10 +288,9 @@ genConstructorApp _      _       _      size _ | size <= 0 = discard
 genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
   (cName, arity) <- elements' constructorSigs
   let newSize = size `div` length arity
-  trace ("using layout " ++ show layout ++ " with constructor " ++ cName) $
-    ApplyLayout
-      <$> (App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
-      <*> pure layout
+  ApplyLayout
+    <$> (App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
+    <*> pure layout
 
 genSimpleExpr' :: [ExprName] -> Int -> Gen Expr
 genSimpleExpr' [] _ =

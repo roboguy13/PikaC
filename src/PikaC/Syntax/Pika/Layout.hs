@@ -576,9 +576,7 @@ genLayout lName adts size = do
 
   let dividedSize = size `div` length constructors
 
-  branches <-
-    trace ("constructors = " ++ show constructors)
-    $ mapM (genLayoutBranch lName params dividedSize) constructors
+  branches <- mapM (genLayoutBranch lName params dividedSize) constructors
 
   pure $
     Layout
@@ -608,7 +606,7 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   shuffledPatVars <- shuffle patVars
   shuffledParams <- fmap cycle $ shuffle params
   body <-  genLayoutRequiredPointsTo layoutName shuffledPatVars shuffledParams dividedSize `suchThat` (\xs -> null patVars || not (null xs)) -- `suchThat` noDupPointsToLhs
-  trace ("&&& " ++ show layoutName ++ ": patVars = " ++ show patVars ++ "; " ++ show body) $ pure $
+  pure $
     LayoutBranch
       $ PatternMatch
           $ bind (Pattern constructor patVars)
