@@ -38,6 +38,7 @@ prop_basicArgs_toPikaCore =
       Nothing -> pure $ property True
   where
     go pikaModule x = catch x $ \(SomeException e) -> do
+      hFlush stdout
       putStrLn $
         unlines
           ["Caught an exception during QuickCheck: "

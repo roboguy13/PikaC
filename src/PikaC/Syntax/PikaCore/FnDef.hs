@@ -176,9 +176,9 @@ instance Validity FnDef where
 -- TODO: Make sure we are properly accounting for names "bound" by input assertions
 validBranch :: (Expr -> Validation) -> [Name Expr] -> [ModedName Expr] -> FnDefBranch -> Validation
 validBranch v outVars modedBvs branch =
+    decorate (render (runFreshM (pprBranch (map (Moded Out) outVars) mempty branch))) $
     check (all (`elem` bvs) bodyFvs) "Well-scoped"
     <> check (not (null (_fnDefBranchInputAssertions branch))) "Has at least one parameter"
-    <> check (any (not . null) (_fnDefBranchInputAssertions branch)) "At least one non-empty parameter"
     <> check (null (inAsnVars `intersect` outVars)) "Input variables should not include output variables"
     <> decorate "Branch body expression is ok" (v (_fnDefBranchBody branch))
   where
