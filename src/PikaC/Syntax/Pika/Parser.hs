@@ -311,7 +311,10 @@ genModule' size = do
       -- functions
 
   adtSigs <- replicateM adtCount genAdtSig
-              `suchThat` (noDups . map fst)
+              `suchThat` (\xs ->
+                            noDups (map fst xs) -- ADT names are unique
+                              &&
+                            noDups (map fst (concatMap snd xs))) -- Constructor names are unique
   lNames <- replicateM layoutCount genLayoutName `suchThat` noDups
   layouts <- mapM (\lName -> genLayout @Expr lName adtSigs dividedSize) lNames
 
@@ -327,11 +330,12 @@ genModule' size = do
 
   fns <- mapM (genFnDef fnSigs layoutSigs dividedSize) fnSigs
 
-  pure $ PikaModule
-    { moduleLayouts = layouts
-    , moduleFnDefs = fns
-    , moduleGenerates = map fnDefName fns
-    }
+  trace ("layoutSigs = " ++ show layoutSigs ++ "; adtSigs = " ++ show adtSigs) $
+    pure $ PikaModule
+      { moduleLayouts = layouts
+      , moduleFnDefs = fns
+      , moduleGenerates = map fnDefName fns
+      }
   where
     convertSig ::
       [(AdtName, [(String, [AdtArg])])] ->

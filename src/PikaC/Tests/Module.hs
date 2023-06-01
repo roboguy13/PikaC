@@ -30,30 +30,33 @@ import System.Exit
 prop_basicArgs_toPikaCore :: Property
 prop_basicArgs_toPikaCore =
   -- forAllShrinkShow genModule (const []) show $ \pikaModule ->
-  forAllShow genModule show $ \pikaModule -> ioProperty $ do
+  withMaxSuccess 700 $
+  forAllShow genModule show $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
-    pikaCore <- go pikaModule $ evaluate $ runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+    in
     case prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
-      Just msg -> pure $ counterexample ("Counterexample result:\n" ++ msg) False
-      Nothing -> pure $ property True
+      Just msg -> counterexample ("Counterexample result:\n" ++ msg) False
+      Nothing -> property True
   where
-    go pikaModule x = catch x $ \(SomeException e) -> do
-      hFlush stdout
-      putStrLn $
-        unlines
-          ["Caught an exception during QuickCheck: "
-          ,"Module was: " ++ show pikaModule
-          ,"\n+++ Layouts:"
-          , unlines $ map ppr' (moduleLayouts pikaModule)
-          , "\n+++ Functions:"
-          , unlines $ map ppr' (moduleFnDefs pikaModule)
-          , "exception was: " ++ show e
-          ]
-      hFlush stdout
-      exitFailure
+  --   go pikaModule x = catch x $ \(SomeException e) -> do
+  --     hFlush stdout
+  --     putStrLn $
+  --       unlines
+  --         ["Caught an exception during QuickCheck: "
+  --         ,"Module was: " ++ show pikaModule
+  --         ,"\n+++ Layouts:"
+  --         , unlines $ map ppr' (moduleLayouts pikaModule)
+  --         , "\n+++ Functions:"
+  --         , unlines $ map ppr' (moduleFnDefs pikaModule)
+  --         , "exception was: " ++ show e
+  --         ]
+  --     hFlush stdout
+  --     exitFailure
 
 return []
-checkAllProps :: IO Bool
-checkAllProps =
+checkAllProps :: IO ()
+checkAllProps = do
   $(quickCheckAll)
+  pure ()
 

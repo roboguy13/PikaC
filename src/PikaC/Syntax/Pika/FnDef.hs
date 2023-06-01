@@ -113,16 +113,17 @@ genFnDef fnSigs layouts size (fnName, inLayouts, outLayout) = do
       params = sequenceA constructorLists
       ty = foldr1 FnType $ map goType (inLayouts ++ [Just outLayout])
   branches <- mapM (genFnDefBranch fnSigs layouts outLayout size) params
-  pure $
-      FnDef
-      { fnDefName = fnName
-      , fnDefTypeSig =
-          TypeSig
-          {_typeSigLayoutConstraints = []
-          ,_typeSigTy = ty 
-          }
-      , fnDefBranches = branches
-      }
+  trace ("--- fnName = " ++ fnName ++ "; params = " ++ show params)
+    $ pure $
+        FnDef
+        { fnDefName = fnName
+        , fnDefTypeSig =
+            TypeSig
+            {_typeSigLayoutConstraints = []
+            ,_typeSigTy = ty 
+            }
+        , fnDefBranches = branches
+        }
   where
     lookupConstructorList Nothing = error "lookupConstructorList: Nothing" -- TODO: Implement this case
     lookupConstructorList (Just layoutName) = 
