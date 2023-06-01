@@ -565,12 +565,12 @@ instance (IsBase a, Arbitrary a) => Arbitrary (LayoutHeaplet a) where
 
 -- NOTE: Only Out mode parameters for now
 genLayout :: (Typeable a, Alpha a, HasVar a, IsName a a) =>
+  String ->
   [(AdtName, [(String, [AdtArg])])] ->  -- ADTs and their constructor names and the constructor arities
   Int ->
   Gen (Layout a)
-genLayout adts size = do
+genLayout lName adts size = do
   (adtName, constructors) <- elements' adts
-  lName <- genLayoutName adtName
   n <- choose (1, 3)
   params <- map string2Name <$> genParamNames n
 
@@ -601,10 +601,14 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   patVars <- fmap (map string2Name) (genParamNames (length arity)) `suchThat` disjoint params
   let namesSoFar = patVars ++ params
   existsNames <- fmap (map string2Name) (genParamNames n) `suchThat` disjoint namesSoFar
-  k <- choose (2, 7)
-  let dividedSize = size `div` k
-  body <- replicateM k (genLayoutHeaplet layoutName patVars params existsNames dividedSize) -- `suchThat` noDupPointsToLhs
-  pure $
+  -- k <- choose (2, 7)
+  -- let shuffledLen = max (length patVars) k
+  let dividedSize = size `div` length patVars
+  -- body <- replicateM k (genLayoutHeaplet layoutName patVars params existsNames dividedSize) -- `suchThat` noDupPointsToLhs
+  shuffledPatVars <- shuffle patVars
+  shuffledParams <- fmap cycle $ shuffle params
+  body <-  genLayoutRequiredPointsTo layoutName shuffledPatVars shuffledParams dividedSize `suchThat` (\xs -> null patVars || not (null xs)) -- `suchThat` noDupPointsToLhs
+  trace ("&&& " ++ show layoutName ++ ": patVars = " ++ show patVars ++ "; " ++ show body) $ pure $
     LayoutBranch
       $ PatternMatch
           $ bind (Pattern constructor patVars)
@@ -633,10 +637,27 @@ genLayoutHeaplet layoutName patVars params existVars size = do
         <*> fmap (map mkVar) (replicateM (length params) (elements' (existVars `union` params)))
         ]
 
-genLayoutName :: AdtName -> Gen String
-genLayoutName (AdtName adtName) = do
+genLayoutRequiredPointsTo :: (HasVar a) =>
+  String ->
+  [Name a] ->
+  [Name a] ->
+  Int ->
+  Gen [LayoutHeaplet a]
+genLayoutRequiredPointsTo _          []      _               _ = pure []
+genLayoutRequiredPointsTo _          _       []              _ = pure []
+-- genLayoutRequiredPointsTo layoutName patVars remainingParams existVars size | size <= 0 = pure []
+genLayoutRequiredPointsTo layoutName (patVar:patVars) (param:remainingParams) size = do
+  here <- LPointsTo <$> (genValidPointsTo [param] (\_ -> pure $ mkVar patVar) size)
+  rest <- genLayoutRequiredPointsTo layoutName patVars remainingParams (size-1)
+  pure $ here : rest
+    
+
+genLayoutName :: Gen String
+genLayoutName = do
   i <- choose (0,4) :: Gen Int
-  pure (adtName ++ "_layout" ++ show i)
+  x <- arbitraryUppercase
+  prefix <- replicateM i arbitraryAnyCase
+  pure (x : prefix ++ "_layout")
 
 
 genParamNames :: Int -> Gen [String]

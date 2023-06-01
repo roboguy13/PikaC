@@ -181,6 +181,16 @@ instance Arbitrary (Name a) where
 arbitraryAlpha :: Gen Char
 arbitraryAlpha = arbitrary `suchThat` (`elem` ['a'..'z'])
 
+arbitraryUppercase :: Gen Char
+arbitraryUppercase = arbitrary `suchThat` (`elem` ['A'..'Z'])
+
+arbitraryAnyCase :: Gen Char
+arbitraryAnyCase =
+  oneof
+  [ arbitraryAlpha
+  , arbitraryUppercase
+  ]
+
 genNameString :: Gen String
 genNameString = do
   n <- choose (1, 4)

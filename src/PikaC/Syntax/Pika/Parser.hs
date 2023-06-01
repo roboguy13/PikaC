@@ -16,6 +16,8 @@ import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import PikaC.Syntax.Type.Parser
 import PikaC.Syntax.Type
 
+import PikaC.Utils
+
 import Text.Megaparsec
 import Text.Megaparsec.Char
 
@@ -309,7 +311,8 @@ genModule' size = do
       -- functions
 
   adtSigs <- replicateM adtCount genAdtSig
-  layouts <- replicateM layoutCount $ genLayout @Expr adtSigs dividedSize
+  lNames <- replicateM layoutCount genLayoutName `suchThat` noDups
+  layouts <- mapM (\lName -> genLayout @Expr lName adtSigs dividedSize) lNames
 
   let layoutSigs =
         map (convertSig adtSigs) layouts

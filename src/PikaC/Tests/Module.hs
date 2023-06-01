@@ -23,6 +23,8 @@ import Test.QuickCheck
 import Data.Validity
 
 import Control.Exception
+import System.IO
+import System.Exit
 
 -- | Converts to "basic args form"
 prop_basicArgs_toPikaCore :: Property
@@ -36,15 +38,18 @@ prop_basicArgs_toPikaCore =
       Nothing -> pure $ property True
   where
     go pikaModule x = catch x $ \(SomeException e) -> do
-      putStrLn $ "Caught exception: " ++ show e
-      putStrLn $ "Module was: " ++ show pikaModule
-
-      putStrLn $ "\n=== Layouts:\n"
-      mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
-
-      putStrLn $ "\n=== Functions:\n"
-      mapM_ (putStrLn . ppr') (moduleFnDefs pikaModule)
-      x
+      putStrLn $
+        unlines
+          ["Caught an exception during QuickCheck: "
+          ,"Module was: " ++ show pikaModule
+          ,"\n+++ Layouts:"
+          , unlines $ map ppr' (moduleLayouts pikaModule)
+          , "\n+++ Functions:"
+          , unlines $ map ppr' (moduleFnDefs pikaModule)
+          , "exception was: " ++ show e
+          ]
+      hFlush stdout
+      exitFailure
 
 return []
 checkAllProps :: IO Bool
