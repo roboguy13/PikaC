@@ -199,6 +199,9 @@ genNameString = do
 noDups :: Ord a => [a] -> Bool
 noDups xs = fastNub xs == xs
 
+noDupsAeq :: Alpha a => [a] -> Bool
+noDupsAeq xs = nubBy aeq xs `aeq` xs
+
 disjoint :: Eq a => [a] -> [a] -> Bool
 disjoint xs ys = null (xs `intersect` ys)
 

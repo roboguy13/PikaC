@@ -605,7 +605,14 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   -- body <- replicateM k (genLayoutHeaplet layoutName patVars params existsNames dividedSize) -- `suchThat` noDupPointsToLhs
   shuffledPatVars <- shuffle patVars
   shuffledParams <- fmap cycle $ shuffle params
-  body <-  genLayoutRequiredPointsTo layoutName shuffledPatVars shuffledParams dividedSize `suchThat` (\xs -> null patVars || not (null xs)) -- `suchThat` noDupPointsToLhs
+  body1 <- genLayoutRequiredPointsTo layoutName shuffledPatVars shuffledParams dividedSize `suchThat` (\xs -> null patVars || not (null xs)) -- `suchThat` noDupPointsToLhs
+  additionalHeaplets <- choose (0, 8)
+  body2 <- replicateM additionalHeaplets $ genLayoutHeaplet layoutName patVars params existsNames size
+  let body = body1 ++ body2
+
+  when (noDupsAeq $ map pointsToLhs (getPointsTos (LayoutBody body)))
+    discard
+
   pure $
     LayoutBranch
       $ PatternMatch
