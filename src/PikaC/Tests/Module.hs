@@ -33,7 +33,7 @@ prop_wellScoped_modFns =
   withMaxSuccess 700 $ ioProperty $
   catch (evaluate $
     forAll genModule $ \pikaModule ->
-      case pikaModule `deepseq` prettyValidation (mconcat (map validate (moduleFnDefs pikaModule))) of
+      case pikaModule `deepseq` prettyValidation (mconcat (map validate (moduleLayouts pikaModule)) <> mconcat (map validate (moduleFnDefs pikaModule))) of
         Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
         Nothing -> property True
         ) $ \(SomeException e) -> error $ "caught an exception: " ++ show e

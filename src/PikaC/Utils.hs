@@ -204,15 +204,21 @@ class (Typeable a, Alpha a) => WellScoped n a where
   wellScoped inScopes = gWellScoped inScopes . from
 
 instance (Typeable a, Alpha a, WellScoped (Name a) b) => WellScoped (Name a) (Bind [Name a] b) where
-  wellScoped inScopeVars (B v body) =
-    let bodyFvs = toListOf (fv @b @_ @a) body
+  wellScoped inScopeVars bnd =
+    let (v, body) = unsafeUnbind bnd
+        bodyFvs = toListOf (fv @b @_ @a) body
         everyInScope = inScopeVars ++ v
     in
     check (all @[] (`elem` everyInScope) bodyFvs)
       "Well scoped (WellScoped instance)"
+      <> wellScoped everyInScope body
 
 instance (Alpha a, Typeable a) => WellScoped (Name a) (Name a) where
   wellScoped inScopeVars v =
+    decorate ("searching for " ++ show v ++ " in " ++ show inScopeVars) $
+    check (isFreeName v)
+      "Only free variables when using WellScoped"
+    <>
     check (v `elem` inScopeVars)
       "Well scoped (WellScoped instance for Name)"
 

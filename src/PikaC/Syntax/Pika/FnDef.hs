@@ -14,6 +14,7 @@ import PikaC.Utils
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import Test.QuickCheck
 
@@ -89,7 +90,9 @@ instance Validity FnDef where
   validate (FnDef _ _ branches) = mconcat (map validate branches)
 
 instance Validity FnDefBranch where
-  validate (FnDefBranch (PatternMatches (B pats body))) =
+  validate (FnDefBranch (PatternMatches bnd)) =
+    let (pats, body) = unsafeUnbind bnd
+    in
     wellScoped pats body
 
 instance Arbitrary FnDefBranch where

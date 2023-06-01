@@ -195,6 +195,30 @@ reduceLayouts = go
 -- Property tests --
 --
 
+layoutTest :: Layout Expr
+layoutTest =
+  Layout
+  { _layoutName = "Test"
+  , _layoutAdt = AdtName "A"
+  , _layoutBranches =
+      let x = string2Name "x"
+          n = string2Name "n"
+          nxt = string2Name "nxt"
+          z = string2Name "z"
+      in
+      bind [Moded Out x]
+        [LayoutBranch
+          $ PatternMatch
+              $ bind (Pattern "C" [n])
+                  $ bind [Exists $ Moded In nxt]
+                    $ LayoutBody
+                        [LPointsTo ((V x :+ 0) :-> V n)
+                        ,LPointsTo ((V x :+ 1) :-> V nxt)
+                        ,LPointsTo ((V x :+ 2) :-> V z)
+                        ]
+        ]
+  }
+
 instance WellScoped (Name Expr) Expr
 -- TODO: Figure out a way to handle this case properly
 instance WellScoped (Name Expr) (Bind LayoutName Expr) where

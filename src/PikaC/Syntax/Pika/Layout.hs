@@ -31,6 +31,7 @@ import GHC.Stack
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import Data.Void
 import Data.Typeable
@@ -569,16 +570,14 @@ instance WellScoped a AdtName where
 
 instance (Typeable a, Alpha a, WellScoped (Name a) a) =>
   WellScoped (ModedName a) (Bind [ModedName a] [LayoutBranch a]) where
-    wellScoped inScopeVars (B vs body) =
-      let inScopeVars' :: [Name a]
+    wellScoped inScopeVars bnd =
+      let (vs, body) = unsafeUnbind bnd
+          inScopeVars' :: [Name a]
           inScopeVars' = map modedNameName inScopeVars
-
-          body' :: Bind [Name a] [LayoutBranch a]
-          body' = B (map modedNameName vs) body
       in
       wellScoped @(Name a)
-        inScopeVars'
-        body'
+        (inScopeVars' ++ map modedNameName vs)
+        body
 
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutBranch a)
 instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (PatternMatch a b) where
@@ -587,16 +586,22 @@ instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => We
 
 instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) =>
     WellScoped (Name a) (Bind (Pattern a) b) where
-  wellScoped inScopeVars (B pat body) =
-    wellScoped inScopeVars (B (getNames pat) body)
+  wellScoped inScopeVars bnd =
+    let (pat, body) = unsafeUnbind bnd
+    in
+    wellScoped (inScopeVars ++ getNames pat) body
 
 instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (Bind [Exists a] b) where
-  wellScoped inScopeVars (B vars body) =
-    wellScoped inScopeVars (B (map getExists vars) body)
+  wellScoped inScopeVars bnd =
+    let (vars, body) = unsafeUnbind bnd
+    in
+    wellScoped (inScopeVars ++ map (modedNameName . getExists) vars) body
 
-instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) (Bind [Name a] b)) => WellScoped (Name a) (Bind [ModedName a] b) where
-  wellScoped inScopeVars (B vars body) =
-    wellScoped inScopeVars (B (map modedNameName vars) body)
+instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (Bind [ModedName a] b) where
+  wellScoped inScopeVars bnd =
+    let (vars, body) = unsafeUnbind bnd
+    in
+    wellScoped (inScopeVars ++ map modedNameName vars) body
 
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutBody a)
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutHeaplet a)
@@ -608,7 +613,7 @@ instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) Int
 
 instance (Alpha a, Typeable a, Show a, WellScoped (Name a) a) => Validity (Layout a) where
   validate layout =
-    let (B _ branches) = _layoutBranches layout
+    let (_, branches) = unsafeUnbind $ _layoutBranches layout
     in
     wellScoped @(ModedName a) [] layout <>
     mconcat (map validate branches)
@@ -622,8 +627,9 @@ instance (Alpha a, Typeable a, Show a) => Validity (LayoutBranch a) where
     allExistsAreUsed branch
 
 allExistsAreUsed :: (Alpha a, Typeable a) => LayoutBranch a -> Validation
-allExistsAreUsed (LayoutBranch (PatternMatch (B (Pattern cName params) (B existVars body)))) =
-  let bodyFvs = toListOf fv body
+allExistsAreUsed (LayoutBranch (PatternMatch (B (Pattern cName params) bnd))) =
+  let (existVars, body) = unsafeUnbind bnd
+      bodyFvs = toListOf fv body
   in
   check (all (`elem` bodyFvs) (map (modedNameName . getExists) existVars))
     "All existentials in a layout branch must be used"
