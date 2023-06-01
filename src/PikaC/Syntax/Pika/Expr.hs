@@ -34,6 +34,7 @@ import Control.Lens hiding (elements)
 import Control.Lens.TH
 
 import Data.Data
+import Data.Maybe
 
 import Data.Validity
 import Test.QuickCheck
@@ -273,28 +274,28 @@ genForLayout ::
    LayoutName ->
    Gen Expr
 genForLayout fnSigs layouts locals size layoutName =
+  let layoutLocals = filter ((== layoutName) . snd) (mapMaybe (\(x, y) -> fmap (x,) y) locals)
+  in
   oneof $
-    if not (null locals)
-      then [elements' locals >>= \case
-            (_, Nothing) -> discardM
-            (var, Just layoutName') -> do
-              if layoutName' /= layoutName
-                then discardM
-                else pure $ V var]
+    if not (null layoutLocals)
+      then [elements' layoutLocals >>= \case
+            (var, layoutName') ->
+                pure $ V var]
       else []
     ++
 
     [do
-      layout@(layoutName', constructors) <- elements' layouts
-      if layoutName' /= layoutName
-        then discardM
-        else genConstructorApp fnSigs layouts locals (size-1) layout
+      layout@(layoutName', constructors) <- elements' (filter ((== layoutName) . fst) layouts)
+      genConstructorApp fnSigs layouts locals (size-1) layout
 
     ,do
-      fnSig@(fn, inLayouts, outLayout) <- elements' fnSigs
-      if outLayout /= layoutName
+      let filteredFnSigs = filter (\(_, _, z) -> z == layoutName) fnSigs
+      if null filteredFnSigs
         then discardM
-        else genCall fnSigs layouts locals size fnSig
+        else do
+          fnSig@(fn, inLayouts, outLayout) <-
+            elements' filteredFnSigs
+          genCall fnSigs layouts locals size fnSig
     ]
 
 -- | On Nothing, generate a simple expression

@@ -152,7 +152,7 @@ main = do
 
   if _optSelfTest opts
     then do
-      -- TestsModule.checkAllProps
+      TestsModule.checkAllProps
       Simplify.checkAllProps
       pure ()
     else case args' of
