@@ -51,6 +51,8 @@ import Test.QuickCheck
 
 import Debug.Trace
 
+import Data.Validity
+
 -- newtype Operand a b = Operand (Var a b)
 --   deriving (Functor, Applicative, Monad, Show)
 
@@ -547,13 +549,38 @@ type LayoutName = TypeName
 -- Property tests --
 --
 
+instance (Alpha a, Typeable a, Show a) => Validity (Layout a) where
+  validate layout =
+    let (B _ branches) = _layoutBranches layout
+    in
+    mconcat $ map validate branches
+
+instance (Alpha a, Typeable a, Show a) => Validity (LayoutBranch a) where
+  validate branch@(LayoutBranch (PatternMatch (B (PatternVar _) _))) =
+    decorate (show branch) $
+    invalid "Layout branch matches has pattern variable match rather than matching on a constructor"
+
+  validate branch@(LayoutBranch (PatternMatch (B (Pattern cName params) body))) =
+    allExistsAreUsed branch
+
+allExistsAreUsed :: (Alpha a, Typeable a) => LayoutBranch a -> Validation
+allExistsAreUsed (LayoutBranch (PatternMatch (B (Pattern cName params) (B existVars body)))) =
+  let bodyFvs = toListOf fv body
+  in
+  check (all (`elem` bodyFvs) (map (modedNameName . getExists) existVars))
+    "All existentials in a layout branch must be used"
+
 instance (Typeable a, Alpha a, IsBase a, Arbitrary a) => Arbitrary (Layout a) where
   arbitrary = error "Arbitrary Layout"
-  shrink = genericShrink
+  shrink layout = filter isValid $ do
+    branches' <- shrink $ _layoutBranches layout
+    pure $ layout
+      { _layoutBranches = branches'
+      }
 
 instance (Alpha a, Typeable a, IsBase a, Arbitrary a) => Arbitrary (LayoutBranch a) where
   arbitrary = error "Arbitrary LayoutBranch"
-  shrink = genericShrink
+  shrink =  filter isValid . genericShrink
 
 instance (IsBase a, Arbitrary a) => Arbitrary (LayoutBody a) where
   arbitrary = error "Arbitrary LayoutBody"

@@ -297,12 +297,12 @@ parsePatternVar = label "pattern variable" $ string2Name <$> lexeme parseLowerca
 
 instance Arbitrary PikaModule where
   arbitrary = error "Arbitrary PikaModule"
-  shrink (PikaModule x y z) =
+  shrink mod0@(PikaModule x y z) = do
     let x' = map shrink x
         y' = map shrink y
         z' = map shrink z
-    in
-    PikaModule <$> x' <*> y' <*> z'
+    mod <- PikaModule <$> sequenceA x' <*> sequenceA y' <*> sequenceA z'
+    pure mod
   -- shrink = filter (not . isTrivialModule) . genericShrink
 
 genModule :: Gen PikaModule

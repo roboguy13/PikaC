@@ -193,10 +193,18 @@ reduceLayouts = go
 
 instance Arbitrary Expr where
   arbitrary = error "Arbitrary Expr"
-  shrink = genericShrink
+  shrink (App f xs) = do
+    xs' <- sequenceA $ map shrink xs
+    pure $ App f xs'
+  shrink e0 = genericShrink e0
+
+-- isValidExpr :: Expr -> Validation
+-- isValidExpr = mconcat . map go . universe
+--   where
+--     go (App f 
 
 isConcreteExpr :: Expr -> Validation
-isConcreteExpr = mconcat . map go . universe
+isConcreteExpr e0 = mconcat (map go (universe e0))
   where
     go (LName {}) = invalid "Concrete expression should not have an LName"
     go (LayoutLambda {}) = invalid "Concrete expression should not have a layout lambda"

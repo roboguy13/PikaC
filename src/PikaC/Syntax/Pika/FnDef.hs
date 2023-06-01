@@ -83,7 +83,9 @@ instance Arbitrary FnDefBranch where
 
 instance Arbitrary FnDef where
   arbitrary = error "Arbitrary FnDef"
-  shrink = genericShrink
+  shrink fn = do
+    branches' <- sequenceA $ map shrink (fnDefBranches fn)
+    pure fn { fnDefBranches = branches' }
 
 genFnSig ::
    [(LayoutName, [(String, [Maybe LayoutName])])] ->

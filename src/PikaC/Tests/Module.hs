@@ -31,7 +31,7 @@ prop_basicArgs_toPikaCore :: Property
 prop_basicArgs_toPikaCore =
   -- forAllShrinkShow genModule (const []) show $ \pikaModule ->
   withMaxSuccess 700 $
-  forAllShow genModule ppr' $ \pikaModule ->
+  forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
         pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
     in
@@ -57,6 +57,9 @@ prop_basicArgs_toPikaCore =
 return []
 checkAllProps :: IO ()
 checkAllProps = do
+  -- quickCheckWith
+  --   (stdArgs { chatty = False })
+  --   prop_basicArgs_toPikaCore
   $(quickCheckAll)
   pure ()
 
