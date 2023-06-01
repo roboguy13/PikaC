@@ -1,2 +1,8 @@
 ignore-project: False
 profiling: True
+
+package PikaC
+  ghc-options: -rtsopts
+
+program-options
+  ghc-options: -rtsopts

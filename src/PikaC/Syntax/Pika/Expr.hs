@@ -285,6 +285,7 @@ genConstructorApp ::
    Int -> -- Generator size
    (LayoutName, [(String, [Maybe LayoutName])]) ->
    Gen Expr
+genConstructorApp _      _       _      size _ | size <= 0 = discard
 genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
   (cName, arity) <- elements' constructorSigs
   let newSize = size `div` length arity
