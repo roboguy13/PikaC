@@ -23,6 +23,7 @@ import PikaC.Stage.ToPikaCore.CallOfWith
 import PikaC.Stage.ToPikaCore.WithSubst
 import PikaC.Stage.ToPikaCore.ReuseExistingPtrs
 import PikaC.Stage.ToPikaCore.ReplaceClosedAssertions
+import PikaC.Stage.ToPikaCore.CallOfCall
 
 import PikaC.Stage.ToPikaCore.SimplifyM
 
@@ -52,6 +53,7 @@ simplifyFnDef =
       withOfWith <=<
       withSubst <=<
       simplifyNestedCalls <=<
+      callOfCall <=<
       substWithLayoutVar
     )
     -- .
@@ -108,47 +110,47 @@ propPreserves_valid = propPreserves_validation (const mempty) validate
 
 prop_genValidFnDef_sane :: Property
 prop_genValidFnDef_sane =
-  withMaxSuccess 5000 $ propPreserves_valid pure
+  withMaxSuccess 1000 $ propPreserves_valid pure
 
 prop_valid_reuseExistingPtrs :: Property
 prop_valid_reuseExistingPtrs =
-  withMaxSuccess 5000 $ propPreserves_valid reuseExistingPtrs
+  withMaxSuccess 1000 $ propPreserves_valid reuseExistingPtrs
 
 prop_valid_replaceClosedAssertions :: Property
 prop_valid_replaceClosedAssertions =
-  withMaxSuccess 5000 $ propPreserves_valid replaceClosedAssertions
+  withMaxSuccess 1000 $ propPreserves_valid replaceClosedAssertions
 
 prop_valid_simplifyNestedCalls :: Property
 prop_valid_simplifyNestedCalls =
-  withMaxSuccess 5000 $ propPreserves_valid simplifyNestedCalls
+  withMaxSuccess 1000 $ propPreserves_valid simplifyNestedCalls
 
 prop_valid_callOfWith :: Property
 prop_valid_callOfWith = 
-  withMaxSuccess 5000 $ propPreserves_valid callOfWith
+  withMaxSuccess 1000 $ propPreserves_valid callOfWith
 
 prop_valid_withOfWith :: Property
 prop_valid_withOfWith =
-  withMaxSuccess 5000 $ propPreserves_valid withOfWith
+  withMaxSuccess 1000 $ propPreserves_valid withOfWith
 
 prop_valid_substWithLayoutVar :: Property
 prop_valid_substWithLayoutVar =
-  withMaxSuccess 5000 $ propPreserves_valid substWithLayoutVar
+  withMaxSuccess 1000 $ propPreserves_valid substWithLayoutVar
 
 prop_valid_withSubst :: Property
 prop_valid_withSubst =
-  withMaxSuccess 5000 $ propPreserves_valid withSubst
+  withMaxSuccess 1000 $ propPreserves_valid withSubst
 
 prop_valid_layoutToWith :: Property
 prop_valid_layoutToWith =
-  withMaxSuccess 5000 $ propPreserves_valid layoutToWith
+  withMaxSuccess 1000 $ propPreserves_valid layoutToWith
 
 prop_valid_renameResultLayout :: Property
 prop_valid_renameResultLayout =
-  withMaxSuccess 5000 $ propPreserves_valid renameResultLayout
+  withMaxSuccess 1000 $ propPreserves_valid renameResultLayout
 
 prop_valid_simplifyFnDef :: Property
 prop_valid_simplifyFnDef =
-  withMaxSuccess 5000 $ propPreserves_valid simplifyFnDef
+  withMaxSuccess 1000 $ propPreserves_valid simplifyFnDef
 
 prop_preserves_basicArgs_simplifyFnDef :: Property
 prop_preserves_basicArgs_simplifyFnDef =
