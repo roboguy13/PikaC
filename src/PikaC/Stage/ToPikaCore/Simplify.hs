@@ -80,7 +80,8 @@ propPreserves_validation precond v pass =
   let precondFnDef = validateFnDefWith precond
       gen = genValidFnDef `suchThat` (validationIsValid . precondFnDef)
   in
-  forAllShrinkShow gen (filter (validationIsValid . precondFnDef) . shrink) ppr' $ \fnDef ->
+  -- forAllShrinkShow gen (filter (validationIsValid . precondFnDef) . shrink) ppr' $ \fnDef ->
+  forAllShow gen ppr' $ \fnDef ->
     let result = runSimplifyQuiet Unlimited pass fnDef
     in
     case prettyValidation (v result) of
@@ -88,6 +89,12 @@ propPreserves_validation precond v pass =
       Just msg -> counterexample ("Counterexample result:\n" ++ msg) False
       Nothing -> property True
 
+
+propPreserves_basicArgs :: (FnDef -> SimplifyM Quiet FnDef) -> Property
+propPreserves_basicArgs =
+  propPreserves_validation
+    exprBasicArgs
+    (validateFnDefWith exprBasicArgs)
 
 propPreserves_valid :: (FnDef -> SimplifyM Quiet FnDef) -> Property
 propPreserves_valid = propPreserves_validation (const mempty) validate
@@ -142,6 +149,10 @@ prop_valid_renameResultLayout =
 prop_valid_simplifyFnDef :: Property
 prop_valid_simplifyFnDef =
   withMaxSuccess 5000 $ propPreserves_valid simplifyFnDef
+
+prop_preserves_basicArgs_simplifyFnDef :: Property
+prop_preserves_basicArgs_simplifyFnDef =
+  withMaxSuccess 2000 $ propPreserves_basicArgs simplifyFnDef
 
 prop_simplified_simplifyFnDef :: Property
 prop_simplified_simplifyFnDef =

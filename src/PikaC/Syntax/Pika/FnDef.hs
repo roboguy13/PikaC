@@ -97,13 +97,17 @@ instance Validity FnDefBranch where
 
 instance Arbitrary FnDefBranch where
   arbitrary = error "Arbitrary FnDefBranch"
-  shrink = genericShrink
+  shrink x =
+    let r = genericShrink x
+    in
+    trace ("x = " ++ show x ++ "; shrink length = " ++ show (length r)) r
 
 instance Arbitrary FnDef where
   arbitrary = error "Arbitrary FnDef"
   shrink fn = do
-    branches' <- sequenceA $ map shrink (fnDefBranches fn)
-    pure fn { fnDefBranches = branches' }
+    let b = map shrink (fnDefBranches fn)
+    branches' <- sequenceA b
+    pure $ fn { fnDefBranches = branches' }
 
 genFnSig ::
    [(LayoutName, [(String, [Maybe LayoutName])])] ->

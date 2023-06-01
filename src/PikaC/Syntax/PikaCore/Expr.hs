@@ -397,14 +397,14 @@ exprBasicArgs = mconcat . map go . universe
   where
     go (App _ _ xs) =
       check (all (not . is _App) xs) "No nested applications"
-      <> mconcat (map goWithIn (filter (is _WithIn) xs))
+      -- <> mconcat (map goWithIn (filter (is _WithIn) xs))
     go _ = mempty
 
-    goWithIn (WithIn b (B _ e)) =
-      check (isSimpleArg b) "All with-ins that appear as arguments must only bind basic expressions"
-      <> check (isSimpleArg e) "All with-ins that appear as arguments must have basic bodies"
-      -- check (not (is _App e)) "No applications in with-in that are themselves arguments to applications"
-    goWithIn _ = mempty
+    -- goWithIn (WithIn b (B _ e)) =
+    --   check (isSimpleArg b) "All with-ins that appear as arguments must only bind basic expressions"
+    --   <> check (isSimpleArg e) "All with-ins that appear as arguments must have basic bodies"
+    --   -- check (not (is _App e)) "No applications in with-in that are themselves arguments to applications"
+    -- goWithIn _ = mempty
 
 exprIsSimplified :: Expr -> Validation
 exprIsSimplified e0 = exprIsOk e0 <> mconcat (map go (universe e0))

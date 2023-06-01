@@ -43,10 +43,10 @@ prop_basicArgs_toPikaCore :: Property
 prop_basicArgs_toPikaCore =
   -- forAllShrinkShow genModule (const []) show $ \pikaModule ->
   withMaxSuccess 700 $
-  -- forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
-  forAllShow genModule ppr' $ \pikaModule ->
+  forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
+  -- forAllShow genModule ppr' $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore (Fuel 0) (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
     in
     case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
