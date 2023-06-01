@@ -201,9 +201,10 @@ genValidFnDef = do
   inParams <- (:[]) . nub <$> replicateM i arbitraryAlpha
   outParams <- (:[]) . nub <$> replicateM j arbitraryAlpha
 
-  when (any (`elem` outParams) inParams) discard -- Make sure inParams and outParams are disjoint
-
-  k <- choose (1, 4)
+  k <-
+    if any (`elem` outParams) inParams -- Make sure inParams and outParams are disjoint
+      then discard
+      else choose (1, 4)
 
   let modedInParams = map (Moded In . string2Name) inParams
       modedOutParams = map (Moded Out . string2Name) outParams
@@ -224,11 +225,12 @@ genValidBranch' outVars modedBvs size = do
     i <- choose (1, 3)
     inAsns <- replicateM i (genValidAssertion bvs (const $ genAsnVar (asnName : bvs)) (size `div` 2)) `suchThat` any (not . null)
 
-    when (not (null (toListOf fv inAsns `intersect` outVars))) discard
-
     -- TODO: Figure this out:
     -- e <- genValidExpr' (asnName : bvs) (size `div` 2)
-    e <- genValidExpr' bvs (size `div` 2)
+    e <-
+      if not (null (toListOf fv inAsns `intersect` outVars))
+        then discard
+        else genValidExpr' bvs (size `div` 2)
     allocs <- genValidAllocations $ concat inAsns
     pure $ FnDefBranch inAsns allocs e
   where

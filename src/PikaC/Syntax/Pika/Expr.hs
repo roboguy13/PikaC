@@ -240,20 +240,23 @@ genForLayout fnSigs layouts locals size layoutName =
       then [elements' locals >>= \case
             (_, Nothing) -> discard
             (var, Just layoutName') -> do
-              when (layoutName' /= layoutName) discard
-              pure $ V var]
+              if layoutName' /= layoutName
+                then discard
+                else pure $ V var]
       else []
     ++
 
     [do
       layout@(layoutName', constructors) <- elements' layouts
-      when (layoutName' /= layoutName) discard
-      genConstructorApp fnSigs layouts locals (size-1) layout
+      if layoutName' /= layoutName
+        then discard
+        else genConstructorApp fnSigs layouts locals (size-1) layout
 
     ,do
       fnSig@(fn, inLayouts, outLayout) <- elements' fnSigs
-      when (outLayout /= layoutName) discard
-      genCall fnSigs layouts locals size fnSig
+      if outLayout /= layoutName
+        then discard
+        else genCall fnSigs layouts locals size fnSig
     ]
 
 -- | On Nothing, generate a simple expression
