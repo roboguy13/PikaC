@@ -324,6 +324,7 @@ instance IsNested Expr where
 
 isBasic :: Expr -> Bool
 isBasic (V x) = True
+isBasic (LayoutV _) = True
 isBasic (IntLit i) = True
 isBasic (BoolLit b) = True
 isBasic (Add x y) = True
