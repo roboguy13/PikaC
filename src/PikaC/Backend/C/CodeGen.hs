@@ -183,11 +183,16 @@ convertBranchBody outVars = go
             _ -> do
               let heaplets' = substs (zip (map modedNameName asnVars) (map PikaCore.V unmodedVars)) heaplets
                   allocs = findAllocations unmodedVars heaplets'
-              body' <- go body
 
-              pure $ codeGenAllocations allocs $
-                map codeGenPointsTo heaplets'
-                ++ body'
+              case heaplets' of
+                [] ->
+                  go $ substs (zip (map modedNameName vars) (repeat (PikaCore.IntLit 0))) body
+                _ -> do
+                  body' <- go body
+
+                  pure $ codeGenAllocations allocs $
+                    map codeGenPointsTo heaplets'
+                    ++ body'
         _
           | [var] <- unmodedVars ->
               let body' = subst var e body
