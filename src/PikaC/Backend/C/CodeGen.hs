@@ -133,7 +133,15 @@ convertBranchBody outVars = go
     go (PikaCore.Not x) =
       pure [assignValue (getOneVar outVars) (C.Not (convertBase x))]
     go (PikaCore.And x y) = goBin C.And x y
-    go (PikaCore.App {}) = error "convertBranchBody: App should be bound by with-in"
+    go (PikaCore.App (PikaCore.FnName f) sizes xs)
+      | not (isConstructor f) && all PikaCore.isBasic xs =
+          pure
+            [C.Call f
+              (map convertBase xs)
+              (map C.V outVars)
+            ]
+
+    go (PikaCore.App {}) = error "convertBranchBody: App should be bound by with-in if its arguments are not basic expressions"
     go (PikaCore.WithIn e bnd) = do
       (vars, body) <- unbind bnd
       let modes = map getMode vars
@@ -161,8 +169,24 @@ convertBranchBody outVars = go
               (getAppArgs args)
               outs
             ] ++ body'
-        -- TODO: Add a case for SslAssertion
         PikaCore.WithIn {} -> error "Nested with-in"
+        PikaCore.SslAssertion bnd1 -> do
+          (asnVars, heaplets) <- unbind bnd1
+
+          case asnVars of
+            [] -> do
+              -- let heaplets' = substs (zip (toListOf fv heaplets) (map PikaCore.V unmodedVars)) heaplets
+              let body' = substs (zip unmodedVars (map PikaCore.V (toListOf fv heaplets))) body
+              go body'
+
+            _ -> do
+              let heaplets' = substs (zip (map modedNameName asnVars) (map PikaCore.V unmodedVars)) heaplets
+                  allocs = findAllocations unmodedVars heaplets'
+              body' <- go body
+
+              pure $ codeGenAllocations allocs $
+                map codeGenPointsTo heaplets'
+                ++ body'
         _
           | [var] <- unmodedVars ->
               let body' = subst var e body

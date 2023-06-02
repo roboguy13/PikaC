@@ -45,6 +45,8 @@ import GHC.Generics
 
 import Data.Validity
 
+import Data.Char
+
 -- openBind :: (IsName a b, HasVar b, Alpha a, Alpha b, Subst b b) => Bind [a] b -> b
 openBind :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1) =>
      Bind [a2] b -> b
@@ -311,6 +313,9 @@ useNItems n xs = do
 
 discardM :: Gen a
 discardM = discard --pure undefined `suchThat` const False
+
+isConstructor :: String -> Bool
+isConstructor = isUpper . head
 
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)

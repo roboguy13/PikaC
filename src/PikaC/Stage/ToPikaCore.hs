@@ -342,9 +342,6 @@ convertPattern (PatternVar v) =
 convertPattern (Pattern constructor vars) =
   Pattern constructor <$> mapM internExprName vars
 
-isConstructor :: String -> Bool
-isConstructor = isUpper . head
-
 lookupTypeLayout :: [Layout a] -> Type -> Maybe (Layout a)
 lookupTypeLayout layouts (TyVar n) = Just $ lookupLayout layouts (name2String n)
 lookupTypeLayout _ _ = Nothing
