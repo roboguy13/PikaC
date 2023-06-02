@@ -14,6 +14,7 @@ import qualified PikaC.Backend.C.Syntax as C
 import PikaC.Backend.C.Syntax (CExpr, CLoc, Command)
 
 import PikaC.Backend.C.Monad
+import PikaC.Backend.Utils
 
 -- import PikaC.Backend.C.DataDeps
 import PikaC.Syntax.Heaplet
@@ -85,7 +86,7 @@ codeGenFn fnDef = runFreshM $ do
 flattenBranchCmds :: [C.CName] -> [(FnDefBranch, [C.Command])] -> C.Command
 flattenBranchCmds _ [] = C.Nop
 flattenBranchCmds allNames ((branch, cmds) : rest) =
-  C.IfThenElse (C.computeBranchCondition allNames branchNames)
+  C.IfThenElse (computeBranchCondition allNames branchNames)
     cmds
     [flattenBranchCmds allNames rest]
   where

@@ -152,6 +152,11 @@ instance a ~ b => ConvertibleNames [Name a] (Name b) where
 class IsBase a where
   isVar :: a -> Bool
   isLit :: a -> Bool
+  intLit :: Int -> a
+  boolLit :: Bool -> a
+  mkNot :: a -> a
+  mkEqual :: a -> a -> a
+  mkAnd :: a -> a -> a
 
 isBase :: IsBase a => a -> Bool
 isBase x = isVar x || isLit x

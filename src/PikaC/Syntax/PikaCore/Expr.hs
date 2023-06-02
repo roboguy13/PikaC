@@ -113,6 +113,12 @@ instance IsBase Expr where
   isLit (BoolLit _) = True
   isLit _ = False
 
+  intLit = IntLit
+  boolLit = BoolLit
+  mkNot = Not
+  mkEqual = Equal
+  mkAnd = And
+
 -- TODO: Does this work correct w.r.t. Bind's, etc?
 instance Plated Expr where
   plate f (V x) = pure $ V x

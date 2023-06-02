@@ -32,6 +32,9 @@ executable PikaC
       PikaC.Backend.C.CodeGen
       PikaC.Backend.C.Monad
       PikaC.Backend.C.Syntax
+      PikaC.Backend.SuSLik.Syntax
+      PikaC.Backend.SuSLik.CodeGen
+      PikaC.Backend.Utils
       -- PikaC.Backend.C.DataDeps
       PikaC.Ppr
       PikaC.Preorder.Preorder

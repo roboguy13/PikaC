@@ -120,6 +120,12 @@ instance IsBase Expr where
   isLit (BoolLit {}) = True
   isLit _ = False
 
+  intLit = IntLit
+  boolLit = BoolLit
+  mkNot = Not
+  mkEqual = Equal
+  mkAnd = And
+
 instance Subst Expr AdtName
 
 instance Alpha Expr

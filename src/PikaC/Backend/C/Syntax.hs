@@ -52,6 +52,9 @@ data CFunction =
     }
   deriving (Show, Generic)
 
+instance HasVar CExpr where
+  mkVar = V
+
 instance Alpha CFunction
 
 instance Alpha Command
@@ -159,21 +162,19 @@ findSetToZero possiblyUpdated names xs =
     -- go ((x :-> LocValue y):rest) = locBase x : locBase y : go rest
     go ((x :-> y):rest) = getName (locBase x) : go rest
 
-computeBranchCondition :: [CName] -> [CName] -> CExpr
-computeBranchCondition defNames branchNames =
-    go allInputNames
-  where
-    allInputNames = defNames --fnDefInputNames def
+instance IsBase CExpr where
+  isVar (V {}) = True
+  isVar _ = False
 
-    checkName name =
-      if name `elem` branchNames
-        then Not (Equal (V name) (IntLit 0))
-        else Equal (V name) (IntLit 0)
+  isLit (BoolLit {}) = True
+  isLit (IntLit {}) = True
+  isLit _ = False
 
-    go [] = BoolLit True
-    go [name] = checkName name
-    go (name:rest) =
-      And (checkName name) (go rest)
+  intLit = IntLit
+  boolLit = BoolLit
+  mkNot = Not
+  mkEqual = Equal
+  mkAnd = And
 
 --
 -- Property tests
