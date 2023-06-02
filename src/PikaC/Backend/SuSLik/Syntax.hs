@@ -9,6 +9,7 @@ import PikaC.Utils
 import PikaC.Syntax.Heaplet
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import GHC.Generics
 
@@ -79,10 +80,98 @@ data FnSig
           (Bind [ExistVar]
             FnSpec)
     }
+  deriving (Show, Generic)
 
 data FnSpec
   = FnSpec
     { _fnSpecPrecond :: [HeapletS]
     , _fnSpecPostcond :: Assertion
     }
+  deriving (Show, Generic)
+
+instance Alpha ExistVar
+instance Alpha HeapletS
+instance Alpha Expr
+instance Alpha PredicateBranch
+instance Alpha FnSpec
+
+instance Ppr Expr where
+  ppr (V x) = ppr x
+  ppr (IntLit i) = ppr i
+  ppr (BoolLit True) = text "true"
+  ppr (BoolLit False) = text "false"
+  ppr (Add x y) = sep [pprP x, text "+", pprP y]
+  ppr (Sub x y) = sep [pprP x, text "-", pprP y]
+  ppr (Equal x y) = sep [pprP x, text "==", pprP y]
+  ppr (Not x) = text "!" <> pprP x
+  ppr (And x y) = sep [pprP x, text "&&", pprP y]
+
+instance IsNested Expr where
+  isNested (V _) = False
+  isNested (IntLit _) = False
+  isNested (BoolLit _) = False
+  isNested _ = True
+
+instance Ppr HeapletS where
+  ppr (PointsToS p) = ppr p
+  ppr (ApplyS f args) =
+    text f <> text "(" <> hsep (punctuate (text ",") (map ppr args))  <> text ")"
+
+instance Ppr PredicateBranch where
+  ppr branch =
+    let purePart rest =
+          case _predBranchPure branch of
+            BoolLit True -> rest
+            p -> ppr p <+> text ";" <+> rest
+
+        (_, asn) = unsafeUnbind $ _predBranchAssertion branch
+    in
+    text "|" <+>
+    ppr (_predBranchCond branch)
+      <+> text "=>"
+      <+>
+      nest 2
+        (text "{"
+          <+> purePart
+                (sep (punctuate (text " **")
+                       (map ppr asn))
+                )
+          <+> text "}"
+        )
+
+instance Ppr InductivePredicate where
+  ppr indPred =
+    let (params, branches) = unsafeUnbind (_indPredBody indPred)
+    in
+    vcat $
+      [(text "predicate" <+> text (_indPredName indPred))
+        <> text "(" <> hsep (punctuate (text ",") (map ppr params)) <> text ")"
+      ,text "{"
+      ]
+      ++
+        map ppr branches
+      ++
+      [text "}"]
+
+instance Ppr FnSpec where
+  ppr fnSpec =
+    let (_, postCond) = unsafeUnbind $ _fnSpecPostcond fnSpec
+    in
+    vcat
+      [ braces (sep (punctuate (text " **") (map ppr (_fnSpecPrecond fnSpec))))
+      , braces (sep (punctuate (text " **") (map ppr postCond)))
+      ]
+
+instance Ppr FnSig where
+  ppr fnSig =
+    let (params, bnd) = unsafeUnbind $ _fnSigConds fnSig
+        (_, conds) = unsafeUnbind bnd
+    in
+    vcat
+      [ (text "void" <+> text (_fnSigName fnSig))
+          <> parens (sep (punctuate (text ",") (map ppr params)))
+      , nest 2 (ppr conds)
+      , text "{ ?? }"
+      ]
+    
 
