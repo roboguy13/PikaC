@@ -200,6 +200,9 @@ instance IsBase a => Validity (Loc a) where
   validate (x :+ _) =
     check (isVar x) "Loc base name is variable"
 
+validateWithRhs :: (IsBase a, Validity a) => (a -> Validation) -> PointsTo a -> Validation
+validateWithRhs f p@(_ :-> y) = validate p <> f y
+
 genValidPointsTo :: HasVar a => [Name a] -> (Int -> Gen a) -> Int -> Gen (PointsTo a)
 genValidPointsTo names genA size = do
     loc <- genValidLoc names

@@ -407,13 +407,14 @@ exprBasicArgs = mconcat . map go . universe
     -- goWithIn _ = mempty
 
 exprIsSimplified :: Expr -> Validation
+exprIsSimplified e0@(App {}) = decorate (ppr' e0) $ invalid "Function application should be bound by with-in"
 exprIsSimplified e0 = exprIsOk e0 <> mconcat (map go (universe e0))
   where
     go (App _ _ xs) =
       check (all isSimpleArg xs) "Function should be applied to base expressions"
     go (WithIn (WithIn _ _) _) = invalid "Nested with-ins"
     go (SslAssertion (B _ xs)) =
-      decorate "in assertion" $ mconcat $ map validate xs
+      decorate "in assertion" $ mconcat $ map (validateWithRhs (flip check "All right-hand sides of points-tos should be base expressions (literals or variables)" . isBase)) xs
     go _ = mempty
 
 isSimpleArg :: Expr -> Bool
