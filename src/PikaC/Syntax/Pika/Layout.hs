@@ -645,7 +645,9 @@ instance (IsBase a, Arbitrary a) => Arbitrary (LayoutBody a) where
 
 instance (IsBase a, Arbitrary a) => Arbitrary (LayoutHeaplet a) where
   arbitrary = error "Arbitrary LayoutHeaplet"
-  shrink = genericShrink
+  shrink (LApply layoutName x ys) =
+    LApply layoutName <$> shrink x <*> sequenceA (map shrink ys)
+  shrink e = genericShrink e
 
 -- NOTE: Only Out mode parameters for now
 genLayout :: (IsNested a, Ppr a, Typeable a, Alpha a, HasVar a, IsName a a) =>

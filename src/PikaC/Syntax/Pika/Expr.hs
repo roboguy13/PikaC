@@ -233,6 +233,8 @@ instance Arbitrary Expr where
   shrink (App f xs) = do
     xs' <- sequenceA $ map shrink xs
     pure $ App f xs'
+  shrink (ApplyLayout e layoutName) =
+    ApplyLayout <$> shrink e <*> pure layoutName
   shrink e0 = genericShrink e0
 
 -- isValidExpr :: Expr -> Validation
