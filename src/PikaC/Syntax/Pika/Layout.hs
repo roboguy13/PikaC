@@ -593,20 +593,21 @@ instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => We
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutBody a)
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutHeaplet a)
 
-instance (Alpha a, Typeable a, Show a, WellScoped (Name a) a) => Validity (Layout a) where
+instance (IsName a a, Alpha a, Typeable a, Show a, WellScoped (Name a) a) => Validity (Layout a) where
   validate layout =
     let (_, branches) = unsafeUnbind $ _layoutBranches layout
     in
     wellScoped @(ModedName a) [] layout <>
     mconcat (map validate branches)
 
-instance (Alpha a, Typeable a, Show a) => Validity (LayoutBranch a) where
+instance (IsName a a, Alpha a, Typeable a, Show a) => Validity (LayoutBranch a) where
   validate branch@(LayoutBranch (PatternMatch (B (PatternVar _) _))) =
     decorate (show branch) $
     invalid "Layout branch matches has pattern variable match rather than matching on a constructor"
 
   validate branch@(LayoutBranch (PatternMatch (B (Pattern cName params) body))) =
     allExistsAreUsed branch
+    <> allPatVarsAreUsed branch
 
 allExistsAreUsed :: (Alpha a, Typeable a) => LayoutBranch a -> Validation
 allExistsAreUsed (LayoutBranch (PatternMatch (B (Pattern cName params) bnd))) =
@@ -616,15 +617,25 @@ allExistsAreUsed (LayoutBranch (PatternMatch (B (Pattern cName params) bnd))) =
   check (all (`elem` bodyFvs) (map (modedNameName . getExists) existVars))
     "All existentials in a layout branch must be used"
 
-instance (Typeable a, Alpha a, IsBase a, Arbitrary a, WellScoped (Name a) a) => Arbitrary (Layout a) where
+allPatVarsAreUsed :: (IsName a a, Alpha a, Typeable a) => LayoutBranch a -> Validation
+allPatVarsAreUsed (LayoutBranch (PatternMatch bnd)) =
+  let (Pattern cName patVars, bnd1) = unsafeUnbind bnd
+      (existVars, body) = unsafeUnbind bnd1
+      rhs's = map (getName . pointsToRhs) $ getPointsTos body
+  in
+  check (all (`elem` rhs's) patVars)
+    "All pattern variables are used in layout branch"
+
+instance (IsName a a, Typeable a, Alpha a, IsBase a, Arbitrary a, WellScoped (Name a) a) => Arbitrary (Layout a) where
   arbitrary = error "Arbitrary Layout"
   shrink layout = filter isValid $ do
-    branches' <- shrink $ _layoutBranches layout
+    let (vars, branches) = unsafeUnbind $ _layoutBranches layout
+    branches' <- filter isValid . sequenceA $ map shrink branches
     pure $ layout
-      { _layoutBranches = branches'
+      { _layoutBranches = bind vars branches'
       }
 
-instance (Alpha a, Typeable a, IsBase a, Arbitrary a) => Arbitrary (LayoutBranch a) where
+instance (IsName a a, Alpha a, Typeable a, IsBase a, Arbitrary a) => Arbitrary (LayoutBranch a) where
   arbitrary = error "Arbitrary LayoutBranch"
   shrink =  filter isValid . genericShrink
 

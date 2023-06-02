@@ -37,6 +37,8 @@ import Debug.Trace
 
 import Control.DeepSeq
 
+import Data.Validity
+
 data PikaModule =
   PikaModule
   { moduleLayouts :: [Layout Expr]
@@ -307,6 +309,10 @@ instance Arbitrary PikaModule where
     mod <- PikaModule <$> sequenceA x' <*> sequenceA y' <*> pure z
     pure mod
   -- shrink = filter (not . isTrivialModule) . genericShrink
+
+instance Validity PikaModule where
+  validate (PikaModule x y z) =
+    validate x <> validate y
 
 genModule :: Gen PikaModule
 genModule = sized genModule'

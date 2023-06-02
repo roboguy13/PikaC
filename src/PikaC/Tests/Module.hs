@@ -28,6 +28,14 @@ import System.Exit
 
 import Control.DeepSeq
 
+prop_sane_genModule :: Property
+prop_sane_genModule =
+  withMaxSuccess 700 $
+  forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
+      case pikaModule `deepseq` prettyValidation (validate pikaModule) of
+        Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
+        Nothing -> property True
+
 prop_wellScoped_modFns :: Property
 prop_wellScoped_modFns =
   withMaxSuccess 700 $ ioProperty $
