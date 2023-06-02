@@ -25,6 +25,7 @@ import Control.Lens.TH
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import GHC.Generics
 
@@ -43,6 +44,13 @@ instance NFData a => NFData (Pattern a)
 
 makeLenses ''Pattern
 
+instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) =>
+    WellScoped (Name a) (Bind (Pattern a) b) where
+  wellScoped inScopeVars bnd =
+    let (pat, body) = unsafeUnbind bnd
+    in
+    wellScoped (inScopeVars ++ getNames pat) body
+
 instance HasNames (Pattern a) a where
   getNames (PatternVar v) = [v]
   getNames (Pattern _ vs) = vs
@@ -57,6 +65,10 @@ newtype PatternMatches a b =
 
 instance (NFData a, NFData b) => NFData (PatternMatch a b)
 instance (NFData a, NFData b) => NFData (PatternMatches a b)
+
+instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (PatternMatch a b) where
+  wellScoped inScopeVars (PatternMatch bnd) =
+    wellScoped inScopeVars bnd
 
 instance (Alpha a, Typeable a, WellScoped (Name a) a) => WellScoped (Pattern a) a where
   wellScoped inScopeVars x =

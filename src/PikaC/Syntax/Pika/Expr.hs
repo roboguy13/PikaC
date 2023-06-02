@@ -227,8 +227,6 @@ instance WellScoped (Name Expr) (Bind LayoutName Expr) where
     wellScoped inScopeVars body
 instance WellScoped (Name Expr) (Name Type) where
   wellScoped _ _ = mempty
-instance WellScoped a Bool where
-  wellScoped _ _ = mempty
 
 instance Arbitrary Expr where
   arbitrary = error "Arbitrary Expr"

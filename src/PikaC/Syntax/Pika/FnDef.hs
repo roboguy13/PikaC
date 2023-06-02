@@ -97,10 +97,7 @@ instance Validity FnDefBranch where
 
 instance Arbitrary FnDefBranch where
   arbitrary = error "Arbitrary FnDefBranch"
-  shrink x =
-    let r = genericShrink x
-    in
-    trace ("x = " ++ show x ++ "; shrink length = " ++ show (length r)) r
+  shrink = genericShrink
 
 instance Arbitrary FnDef where
   arbitrary = error "Arbitrary FnDef"

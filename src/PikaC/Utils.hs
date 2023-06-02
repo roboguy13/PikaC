@@ -224,6 +224,10 @@ instance (Alpha a, Typeable a) => WellScoped (Name a) (Name a) where
 
 instance WellScoped a b => WellScoped a [b]
 
+instance WellScoped a Int where wellScoped _ _ = mempty
+instance WellScoped a Char where wellScoped _ _ = mempty
+instance WellScoped a Bool where wellScoped _ _ = mempty
+
 class GWellScoped n f where
   gWellScoped :: [n] -> f a -> Validation
 

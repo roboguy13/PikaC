@@ -64,6 +64,7 @@ executable PikaC
       PikaC.Stage.ToPikaCore.Utils
       PikaC.Stage.ToPikaCore.SimplifyM
       PikaC.Tests.Module
+      PikaC.Tests.C
       PikaC.Utils
       PikaC.Subst
       PikaC.FreshGen

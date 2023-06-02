@@ -562,9 +562,6 @@ type LayoutName = TypeName
 
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (ModedName a) (Layout a)
 
-instance WellScoped a Char where
-  wellScoped _ _ = mempty
-
 instance WellScoped a AdtName where
   wellScoped _ _ = mempty
 
@@ -580,16 +577,6 @@ instance (Typeable a, Alpha a, WellScoped (Name a) a) =>
         body
 
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutBranch a)
-instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (PatternMatch a b) where
-  wellScoped inScopeVars (PatternMatch bnd) =
-    wellScoped inScopeVars bnd
-
-instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) =>
-    WellScoped (Name a) (Bind (Pattern a) b) where
-  wellScoped inScopeVars bnd =
-    let (pat, body) = unsafeUnbind bnd
-    in
-    wellScoped (inScopeVars ++ getNames pat) body
 
 instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (Bind [Exists a] b) where
   wellScoped inScopeVars bnd =
@@ -605,11 +592,6 @@ instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => We
 
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutBody a)
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutHeaplet a)
-instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (PointsTo a)
-instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (Loc a)
-instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) Int where
-  wellScoped _ _ = mempty
-
 
 instance (Alpha a, Typeable a, Show a, WellScoped (Name a) a) => Validity (Layout a) where
   validate layout =

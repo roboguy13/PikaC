@@ -8,8 +8,11 @@ import PikaC.Ppr
 import PikaC.Utils
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import GHC.Generics
+
+import Data.Validity
 
 type CName = Name CExpr
 type CLoc = Loc CExpr
@@ -47,7 +50,9 @@ data CFunction =
     , cfunctionParams :: [CName]
     , cfunctionBody :: [Command]
     }
-  deriving (Show)
+  deriving (Show, Generic)
+
+instance Alpha CFunction
 
 instance Alpha Command
 
@@ -169,4 +174,23 @@ computeBranchCondition defNames branchNames =
     go [name] = checkName name
     go (name:rest) =
       And (checkName name) (go rest)
+
+--
+-- Property tests
+--
+
+instance WellScoped (Name CExpr) CExpr
+instance WellScoped (Name CExpr) Command
+instance WellScoped (Name CExpr) (Bind CName [Command]) where
+  wellScoped inScopes bnd =
+    let (var, cmds) = unsafeUnbind bnd
+    in
+    wellScoped @_ @[Command] (inScopes ++ [var]) cmds
+
+instance WellScoped (Name CExpr) CFunction where
+  wellScoped inScopes fn =
+    wellScoped (inScopes ++ cfunctionParams fn) (cfunctionBody fn)
+
+instance Validity CFunction where
+  validate fn = wellScoped ([] :: [CName]) fn
 

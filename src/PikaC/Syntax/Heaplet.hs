@@ -52,6 +52,9 @@ instance Subst (Name a) a => Subst (Name a) (Loc a)
 instance Subst (Pattern a) a => Subst (Pattern a) (PointsTo a)
 instance Subst (Pattern a) a => Subst (Pattern a) (Loc a)
 
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (PointsTo a)
+instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (Loc a)
+
 pointsToRhsLens :: Lens' (PointsTo a) a
 pointsToRhsLens =
   lens (\(_ :-> y) -> y)
