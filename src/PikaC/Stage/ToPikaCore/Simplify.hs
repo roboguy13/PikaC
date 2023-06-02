@@ -49,7 +49,7 @@ simplifyFnDef =
     (
       assertionOfAssertion <=<
       assertionOfCall <=<
-      reuseExistingPtrs <=<
+      -- reuseExistingPtrs <=<
       replaceClosedAssertions <=<
       callOfWith <=<
       layoutToWith <=<
