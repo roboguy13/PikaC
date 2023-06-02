@@ -1,4 +1,5 @@
 module PikaC.Backend.SuSLik.CodeGen
+  (codeGenIndPred)
   where
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
@@ -17,6 +18,8 @@ import Unbound.Generics.LocallyNameless
 
 import Control.Lens
 import Control.Monad
+
+import Debug.Trace
 
 codeGenIndPred :: PikaCore.FnDef -> SuSLik.InductivePredicate
 codeGenIndPred fnDef = runFreshM $ do
@@ -56,38 +59,51 @@ genBranch allNames outNames branch = do
 
 
 toAssertion :: Fresh m => [SuSLik.ExprName] -> PikaCore.Expr -> m SuSLik.Assertion
-toAssertion outVars = catAssertions <=< collectAssertions outVars
+toAssertion = --catAssertions <=< collectAssertions outVars
+  collectAssertions
 
-collectAssertions :: Fresh m => [SuSLik.ExprName] -> PikaCore.Expr -> m [SuSLik.Assertion]
+collectAssertions :: Fresh m =>
+  [SuSLik.ExprName] -> PikaCore.Expr ->
+  m (Bind [SuSLik.ExistVar]
+        [HeapletS])
 collectAssertions outVars e
   | PikaCore.isBasic e =
       case outVars of
         [v] ->
-          pure [bind [] $ [PointsToS ((SuSLik.V v :+ 0) :-> convertBase e)]]
+          pure $ bind [] [PointsToS ((SuSLik.V v :+ 0) :-> convertBase e)]
         _ -> error "Expected exactly one output parameter when translating a top-level basic expression"
 collectAssertions outVars (PikaCore.WithIn e bnd) = do
   (vars, body) <- unbind bnd
   let unmodedVars = map modedNameName vars
-  eAsns <- collectAssertions (map convertModedName vars) e
-  bodyAsns <- sequenceAssertions =<< collectAssertions outVars body
-  joinedAsns <- joinAsnBind (bind (map (SuSLik.ExistVar . convertName) unmodedVars) bodyAsns)
-  pure (eAsns ++ [joinedAsns])
+  (eVars, eAsns0) <- unbind =<< collectAssertions (map convertModedName vars) e
+
+  bodyAsns <- collectAssertions outVars body
+
+  let bound = bind (map (SuSLik.ExistVar . convertName) unmodedVars) bodyAsns
+  (joinedVars, joinedAsns) <- unbind =<< joinAsnBind bound
+
+  -- let eAsns1 = bind vars eAsns0
+  --     eAsns = instantiate eAsns1 
+  let eAsns = eAsns0
+
+  -- trace ("bound = " ++ show bound ++ "; joinedAsns = " ++ show joinedAsns ++ "; eAsns = " ++ show (bind (vars ++ eVars) eAsns)) $
+  pure $ bind (joinedVars ++ eVars)
+            (eAsns ++ joinedAsns)
     -- TODO: How should we bind the existentials ('vars') here?
   -- pure (eAsns ++ bodyAsns)
 collectAssertions outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?
-  pure
-    [bind []
+  pure $
+    bind []
       [ApplyS f (map convertBase args ++ map SuSLik.V outVars)
       ]
-    ]
 collectAssertions outVars (PikaCore.SslAssertion bnd) = do
   (vars, asn) <- unbind bnd
   let unmodedVars = map (convertName . modedNameName) vars
       asn' = map convertPointsTo asn
       asn'' = rename (zip unmodedVars outVars) asn'
-  pure [bind [] asn''] -- TODO: Bind existentials
+  pure $ bind [] asn'' -- TODO: Bind existentials
 collectAssertions _ e = error $ "collectAssertions: " ++ ppr' e
 
 convertPointsTo :: PointsTo PikaCore.Expr -> HeapletS
