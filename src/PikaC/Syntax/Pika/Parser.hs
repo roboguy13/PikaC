@@ -304,8 +304,7 @@ instance Arbitrary PikaModule where
   shrink mod0@(PikaModule x y z) = do
     let x' = map shrink x
         y' = map shrink y
-        z' = map shrink z
-    mod <- PikaModule <$> sequenceA x' <*> sequenceA y' <*> sequenceA z'
+    mod <- PikaModule <$> sequenceA x' <*> sequenceA y' <*> pure z
     pure mod
   -- shrink = filter (not . isTrivialModule) . genericShrink
 

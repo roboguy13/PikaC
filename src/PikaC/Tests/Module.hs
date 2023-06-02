@@ -75,8 +75,8 @@ prop_basicArgs_toPikaCore =
 prop_simplify_from_Pika :: Property
 prop_simplify_from_Pika =
   withMaxSuccess 700 $
-  -- forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
-  forAllShow genModule ppr' $ \pikaModule ->
+  forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
+  -- forAllShow genModule ppr' $ \pikaModule ->
     -- TODO: Figure out why some rare test cases seem to be going into an
     -- infinite loop here
     within 2000000 $ -- 2 seconds
