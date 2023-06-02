@@ -47,6 +47,15 @@ import Data.Validity
 
 import Data.Char
 
+-- -- TODO: Write property tests for this
+-- joinBind :: (Typeable a, Fresh m, Alpha a, Alpha b, HasVar a) => Bind [Name a] (Bind [Name a] b) -> m (Bind [Name a] b)
+-- joinBind bnd1 = do
+--   (vars1, bnd2) <- unbind bnd1
+--   (vars2, body) <- unbind bnd2
+--   vars2' <- mapM fresh vars2
+--   let body' = rename (zip vars2 vars2') body
+--   pure $ bind (vars1 ++ vars2') body'
+
 -- openBind :: (IsName a b, HasVar b, Alpha a, Alpha b, Subst b b) => Bind [a] b -> b
 openBind :: (Alpha a1, Alpha b, Alpha a2, Subst a1 b, HasVar a1, HasNames a2 a1) =>
      Bind [a2] b -> b
@@ -79,6 +88,7 @@ freshOpen bnd@(B vs _) = do
 -- rename = substs
 
 -- | Actually swaps the names in each pair
+-- TODO: Implement this with 'substs' to make this faster
 rename :: forall a b. (Typeable a, Alpha b) => [(Name a, Name a)] -> b -> b
 rename pairs = swaps (go pairs)
   where

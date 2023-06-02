@@ -145,7 +145,7 @@ instance Ppr InductivePredicate where
     in
     vcat $
       [(text "predicate" <+> text (_indPredName indPred))
-        <> text "(" <> hsep (punctuate (text ",") (map ppr params)) <> text ")"
+        <> text "(" <> hsep (punctuate (text ",") (map ((text "loc" <+>) . ppr) params)) <> text ")"
       ,text "{"
       ]
       ++

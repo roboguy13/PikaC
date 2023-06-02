@@ -122,9 +122,9 @@ instance IsBase Expr where
 
   intLit = IntLit
   boolLit = BoolLit
-  mkNot = Not
+  mkNot = error "Pika.mkNot" -- TODO: Add constructor for these
   mkEqual = Equal
-  mkAnd = And
+  mkAnd = error "Pika.mkAnd"
 
 instance Subst Expr AdtName
 

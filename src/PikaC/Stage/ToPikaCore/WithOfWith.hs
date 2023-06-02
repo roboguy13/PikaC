@@ -50,6 +50,7 @@ withOfWithOne (WithIn (WithIn e1 bnd1) bnd2) = do
   (vars2, e3) <- unbind bnd2
   vars2' <- mapM (fresh . modedNameName) vars2
   let e3' = rename (zip (map modedNameName vars2) vars2') e3
+        -- TODO: Try replacing rename with substs, for speed
 
   let modedVars2' = zipWith Moded (map getMode vars2) vars2'
 
