@@ -95,9 +95,16 @@ collectAssertions outVars (PikaCore.WithIn e bnd) = do
   (eVars, eAsns0) <- unbind =<< collectAssertions (map convertModedName vars) e
 
   (bodyVars, bodyAsns) <- unbind =<< collectAssertions outVars body
-  pure $
-    bind (eVars ++ bodyVars)
-      (eAsns0 ++ bodyAsns)
+
+  case eAsns0 of
+    [] ->
+      pure $
+        bind bodyVars
+          $ substs (zip (map convertName unmodedVars) (repeat (SuSLik.IntLit 0))) bodyAsns
+    _ ->
+      pure $
+        bind (eVars ++ bodyVars)
+          (eAsns0 ++ bodyAsns)
 collectAssertions outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?
@@ -108,8 +115,8 @@ collectAssertions outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
 collectAssertions outVars (PikaCore.SslAssertion bnd) = do
   (vars, asn) <- unbind bnd
   let unmodedVars = map (convertName . modedNameName) vars
-      asn' = map convertPointsTo asn
-      asn'' = rename (zip unmodedVars outVars) asn'
+  let asn' = map convertPointsTo asn
+  let asn'' = rename (zip unmodedVars outVars) asn'
   pure $ bind [] asn'' -- TODO: Bind existentials
 collectAssertions _ e = error $ "collectAssertions: " ++ ppr' e
 
