@@ -197,7 +197,7 @@ generateFn opts pikaModule fnName =
         when (not (_optNoC opts)) $ do
           putStrLn "\n- C:"
           putStrLn $ ppr' $ codeGenFn pikaCore
-          print $ codeGenFn pikaCore
+          -- print $ codeGenFn pikaCore
 
         putStrLn "\n- SuSLik:"
         putStrLn $ ppr' $ codeGenIndPred pikaCore
