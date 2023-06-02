@@ -408,7 +408,13 @@ exprBasicArgs = mconcat . map go . universe
     -- goWithIn _ = mempty
 
 exprIsSimplified :: Expr -> Validation
-exprIsSimplified e0@(App {}) = decorate (ppr' e0) $ invalid "Function application should be bound by with-in"
+exprIsSimplified e0@(App (FnName f) _ _) | isConstructor f =
+  decorate (ppr' e0) $
+  invalid "Top-level constructor application"
+exprIsSimplified e0@(App (FnName f) _ args) =
+  decorate (ppr' e0) $
+  check (all isBasic args)
+    "Function application not bound by with-in has all basic expressions for arguments"
 exprIsSimplified e0 = exprIsOk e0 <> mconcat (map go (universe e0))
   where
     go (App _ _ xs) =

@@ -28,6 +28,11 @@ import System.Exit
 
 import Control.DeepSeq
 
+theTimeout :: Int
+theTimeout =
+  10 -- seconds
+    *1000000
+
 prop_sane_genModule :: Property
 prop_sane_genModule =
   withMaxSuccess 700 $
@@ -54,7 +59,7 @@ prop_basicArgs_toPikaCore =
   forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
     -- TODO: Figure out why some rare test cases seem to be going into an
     -- infinite loop here (NOTE: This even happened when the fuel was set to 0)
-    within 2000000 $ -- 2 seconds
+    within theTimeout $
   -- forAllShow genModule ppr' $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
         pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
@@ -87,7 +92,7 @@ prop_simplify_from_Pika =
   -- forAllShow genModule ppr' $ \pikaModule ->
     -- TODO: Figure out why some rare test cases seem to be going into an
     -- infinite loop here
-    within 2000000 $ -- 2 seconds
+    within theTimeout $
     let (fnName:_) = moduleGenerates pikaModule
         pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
     in

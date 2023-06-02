@@ -19,6 +19,7 @@ import PikaC.Syntax.Type
 import PikaC.Syntax.Heaplet
 import PikaC.Utils
 import PikaC.Ppr (ppr')
+import PikaC.Stage.ToPikaCore.Utils (freshModed)
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
@@ -163,9 +164,6 @@ internExists (Exists n) = Exists <$> internModedExprName n
 internModedExprName :: MonadPikaIntern m => ModedName Pika.Expr -> m (ModedName PikaCore.Expr)
 internModedExprName (Moded mode v) =
   Moded mode <$> internExprName v
-
-freshModed :: Fresh m => ModedName a -> m (ModedName a)
-freshModed (Moded m v) = Moded m <$> fresh v
 
 freshLayoutParams :: Fresh m => Layout a -> m [ModedName a]
 freshLayoutParams layout =

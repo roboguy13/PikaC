@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module PikaC.Tests.C
   where
 
@@ -43,3 +45,9 @@ moduleToPikaCore pikaModule =
   let (fnName:_) = moduleGenerates pikaModule
   in
   (runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName)
+
+return []
+checkAllProps :: IO Bool
+checkAllProps =
+  $(quickCheckAll)
+

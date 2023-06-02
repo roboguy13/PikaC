@@ -25,6 +25,7 @@ import PikaC.Stage.ToPikaCore.ReuseExistingPtrs
 import PikaC.Stage.ToPikaCore.ReplaceClosedAssertions
 import PikaC.Stage.ToPikaCore.CallOfCall
 import PikaC.Stage.ToPikaCore.AssertionOfCall
+import PikaC.Stage.ToPikaCore.AssertionOfAssertion
 
 import PikaC.Stage.ToPikaCore.SimplifyM
 
@@ -46,6 +47,7 @@ simplifyFnDef =
   renameResultLayout <=< -- NOTE: This should go last
   fixedPoint
     (
+      assertionOfAssertion <=<
       assertionOfCall <=<
       reuseExistingPtrs <=<
       replaceClosedAssertions <=<
@@ -153,6 +155,10 @@ prop_valid_renameResultLayout =
 prop_valid_assertionOfCall :: Property
 prop_valid_assertionOfCall =
   withMaxSuccess 1000 $ propPreserves_valid assertionOfCall
+
+prop_valid_assertionOfAssertion :: Property
+prop_valid_assertionOfAssertion =
+  withMaxSuccess 1000 $ propPreserves_valid assertionOfAssertion
 
 prop_valid_simplifyFnDef :: Property
 prop_valid_simplifyFnDef =

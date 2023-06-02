@@ -46,3 +46,6 @@ buildWithIns ((rhs, vars) : xs) e =
     rhs
     (bind vars (buildWithIns xs e))
 
+freshModed :: Fresh m => ModedName a -> m (ModedName a)
+freshModed (Moded m v) = Moded m <$> fresh v
+
