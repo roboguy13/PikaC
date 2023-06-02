@@ -57,10 +57,11 @@ data HeapletS
   | ApplyS String [Expr]
   deriving (Show, Generic)
 
-type ExistsVar = ExprName
+newtype ExistVar = ExistVar { getExistVar :: ExprName }
+  deriving (Show, Generic)
 
 type Assertion =
-  Bind [ExistsVar] [HeapletS]
+  Bind [ExistVar] [HeapletS]
 
 data PredicateBranch
   = PredicateBranch
@@ -75,12 +76,13 @@ data FnSig
     { _fnSigName :: String
     , _fnSigConds ::
         Bind [ExprName] -- Function parameters
-          FnSpec
+          (Bind [ExistVar]
+            FnSpec)
     }
 
 data FnSpec
   = FnSpec
-    { _fnSpecPrecond :: Assertion
+    { _fnSpecPrecond :: [HeapletS]
     , _fnSpecPostcond :: Assertion
     }
 
