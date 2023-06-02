@@ -42,11 +42,13 @@ codeGenIndPred fnDef = runFreshM $ do
 
 genBranch :: Fresh m => [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
 genBranch allNames outNames branch = do
-  asn <- toAssertion outNames $ PikaCore._fnDefBranchBody branch
+  (zeroes, asn) <-
+    getZeroes outNames =<<
+    toAssertion outNames (PikaCore._fnDefBranchBody branch)
   (asnVars, heaplets) <- unbind asn
 
   pure $ SuSLik.PredicateBranch
-    { SuSLik._predBranchPure = SuSLik.BoolLit True -- TODO: Set names to zero here when needed
+    { SuSLik._predBranchPure = foldr mkAnd (boolLit True) zeroes
     , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
     , SuSLik._predBranchAssertion =
         bind asnVars $
@@ -59,8 +61,23 @@ genBranch allNames outNames branch = do
 
 
 toAssertion :: Fresh m => [SuSLik.ExprName] -> PikaCore.Expr -> m SuSLik.Assertion
-toAssertion = --catAssertions <=< collectAssertions outVars
-  collectAssertions
+toAssertion = collectAssertions
+
+getZeroes :: Fresh m => [SuSLik.ExprName] -> SuSLik.Assertion -> m ([SuSLik.Expr], SuSLik.Assertion)
+getZeroes outVars bnd = do
+  (asnVars, hs) <- unbind bnd
+  case hs of
+    [] -> pure ([], bind asnVars [])
+    (PointsToS ((SuSLik.V x :+ 0) :-> SuSLik.IntLit 0) : rest)
+      | x `elem` outVars -> do
+          (restExprs, restAsn) <- getZeroes outVars (bind asnVars rest)
+          pure (mkEqual (mkVar x) (intLit 0) : restExprs
+               ,restAsn
+               )
+    (h : rest) -> do
+          (restExprs, restAsn) <- getZeroes outVars (bind asnVars rest)
+          (restVars, restHs) <- unbind restAsn
+          pure (restExprs, bind restVars $ h : restHs)
 
 collectAssertions :: Fresh m =>
   [SuSLik.ExprName] -> PikaCore.Expr ->
@@ -81,21 +98,6 @@ collectAssertions outVars (PikaCore.WithIn e bnd) = do
   pure $
     bind (eVars ++ bodyVars)
       (eAsns0 ++ bodyAsns)
-
-  -- let boundVars = map (SuSLik.ExistVar . convertName) unmodedVars
-  -- let bound = bind boundVars bodyAsns
-  -- (joinedVars, joinedAsns) <- unbind =<< joinAsnBind bound
-  -- _
-
-  -- let eAsns1 = bind unmodedVars eAsns0
-  --     -- eAsns = instantiate eAsns1 (map (SuSLik.V . SuSLik.getExistVar) boundVars)
-  --     eAsns = instantiate eAsns1 (map (SuSLik.V . SuSLik.getExistVar) joinedVars)
-  --
-  -- trace ("the vars = " ++ show (joinedVars ) ++ "bound = " ++ show bound ++ "; joinedAsns = " ++ show joinedAsns ++ "; eAsns = " ++ show eAsns ++ "; eAsns1 = " ++ show eAsns1) $
-  --   pure $ bind (joinedVars ++ eVars)
-  --             (eAsns ++ joinedAsns)
-    -- TODO: How should we bind the existentials ('vars') here?
-  -- pure (eAsns ++ bodyAsns)
 collectAssertions outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?

@@ -42,7 +42,8 @@ instance IsBase Expr where
   boolLit = BoolLit
   mkNot = Not
   mkEqual = Equal
-  mkAnd = And
+  mkAnd x (BoolLit True) = x
+  mkAnd x y = And x y
 
 data InductivePredicate
   = InductivePredicate
@@ -133,6 +134,11 @@ instance Ppr PredicateBranch where
             p -> ppr p <+> text ";" <+> rest
 
         (_, asn) = unsafeUnbind $ _predBranchAssertion branch
+        heapletsText =
+          case asn of
+            [] -> text "emp"
+            _ -> (sep (punctuate (text " **")
+                       (map ppr asn)))
     in
     text "|" <+>
     ppr (_predBranchCond branch)
@@ -140,10 +146,7 @@ instance Ppr PredicateBranch where
       <+>
       nest 2
         (text "{"
-          <+> purePart
-                (sep (punctuate (text " **")
-                       (map ppr asn))
-                )
+          <+> purePart heapletsText
           <+> text "}"
         )
 
