@@ -44,9 +44,12 @@ prop_basicArgs_toPikaCore =
   -- forAllShrinkShow genModule (const []) show $ \pikaModule ->
   withMaxSuccess 700 $
   forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
+    -- TODO: Figure out why some rare test cases seem to be going into an
+    -- infinite loop here (NOTE: This even happened when the fuel was set to 0)
+    within 2000000 $ -- 2 seconds
   -- forAllShow genModule ppr' $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore (Fuel 0) (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
     in
     case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
@@ -66,6 +69,23 @@ prop_basicArgs_toPikaCore =
   --         ]
   --     hFlush stdout
   --     exitFailure
+
+-- | We simplify from Pika to the simplified form of PikaCore that is ready
+-- for translation into C and/or SuSLik
+prop_simplify_from_Pika :: Property
+prop_simplify_from_Pika =
+  withMaxSuccess 700 $
+  -- forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
+  forAllShow genModule ppr' $ \pikaModule ->
+    -- TODO: Figure out why some rare test cases seem to be going into an
+    -- infinite loop here
+    within 2000000 $ -- 2 seconds
+    let (fnName:_) = moduleGenerates pikaModule
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+    in
+    case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprIsSimplified pikaCore) of
+      Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
+      Nothing -> property True
 
 return []
 checkAllProps :: IO ()

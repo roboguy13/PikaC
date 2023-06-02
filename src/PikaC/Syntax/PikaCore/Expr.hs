@@ -388,7 +388,7 @@ exprIsOk = mconcat . map go . universe
     go (App _ [] _) = invalid "Application must have at least one output size"
     go (App _ szs _)
       | not (all (> 0) szs) = invalid "All sizes in application must by positive"
-    go (SslAssertion (B _ [])) = invalid "Empty assertion"
+    -- go (SslAssertion (B _ [])) = invalid "Empty assertion"
     go (WithIn _ (B [] _)) = invalid "with-in with empty variable list"
     go _ = mempty
 

@@ -715,7 +715,7 @@ genLayoutBranch layoutName params size (constructor, arity) = do
   let lhs's = map (fmap getName) $ map pointsToLhs (getPointsTos (LayoutBody body))
 
   if (not (noDups lhs's))
-    then discardM
+    then error "unreachable?"
     else pure $
       LayoutBranch
         $ PatternMatch
