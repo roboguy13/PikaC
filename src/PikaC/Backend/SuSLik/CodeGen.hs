@@ -77,18 +77,23 @@ collectAssertions outVars (PikaCore.WithIn e bnd) = do
   let unmodedVars = map modedNameName vars
   (eVars, eAsns0) <- unbind =<< collectAssertions (map convertModedName vars) e
 
-  bodyAsns <- collectAssertions outVars body
+  (bodyVars, bodyAsns) <- unbind =<< collectAssertions outVars body
+  pure $
+    bind (eVars ++ bodyVars)
+      (eAsns0 ++ bodyAsns)
 
-  let bound = bind (map (SuSLik.ExistVar . convertName) unmodedVars) bodyAsns
-  (joinedVars, joinedAsns) <- unbind =<< joinAsnBind bound
+  -- let boundVars = map (SuSLik.ExistVar . convertName) unmodedVars
+  -- let bound = bind boundVars bodyAsns
+  -- (joinedVars, joinedAsns) <- unbind =<< joinAsnBind bound
+  -- _
 
-  -- let eAsns1 = bind vars eAsns0
-  --     eAsns = instantiate eAsns1 
-  let eAsns = eAsns0
-
-  -- trace ("bound = " ++ show bound ++ "; joinedAsns = " ++ show joinedAsns ++ "; eAsns = " ++ show (bind (vars ++ eVars) eAsns)) $
-  pure $ bind (joinedVars ++ eVars)
-            (eAsns ++ joinedAsns)
+  -- let eAsns1 = bind unmodedVars eAsns0
+  --     -- eAsns = instantiate eAsns1 (map (SuSLik.V . SuSLik.getExistVar) boundVars)
+  --     eAsns = instantiate eAsns1 (map (SuSLik.V . SuSLik.getExistVar) joinedVars)
+  --
+  -- trace ("the vars = " ++ show (joinedVars ) ++ "bound = " ++ show bound ++ "; joinedAsns = " ++ show joinedAsns ++ "; eAsns = " ++ show eAsns ++ "; eAsns1 = " ++ show eAsns1) $
+  --   pure $ bind (joinedVars ++ eVars)
+  --             (eAsns ++ joinedAsns)
     -- TODO: How should we bind the existentials ('vars') here?
   -- pure (eAsns ++ bodyAsns)
 collectAssertions outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
