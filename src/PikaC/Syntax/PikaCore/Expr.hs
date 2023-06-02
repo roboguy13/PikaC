@@ -424,6 +424,10 @@ isSimpleArg e = isBasic e
 genValidExpr :: [Name Expr] -> Gen Expr
 genValidExpr bvs = sized (genValidExpr' bvs)
 
+instance HasVars Expr Expr where
+  mkVars [v] = V v
+  mkVars vs = LayoutV $ map V vs
+
 -- No SslAssertion's or WithIn's
 genSimpleExpr :: [Name Expr] -> Int -> Gen Expr
 genSimpleExpr [] 0 =

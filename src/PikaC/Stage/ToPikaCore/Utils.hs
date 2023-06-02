@@ -5,6 +5,7 @@ import Unbound.Generics.LocallyNameless
 import PikaC.Syntax.PikaCore.Expr
 import PikaC.Syntax.PikaCore.FnDef
 import PikaC.Syntax.Heaplet
+import PikaC.Syntax.Pika.Layout
 import PikaC.Ppr
 import PikaC.Utils
 
@@ -37,4 +38,11 @@ argExpr vs = LayoutV (map V vs)
 
 lhsNames :: ExprAssertion -> [ExprName]
 lhsNames = fastNub . map (getV . locBase . pointsToLhs)
+
+buildWithIns :: [(Expr, [ModedName Expr])] -> Expr -> Expr
+buildWithIns [] e = e
+buildWithIns ((rhs, vars) : xs) e =
+  WithIn
+    rhs
+    (bind vars (buildWithIns xs e))
 

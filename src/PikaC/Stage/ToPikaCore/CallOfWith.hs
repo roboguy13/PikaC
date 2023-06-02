@@ -41,23 +41,10 @@ go (App f sz args) = do
     _ ->
       -- let newArgs = instUsing $ zip withs newArgsBnd
       -- in
-      let r = mkWithIns withs (App f sz newArgs)
+      let r = buildWithIns withs (App f sz newArgs)
       in
       pure . Just $ r
 go _ = pure Nothing
-
-mkWithIns :: [(Expr, [ModedName Expr])] -> Expr -> Expr
-mkWithIns [] e = e
-mkWithIns ((rhs, vars) : xs) e =
-  WithIn
-    rhs
-    (bind vars (mkWithIns xs e))
-    -- (B vars (mkWithIns xs e))
-
--- instUsing :: [((Expr, [ModedName Expr]), Bind [ModedName Expr] Expr)] -> [Expr]
--- instUsing [] = []
--- instUsing (((e, vars), bnd) : xs) =
---   instantiate bnd (map (V . modedNameName) vars) : instUsing xs
 
 getAndReplaceWiths :: Fresh m => [Expr] -> m ([(Expr, [ModedName Expr])], [Expr])
 getAndReplaceWiths [] = pure ([], [])

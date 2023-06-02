@@ -60,6 +60,7 @@ executable PikaC
       PikaC.Stage.ToPikaCore.ReuseExistingPtrs
       PikaC.Stage.ToPikaCore.ReplaceClosedAssertions
       PikaC.Stage.ToPikaCore.CallOfCall
+      PikaC.Stage.ToPikaCore.AssertionOfCall
       PikaC.Stage.ToPikaCore.Monad
       PikaC.Stage.ToPikaCore.Utils
       PikaC.Stage.ToPikaCore.SimplifyM
