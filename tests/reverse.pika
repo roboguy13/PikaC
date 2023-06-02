@@ -1,9 +1,10 @@
 %generate revcat
 %generate reverse
 
-Sll : layout[x](List);
+Sll : layout[-x](List);
 Sll Nil := emp;
 Sll (Cons head tail) :=
+  exists +nxt.
   x :-> head **
   (x+1) :-> nxt **
   Sll tail [nxt];
