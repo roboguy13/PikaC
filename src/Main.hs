@@ -166,7 +166,7 @@ main = do
         let pikaModule = parse'' fileName parsePikaModule fileData
             layouts = moduleLayouts pikaModule
 
-        mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
+        -- mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
 
         case mapM_ (modeCheck layouts) layouts of
           Left e -> do
