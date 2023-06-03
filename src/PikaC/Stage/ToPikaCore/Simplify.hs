@@ -44,12 +44,12 @@ import Data.Validity
 
 simplifyFnDef :: Logger m => FnDef -> SimplifyM m FnDef
 simplifyFnDef =
-  renameResultLayout <=< -- NOTE: This should go last
+  -- renameResultLayout <=< -- NOTE: This should go last
   fixedPoint
     (
       assertionOfAssertion <=<
       assertionOfCall <=<
-      -- reuseExistingPtrs <=<
+      reuseExistingPtrs <=<
       replaceClosedAssertions <=<
       callOfWith <=<
       layoutToWith <=<

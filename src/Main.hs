@@ -49,6 +49,7 @@ data Options =
     { _optHelp :: Bool
     , _optNoC :: Bool
     , _optOnlyC :: Bool
+    , _optNoSuSLik :: Bool
     , _optSimplifierFuel :: SimplifyFuel
     , _optSimplifierLog :: Bool
     , _optSelfTest :: Bool
@@ -59,7 +60,7 @@ makeLenses ''Options
 
 defaultOpts :: Options
 defaultOpts =
-  Options False False False Unlimited False False
+  Options False False False False Unlimited False False
 
 type OptionUpdate = ([String], Options) -> ([String], Options)
 
@@ -102,6 +103,9 @@ optHandlers =
 
   ,option "--no-c" Nothing "Disable C generation" $ nullaryOpt $
       optNoC .~ True
+
+  ,option "--no-suslik" Nothing "Disable SuSLik generation" $ nullaryOpt $
+      optNoSuSLik .~ True
 
   ,option "--only-c" Nothing "Only print generated C" $ nullaryOpt $
       optOnlyC .~ True
@@ -199,8 +203,9 @@ generateFn opts pikaModule fnName =
           putStrLn $ ppr' $ codeGenFn pikaCore
           -- print $ codeGenFn pikaCore
 
-        putStrLn "\n- SuSLik:"
-        putStrLn $ ppr' $ codeGenIndPred pikaCore
+        when (not (_optNoSuSLik opts)) $ do
+          putStrLn "\n- SuSLik:"
+          putStrLn $ ppr' $ codeGenIndPred pikaCore
   where
     fuel = _optSimplifierFuel opts
 
