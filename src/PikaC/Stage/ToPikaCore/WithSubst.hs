@@ -31,6 +31,7 @@ withSubst :: Logger m => FnDef -> SimplifyM m FnDef
 withSubst = step "withSubst" $ onFnDef (rewriteM go)
 
 go :: Fresh m => Expr -> m (Maybe Expr)
+go (WithIn (LayoutV []) _) = pure Nothing
 go (WithIn (LayoutV vs) bnd) = do
   (vars, body) <- unbind bnd
   pure . Just $ substs (zip (map modedNameName vars) vs) body
