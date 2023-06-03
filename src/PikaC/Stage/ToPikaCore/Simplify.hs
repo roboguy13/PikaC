@@ -13,6 +13,8 @@ import PikaC.Syntax.PikaCore.FnDef
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 
+import PikaC.Utils
+
 import PikaC.Stage.ToPikaCore.NestedCalls
 import PikaC.Stage.ToPikaCore.WithOfWith
 import PikaC.Stage.ToPikaCore.SubstWithLayoutVar
@@ -49,7 +51,7 @@ simplifyFnDef =
     (
       assertionOfAssertion <=<
       assertionOfCall <=<
-      reuseExistingPtrs <=<
+      -- reuseExistingPtrs <=<
       replaceClosedAssertions <=<
       callOfWith <=<
       layoutToWith <=<
@@ -80,30 +82,34 @@ myTraceWith f x = trace (f x) x
 propPreserves_validation ::
   (Expr -> Validation) ->
   (FnDef -> Validation) ->
-  (FnDef -> SimplifyM Quiet FnDef) ->
+  (forall m. Logger m => FnDef -> SimplifyM m FnDef) ->
   Property
 propPreserves_validation precond v pass =
   let precondFnDef = validateFnDefWith precond
       gen = genValidFnDef `suchThat` (validationIsValid . precondFnDef)
   in
   forAllShrinkShow gen (filter (validationIsValid . precondFnDef) . shrink) ppr' $ \fnDef ->
+  -- forAllShrinkShow gen (const []) ppr' $ \fnDef ->
   -- forAllShow gen ppr' $ \fnDef ->
-    let result = runSimplifyQuiet Unlimited pass fnDef
+    -- let result = runSimplifyQuiet Unlimited pass fnDef
+    let result = runErrorLog $ runSimplifyFn Unlimited pass fnDef
     in
-    case prettyValidation (v result) of
+    case result `seq` prettyValidation (v result) of
       -- Left msg -> counterexample ("Counterexample result:\n" ++ ppr' result) False
       Just msg -> counterexample ("Counterexample result:\n" ++ msg) False
       Nothing -> property True
 
 
-propPreserves_basicArgs :: (FnDef -> SimplifyM Quiet FnDef) -> Property
+propPreserves_basicArgs :: (forall m. Logger m => FnDef -> SimplifyM m FnDef) -> Property
 propPreserves_basicArgs =
   propPreserves_validation
     exprBasicArgs
     (validateFnDefWith exprBasicArgs)
 
-propPreserves_valid :: (FnDef -> SimplifyM Quiet FnDef) -> Property
+propPreserves_valid :: (forall m. Logger m => FnDef -> SimplifyM m FnDef) -> Property
+-- propPreserves_valid = propPreserves_validation (wellScoped ([] :: [ExprName])) validate
 propPreserves_valid = propPreserves_validation (const mempty) validate
+
   -- forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
   --   let result = runSimplifyQuiet Unlimited pass fnDef
   --   in

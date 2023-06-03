@@ -565,8 +565,8 @@ instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (ModedName a
 instance WellScoped a AdtName where
   wellScoped _ _ = mempty
 
-instance (Typeable a, Alpha a, WellScoped (Name a) a) =>
-  WellScoped (ModedName a) (Bind [ModedName a] [LayoutBranch a]) where
+instance (Typeable a, Alpha a, WellScoped (Name a) b) =>
+  WellScoped (ModedName a) (Bind [ModedName a] b) where
     wellScoped inScopeVars bnd =
       let (vs, body) = unsafeUnbind bnd
           inScopeVars' :: [Name a]

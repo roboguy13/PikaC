@@ -129,6 +129,8 @@ locIx (_ :+ i) = i
 data Allocation a = Alloc { allocName :: Name a, allocSize :: Int }
   deriving (Show, Generic)
 
+instance (Typeable a, Alpha a) => WellScoped (Name a) (Allocation a)
+
 instance Ppr a => Ppr (Allocation a) where
   ppr (Alloc n sz) = text "[[" <> ppr n <> text "," <> text (show sz) <> text "]]"
 

@@ -10,8 +10,10 @@ module PikaC.Stage.ToPikaCore.SimplifyM
 
   ,Quiet
   ,LogIO
+  ,ErrorLog
   ,runQuiet
   ,runLogIO
+  ,runErrorLog
   ,runSimplifyQuiet
   ,runSimplifyLogIO
 
@@ -29,6 +31,7 @@ import PikaC.Ppr
 import Unbound.Generics.LocallyNameless
 
 import Control.Monad.State
+import Control.Monad.Writer
 import Control.Monad.Identity
 import Control.Monad.Morph
 
@@ -36,8 +39,11 @@ import Data.Proxy
 
 import Control.Monad
 
+import GHC.Stack
+
 class Monad m => Logger m where
   logM :: String -> m ()
+  logError :: HasCallStack => String -> m a
 
 data SimplifyFuel = Unlimited | Fuel Int
   deriving (Show)
@@ -45,24 +51,38 @@ data SimplifyFuel = Unlimited | Fuel Int
 newtype Quiet a = Quiet (Identity a)
   deriving (Functor, Applicative, Monad)
 
-runQuiet :: Quiet a -> a
-runQuiet (Quiet (Identity x)) = x
-
 newtype LogIO a = LogIO { runLogIO :: IO a }
   deriving (Functor, Applicative, Monad)
 
+newtype ErrorLog a = ErrorLog (State String a)
+  deriving (Functor, Applicative, Monad)
+
+instance Logger ErrorLog where
+  logM str = ErrorLog $ modify (<> ("\n" <> str))
+  logError str = do
+    msg <- ErrorLog get
+    error (str <> "\n" <> msg)
+
+runQuiet :: Quiet a -> a
+runQuiet (Quiet (Identity x)) = x
+
+runErrorLog :: ErrorLog a -> a
+runErrorLog (ErrorLog m) = evalState m mempty
+
 instance Logger Quiet where
   logM _ = Quiet (Identity ())
+  logError = error
 
 instance Logger LogIO where
   logM = LogIO . putStrLn
+  logError = error
 
 newtype SimplifyM m a = SimplifyM (FreshMT (StateT SimplifyFuel m) a)
   deriving (Functor, Applicative, Monad, Fresh)
 
 instance Logger m => Logger (SimplifyM m) where
   logM = SimplifyM . lift . lift . logM
-
+  logError = SimplifyM . lift . lift . logError
 
 runSimplifyFn :: (Logger m, Ppr a) => SimplifyFuel -> (a -> SimplifyM m a) -> a -> m a
 runSimplifyFn fuel fn = runFreshMT . runSimplifyFn' fuel fn

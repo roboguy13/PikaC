@@ -385,6 +385,9 @@ instance Arbitrary Expr where
 --   args ++
 --   (App <$> shrink f <*> mapM shrinkExpr args)
 
+instance WellScoped ExprName Expr
+instance WellScoped ExprName (FnName' String)
+
 instance Validity Expr where
   validate = exprIsOk
 

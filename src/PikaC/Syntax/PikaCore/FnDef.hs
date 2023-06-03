@@ -138,6 +138,14 @@ not' x = Not x
 -- Property testing --
 --
 
+instance WellScoped ExprName FnDef
+
+instance WellScoped ExprName FnDefBranch where
+  wellScoped inScopes branch =
+    let inScopes' = inScopes ++ map (getV . pointsToRhs) (concat (_fnDefBranchInputAssertions branch))
+    in
+    wellScoped inScopes' (_fnDefBranchBody branch)
+
 instance Arbitrary FnDef where
   arbitrary = genValidFnDef
   shrink = filter isValid . genericShrink
@@ -170,7 +178,7 @@ instance Arbitrary FnDefBranch where
 
 -- | Function definitions should be well-scoped
 instance Validity FnDef where
-  validate = validateFnDefWith validate
+  validate fnDef = wellScoped ([] :: [ExprName]) fnDef <> validateFnDefWith validate fnDef
     -- check (isClosed @_ @Expr branches) "No free variables"
 
 -- TODO: Make sure we are properly accounting for names "bound" by input assertions
