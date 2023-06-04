@@ -400,10 +400,41 @@ exprIsOk = mconcat . map go . universe
       | not (all (> 0) szs) = invalid "All sizes in application must by positive"
     -- go (SslAssertion (B _ [])) = invalid "Empty assertion"
     go (WithIn _ (B [] _)) = invalid "with-in with empty variable list"
+    go (WithIn e (B vs' _)) =
+      check (length vs' == getOutputCount e)
+        "When a layout { ... } { ... } is bound by a with-in, the with-in must have the right number of variables"
     go _ = mempty
 
+getOutputCount :: Expr -> Int
+getOutputCount (V {}) = 1
+getOutputCount (LayoutV xs) = length xs
+getOutputCount (IntLit {}) = 1
+getOutputCount (BoolLit {}) = 1
+getOutputCount (Add {}) = 1
+getOutputCount (Sub {}) = 1
+getOutputCount (Equal {}) = 1
+getOutputCount (And {}) = 1
+getOutputCount (Not {}) = 1
+getOutputCount (WithIn _ bnd) =
+  let (_, body) = unsafeUnbind bnd
+  in
+  getOutputCount body
+getOutputCount (SslAssertion bnd@(B [] _)) =
+  let (_, asns) = unsafeUnbind bnd
+  in
+  length $ fastNub $ map (getV . locBase . pointsToLhs) asns
+getOutputCount (SslAssertion (B vs _)) = length vs
+getOutputCount (App _ xs _) = length xs
+
+-- getAsnParamCount :: Bind [ModedName Expr] ExprAssertion -> Int
+-- getAsnParamCount bnd@(B [] _) =
+--   let (_, asns) = unsafeUnbind bnd
+--   in
+--   length $ fastNub $ map (getV . locBase . pointsToLhs) asns
+-- getAsnParamCount (B vs _) = length vs
+
 exprBasicArgs :: Expr -> Validation
-exprBasicArgs = mconcat . map go . universe
+exprBasicArgs e0 = validate e0 <> mconcat (map go (universe e0))
   where
     go (App _ _ xs) =
       check (all (not . is _App) xs) "No nested applications"

@@ -38,7 +38,10 @@ go :: Fresh m => Expr -> m (Maybe Expr)
 go (SslAssertion bnd) = do
   (vars, asn) <- unbind bnd
   case vars of
-    [] -> pure $ Just $ LayoutV $ map V (lhsNames asn)
+    [] ->
+      case asn of
+        [] -> pure $ Just $ IntLit 0
+        (_:_) -> pure $ Just $ LayoutV $ map V (lhsNames asn)
     (_:_) -> pure Nothing
 go _ = pure Nothing
 

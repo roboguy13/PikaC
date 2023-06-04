@@ -88,7 +88,8 @@ propPreserves_validation precond v pass =
   let precondFnDef = validateFnDefWith precond
       gen = genValidFnDef `suchThat` (validationIsValid . precondFnDef)
   in
-  forAllShrinkShow gen (filter (validationIsValid . precondFnDef) . shrink) ppr' $ \fnDef ->
+  -- forAllShrinkShow gen (filter (validationIsValid . precondFnDef) . shrink) ppr' $ \fnDef ->
+  forAllShrinkShow gen (const mempty) ppr' $ \fnDef ->
   -- forAllShrinkShow gen (const []) ppr' $ \fnDef ->
   -- forAllShow gen ppr' $ \fnDef ->
     -- let result = runSimplifyQuiet Unlimited pass fnDef
@@ -108,7 +109,7 @@ propPreserves_basicArgs =
 
 propPreserves_valid :: (forall m. Logger m => FnDef -> SimplifyM m FnDef) -> Property
 -- propPreserves_valid = propPreserves_validation (wellScoped ([] :: [ExprName])) validate
-propPreserves_valid = propPreserves_validation (const mempty) validate
+propPreserves_valid = propPreserves_validation validate validate
 
   -- forAllShrinkShow genValidFnDef shrink ppr' $ \fnDef ->
   --   let result = runSimplifyQuiet Unlimited pass fnDef
