@@ -71,6 +71,14 @@ annotateAllocs (PikaCore.WithIn e bnd) =
     $ bind
         (zipWith annotateModed vars (exprOutputAllocs body))
         body
+annotateAllocs (PikaCore.SslAssertion bnd) =
+  let (vars, body) = unsafeUnbind bnd
+      vars' = map modedNameName vars
+  in
+  PikaCore.SslAssertion
+    $ bind
+        (zipWith annotateModed vars (map allocSize (findAllocations vars' body)))
+        body
 annotateAllocs (PikaCore.App f sz args) =
   PikaCore.App f sz (map annotateAllocs args)
 
