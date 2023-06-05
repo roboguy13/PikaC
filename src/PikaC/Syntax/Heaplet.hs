@@ -64,6 +64,9 @@ pointsToRhsLens =
 data Loc a = a :+ Int
   deriving (Show, Functor, Eq, Ord, Generic)
 
+mapPointsTo :: (a -> b) -> PointsTo a -> PointsTo b
+mapPointsTo f ((x :+ i) :-> y) = (f x :+ i) :-> f y
+
 instance NFData a => NFData (PointsTo a)
 instance NFData a => NFData (Loc a)
 

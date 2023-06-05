@@ -51,13 +51,14 @@ import Unbound.Generics.LocallyNameless.Unsafe -- Just for implementing QuickChe
 
 import Data.Char
 import Data.String
+import Data.Typeable
 
 type ExprName = Name Expr
 
 -- type LocName = ExprName
 
 data Expr' (s :: Stage)
-  = V ExprName
+  = V (Name (Expr' s))
   | LayoutV [Expr' s]    -- {x ...}
   -- | LayoutV [ExprName]    -- {x ...}
   | IntLit Int -- TODO: Add output locations?
@@ -74,14 +75,14 @@ data Expr' (s :: Stage)
       -- [Allocation Expr]
       -- [Int] -- Allocation sizes for the names
       (Bind [ModedName' s (Expr' s)]
-        Expr)
+        (Expr' s))
       -- Expr                --     := e
       -- [ExprName]     --   {x ...}
       -- Expr       -- in e
 
   | SslAssertion            -- layout
       (Bind [ModedName' s (Expr' s)]
-         ExprAssertion)
+         (ExprAssertion' s))
 
       -- (LayoutArg Expr)     --     {x ...}
       -- ExprAssertion     --   { (x+1) :-> e ** ... }
@@ -92,7 +93,16 @@ data Expr' (s :: Stage)
       [Expr' s]
   deriving (Generic)
 
-deriving instance (Show (XModed s)) => Show (Expr' s)
+type family XV (s :: Stage)
+
+type instance XV PC = ()
+
+type LiftClassExpr' c s =
+  (c (XV s))
+
+-- pattern V x = V' () x
+
+deriving instance (Show (XModed s), Show (XV s)) => Show (Expr' s)
 
 -- pattern LayoutV xs = LayoutV' () xs
 
@@ -114,7 +124,7 @@ fnNameIsOk :: FnName -> Bool
 fnNameIsOk (FnName str) =
   all (`elem` ['a'..'z']) str && not (null str)
 
-instance HasVar Expr where mkVar = V
+instance HasVar (Expr' s) where mkVar = V
 
 instance IsBase Expr where
   isVar (V _) = True
@@ -151,8 +161,58 @@ instance Plated Expr where
 
 type PointsToExpr = PointsTo Expr
 type ExprAssertion = [PointsToExpr]
+type ExprAssertion' s = [PointsTo (Expr' s)]
 
 makePrisms ''Expr'
+
+bindXV :: forall s. (Show (Expr' s), XV s ~ XModed s, Alpha (XModed s), Typeable s, Alpha (Expr' s)) =>
+  (Expr -> ModedName Expr -> ModedName' s (Expr' s)) ->
+  (ExprAssertion -> ModedName Expr -> ModedName' s (Expr' s)) ->
+  [ModedName' s (Expr' s)] ->
+  Expr -> Expr' s
+bindXV convertNameExpr convertNameAsn vars = go
+  where
+    -- lookupV :: ExprName -> ModedName' s (Expr' s)
+    -- lookupV v = case find ((== v) . string2Name . show . modedNameName) vars of
+    --   Nothing -> --error $ "bindXV: Cannot find " ++ show v
+    --     Moded' 0 _ v
+    --   Just r -> r
+    --
+    -- toV' :: ExprName -> Expr' s
+    -- toV' x = case lookupV x of
+    --   r@(Moded' ann _ x') -> V (modedNameName r)
+    --   -- Moded' ann _ x' -> V' ann x
+
+    go' = bindXV convertNameExpr convertNameAsn
+
+    go :: Expr -> Expr' s
+    go (V x) = V (string2Name (show x)) --toV' x
+    go (LayoutV xs) = LayoutV $ map go xs
+    go (IntLit i) = IntLit i
+    go (BoolLit b) = BoolLit b
+    go (Add x y) = Add (go x) (go y)
+    go (Sub x y) = Sub (go x) (go y)
+    go (Equal x y) = Equal (go x) (go y)
+    go (Not x) = Not (go x)
+    go (And x y) = And (go x) (go y)
+    go (App f sz args) =
+      App f sz (map go args)
+    go (WithIn e bnd) =
+      let -- TODO: Is this a safe use of unsafeUnbind?
+          (newVars, body) = unsafeUnbind bnd
+          newVars' = map (convertNameExpr body) newVars
+      in
+      WithIn (go e)
+      $ bind newVars'
+        $ go' (newVars' ++ vars) body
+    go (SslAssertion bnd) =
+      let (newVars, asn) = unsafeUnbind bnd
+          newVars' = map (convertNameAsn asn) newVars
+      in
+      SslAssertion
+        $ bind newVars'
+          $ map (mapPointsTo (go' (newVars' ++ vars))) asn
+
 
 instance HasApp Expr where
   mkApp x y = App (FnName x) [] y
@@ -168,7 +228,7 @@ instance HasApp Expr where
 --   bind [string2Name "x"]
 --     (BaseExpr (LocV (string2Name "x")))
 
-instance Alpha Expr
+instance (Typeable s, Alpha (XV s), Alpha (XModed s)) => Alpha (Expr' s)
 
 instance Subst Expr (LayoutBranch Expr)
 instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (LayoutBody Expr)))
@@ -183,7 +243,7 @@ instance Subst (Name Expr) a => Subst ExprName (Loc a) where
 
 instance Subst ExprName Expr
 
-instance IsName Expr Expr where
+instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Expr' s) (XModed s)) => IsName (Expr' s) (Expr' s) where
   getName (V x) = x
   getName e = error $ "IsName PikaCore.Expr PikaCore.Expr requires var, got " ++ ppr' e
 
@@ -203,35 +263,40 @@ instance IsName Expr Expr where
   --   pure $ SubstCoerce x (fmap SimpleExpr . f)
   -- isCoerceVar _ = Nothing
 
-instance Subst (Moded Expr) Expr
-instance Subst (Moded Expr) (Moded (Name Expr))
-instance Subst (Moded Expr) Mode
-instance Subst (Moded (Name Expr)) (LayoutBody Expr)
-instance Subst (Moded (Name Expr)) (LayoutHeaplet Expr)
-instance Subst (Moded (Name Expr)) (PointsTo Expr)
-instance Subst (Moded (Name Expr)) (Loc Expr)
-instance Subst (Moded (Name Expr)) Expr
-instance Subst (Moded (Name Expr)) (Moded (Name Expr))
-instance Subst (Moded (Name Expr)) Mode
-instance Subst (Moded (Name Expr)) (Exists Expr)
+instance (Alpha (XV s), Subst (Moded' s (Expr' s)) (XModed s), Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s))), Alpha (XV s), Alpha (XModed s), Typeable s) => Subst (Moded' s (Expr' s)) (Expr' s)
+instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s))), Subst (Moded' s (Expr' s)) (XModed s)) => Subst (Moded' s (Expr' s)) (Moded' s (Name (Expr' s)))
+instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Expr' s)) Mode
+instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (LayoutBody (Expr' s))
+instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (LayoutHeaplet (Expr' s))
+instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (PointsTo (Expr' s))
+-- instance (Alpha (XV s), Subst ((Moded' s) (Expr' s)) (XModed s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Expr' s)) (PointsTo (Expr' s))
+-- instance (Alpha (XV s), Subst (Moded' s (Expr' s)) (XModed s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Expr' s)) (Loc (Expr' s))
+instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>
+      Subst (Moded' s (Name (Expr' s))) (Loc (Expr' s))
+instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>
+  Subst (Moded' s (Name (Expr' s))) (Expr' s)
+-- instance Subst (Moded' s (Name (Expr' s))) Expr
+instance Subst (Moded' s (Name (Expr' s))) (Moded' PC (Name (Expr' s)))
+instance Subst (Moded' s (Name (Expr' s))) Mode
+instance Subst (Moded' s (Name (Expr' s))) (Exists (Expr' s))
 
-instance Subst Expr Expr where
+instance (Alpha (XModed s), Alpha (XV s), Subst (Expr' s) (Moded' s (Name (Expr' s))), Typeable s) => Subst (Expr' s) (Expr' s) where
   isvar (V x) = Just $ SubstName x
   isvar _ = Nothing
 
-instance Subst Expr (ModedName a)
-instance Subst Expr Mode
+instance (Subst (Expr' s) (XModed s)) => Subst (Expr' s) (ModedName' s a)
+instance Subst (Expr' s) Mode
 -- instance Subst ExprName (ModedName a)
 -- instance Subst ExprName Mode
 
-instance Subst Expr a => Subst Expr (PointsTo a) where
+instance Subst (Expr' s) a => Subst (Expr' s) (PointsTo a) where
   isCoerceVar (x :-> y) = do
-    SubstCoerce p q <- isCoerceVar @Expr @(Loc a) x
+    SubstCoerce p q <- isCoerceVar @(Expr' s) @(Loc a) x
     pure (SubstCoerce p (fmap (:-> y) . q))
 
-instance forall a. Subst Expr a => Subst Expr (Loc a) where
+instance forall s a. Subst (Expr' s) a => Subst (Expr' s) (Loc a) where
   isCoerceVar (x :+ i) = do
-    SubstCoerce p q <- isCoerceVar @Expr @_ x
+    SubstCoerce p q <- isCoerceVar @(Expr' s) @_ x
     pure (SubstCoerce p (fmap (:+ i) . q))
   -- isCoerceVar (V n) = Just $ SubstCoerce _ Just
   -- isCoerceVar _ = Nothing
@@ -273,10 +338,11 @@ instance Subst (Moded (Name Expr)) (Allocation Expr)
 instance Subst (Moded Expr) (Allocation Expr)
 instance Subst (Name Expr) (Allocation Expr)
 
-instance Ppr Expr where
+instance (Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) => Ppr (Expr' s) where
   ppr = runFreshM . pprExpr
 
-pprExpr :: Expr -> FreshM Doc
+pprExpr :: forall s. (Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) =>
+  Expr' s -> FreshM Doc
 pprExpr (WithIn e bnd) = do
   -- (vars, body0) <- unbind bnd
   -- let body = instantiate bnd vars
@@ -319,12 +385,12 @@ pprExpr (App f sz x) = do
   xDoc <- mapM pprExprP x
   pure $ ppr f <+> (text "[" <> text (show sz) <> text "]") <+> hsep xDoc
 
-pprExprP :: Expr -> FreshM Doc
+pprExprP :: (Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) => Expr' s -> FreshM Doc
 pprExprP e
   | isNested e = parens <$> pprExpr e
   | otherwise = pprExpr e
 
-instance IsNested Expr where
+instance IsNested (Expr' s) where
   isNested (V _) = False
   isNested (LayoutV _) = False
   isNested (IntLit _) = False
@@ -339,7 +405,7 @@ instance IsNested Expr where
   isNested (WithIn {}) = True
   isNested (SslAssertion {}) = True
 
-isBasic :: Expr -> Bool
+isBasic :: Expr' s -> Bool
 isBasic (V x) = True
 isBasic (LayoutV _) = True
 isBasic (IntLit i) = True
@@ -351,7 +417,7 @@ isBasic (Not x) = True
 isBasic (And x y) = True
 isBasic _ = False
 
-getV :: HasCallStack => Expr -> Name Expr
+getV :: (HasCallStack, Ppr (Expr' s)) => Expr' s -> Name (Expr' s)
 getV (V x) = x
 getV e = error $ "getV: " ++ ppr' e
 
@@ -495,7 +561,7 @@ isSimpleArg e = isBasic e
 genValidExpr :: [Name Expr] -> Gen Expr
 genValidExpr bvs = sized (genValidExpr' bvs)
 
-instance HasVars Expr Expr where
+instance HasVars (Expr' s) (Expr' s) where
   mkVars [v] = V v
   mkVars vs = LayoutV $ map V vs
 

@@ -14,6 +14,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module PikaC.Syntax.Pika.Layout
   where
@@ -108,7 +109,7 @@ instance NFData Mode
 type OpenedLayout a = [LayoutBranch a]
 
 data Moded' (s :: Stage) a = Moded' (XModed s) Mode a
-  deriving (Generic)
+  deriving (Generic, Functor)
 
 deriving instance (Show (XModed s), Show a) => Show (Moded' s a)
 
@@ -126,6 +127,10 @@ data Mode = In | Out
   deriving (Show, Generic, Eq)
 
 type ModeEnv a = [ModedName a]
+
+annotateModed :: (a -> b) -> (XModed s -> XModed s') -> Moded' s a -> Moded' s' b
+annotateModed f g (Moded' ann x y) =
+  Moded' (g ann) x (f y)
 
 lookupMode :: ModeEnv a -> Name a -> Maybe Mode
 lookupMode env n =
@@ -159,8 +164,8 @@ instance Subst a (ModedName a) => Subst a (Exists a)
 instance HasNames (Exists a) a where
   getNames (Exists x) = getNames x
 
-instance HasNames a b => HasNames (Moded a) b where
-  getNames (Moded _ x) = getNames x
+instance HasNames a b => HasNames (Moded' s a) b where
+  getNames (Moded' _ _ x) = getNames x
 
 layoutBranchPattern :: LayoutBranch a -> Pattern a
 layoutBranchPattern = patternMatchPat . _layoutMatch
@@ -287,14 +292,14 @@ getLayoutParams layout =
 unbindLayout :: (Fresh m, Typeable a, Alpha a) => Layout a -> m ([ModedName a], [LayoutBranch a])
 unbindLayout = unbind . _layoutBranches
 
-instance (Subst (Moded a) (Exists a), Alpha a, Typeable a, Subst (Moded a) a) => Subst (Moded a) (LayoutBranch a)
-instance Subst (Moded a) a => Subst (Moded a) (Pattern a)
-instance Subst (Moded a) a => Subst (Moded a) (LayoutBody a)
-instance Subst (Moded a) a => Subst (Moded a) (LayoutHeaplet a)
-instance Subst (Moded a) a => Subst (Moded a) (PointsTo a)
-instance Subst (Moded a) a => Subst (Moded a) (Loc a)
-instance (Alpha a, Typeable a, Subst (Moded a) a) => Subst (Moded a) (PatternMatch a (LayoutBody a))
-instance (Alpha a, Typeable a, Subst (Moded a) (Exists a), Subst (Moded a) a) => Subst (Moded a) (PatternMatch a (Bind [Exists a] (LayoutBody a)))
+instance (Subst (Moded' s a) (Exists a), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (LayoutBranch a)
+instance Subst (Moded' s a) a => Subst (Moded' s a) (Pattern a)
+instance Subst (Moded' s a) a => Subst (Moded' s a) (LayoutBody a)
+instance Subst (Moded' s a) a => Subst (Moded' s a) (LayoutHeaplet a)
+instance Subst (Moded' s a) a => Subst (Moded' s a) (PointsTo a)
+instance Subst (Moded' s a) a => Subst (Moded' s a) (Loc a)
+instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (LayoutBody a))
+instance (Alpha a, Typeable a, Subst (Moded' s a) (Exists a), Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (Bind [Exists a] (LayoutBody a)))
 
 instance Subst (Exists a) AdtName
 instance Subst (Exists a) (Moded (Name a))
@@ -336,11 +341,11 @@ openLayout layout = do
 instance IsName (Moded (Name a)) a where
   getName = modedNameName
 
-getMode :: Moded a -> Mode
-getMode (Moded m _) = m
+getMode :: Moded' s a -> Mode
+getMode (Moded' _ m _) = m
 
-modedNameName :: ModedName a -> Name a
-modedNameName (Moded _ n) = n
+modedNameName :: ModedName' s a -> Name a
+modedNameName (Moded' _ _ n) = n
 
 lookupLayoutBranch :: forall a. HasApp a => Layout a -> String -> Maybe (Bind [ModedName a] (LayoutBranch a))
 lookupLayoutBranch layout constructor = go $ _layoutBranches layout
@@ -692,6 +697,9 @@ genLayout lName adts size = do
         bind (map (Moded Out) params)
           branches
     }
+
+-- instance HasVar a => HasVar (Moded' s a) where
+--   mkVar (Moded' _ _ x) = mkVar x
 
 -- TODO: Remove unused existentials and layout parameters
 genLayoutBranch :: (IsNested a, Ppr a, Typeable a, Alpha a, HasVar a, IsName a a) =>
