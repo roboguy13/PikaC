@@ -8,6 +8,10 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
@@ -27,6 +31,8 @@ import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Type
+
+import PikaC.Stage
 
 import Control.Lens hiding (elements)
 import Control.Lens.Extras
@@ -50,31 +56,31 @@ type ExprName = Name Expr
 
 -- type LocName = ExprName
 
-data Expr
+data Expr' (s :: Stage)
   = V ExprName
-  | LayoutV [Expr]    -- {x ...}
+  | LayoutV [Expr' s]    -- {x ...}
   -- | LayoutV [ExprName]    -- {x ...}
   | IntLit Int -- TODO: Add output locations?
   | BoolLit Bool
 
-  | Add Expr Expr
-  | Sub Expr Expr
-  | Equal Expr Expr
-  | Not Expr
-  | And Expr Expr
+  | Add (Expr' s) (Expr' s)
+  | Sub (Expr' s) (Expr' s)
+  | Equal (Expr' s) (Expr' s)
+  | Not (Expr' s)
+  | And (Expr' s) (Expr' s)
   -- | App (Expr a) (LayoutArg a)
   | WithIn                -- with
-      Expr
+      (Expr' s)
       -- [Allocation Expr]
       -- [Int] -- Allocation sizes for the names
-      (Bind [ModedName Expr]
+      (Bind [ModedName' s (Expr' s)]
         Expr)
       -- Expr                --     := e
       -- [ExprName]     --   {x ...}
       -- Expr       -- in e
 
   | SslAssertion            -- layout
-      (Bind [ModedName Expr]
+      (Bind [ModedName' s (Expr' s)]
          ExprAssertion)
 
       -- (LayoutArg Expr)     --     {x ...}
@@ -83,9 +89,14 @@ data Expr
   | App -- | Fully saturated function application
       FnName
       [Int] -- | Allocation size for results
-      [Expr]
-  deriving (Show, Generic)
+      [Expr' s]
+  deriving (Generic)
 
+deriving instance (Show (XModed s)) => Show (Expr' s)
+
+-- pattern LayoutV xs = LayoutV' () xs
+
+type Expr = Expr' PC
 
 type FnName = FnName' String
 newtype FnName' a = FnName a
@@ -141,7 +152,7 @@ instance Plated Expr where
 type PointsToExpr = PointsTo Expr
 type ExprAssertion = [PointsToExpr]
 
-makePrisms ''Expr
+makePrisms ''Expr'
 
 instance HasApp Expr where
   mkApp x y = App (FnName x) [] y
@@ -386,6 +397,7 @@ instance Arbitrary Expr where
 --   (App <$> shrink f <*> mapM shrinkExpr args)
 
 instance WellScoped ExprName Expr
+instance WellScoped ExprName ()
 instance WellScoped ExprName (FnName' String)
 
 instance Validity Expr where

@@ -127,7 +127,7 @@ locIx (_ :+ i) = i
 -- pointsToNames = nub . map (locBase . pointsToLhs)
 
 data Allocation a = Alloc { allocName :: Name a, allocSize :: Int }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq, Ord)
 
 instance (Typeable a, Alpha a) => WellScoped (Name a) (Allocation a)
 

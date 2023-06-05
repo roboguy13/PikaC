@@ -67,7 +67,7 @@ go newNames (WithIn e bnd) = do
 -- TODO: Make sure modes match
 go newNames e0@(SslAssertion bnd) = do
   (vars, body) <- unbind bnd
-  let modedNewNames = zipWith Moded (map getMode vars) newNames
+  let modedNewNames = zipWith Moded (map getMode vars) newNames :: [ModedName Expr]
       sb = zip (map modedNameName vars) (map V newNames)
   -- trace ("substitution: " ++ show sb ++ " in: " ++ show body) $
   pure $ SslAssertion $

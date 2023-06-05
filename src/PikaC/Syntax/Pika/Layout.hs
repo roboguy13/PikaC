@@ -11,6 +11,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module PikaC.Syntax.Pika.Layout
   where
@@ -18,6 +21,8 @@ module PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Type
+
+import PikaC.Stage
 
 import PikaC.Ppr
 import PikaC.Utils
@@ -102,9 +107,19 @@ instance NFData Mode
 -- | A layout where the layout parameters have been substituted
 type OpenedLayout a = [LayoutBranch a]
 
-data Moded a = Moded Mode a
-  deriving (Show, Generic)
+data Moded' (s :: Stage) a = Moded' (XModed s) Mode a
+  deriving (Generic)
 
+deriving instance (Show (XModed s), Show a) => Show (Moded' s a)
+
+type family XModed (s :: Stage)
+type instance XModed PC = ()
+
+type Moded = Moded' PC
+
+pattern Moded x y = Moded' () x y
+
+type ModedName' s a = Moded' s (Name a)
 type ModedName a = Moded (Name a)
 
 data Mode = In | Out
@@ -122,14 +137,14 @@ lookupMode' env n =
     Nothing -> error $ "lookupMode': Cannot find mode for " ++ show n
     Just r -> r
 
-instance Ppr a => Ppr (ModedName a) where
-  ppr (Moded mode n) = ppr mode <> ppr n
+instance (Ppr a) => Ppr (ModedName' s a) where
+  ppr (Moded' _ mode n) = ppr mode <> ppr n
 
 instance Ppr Mode where
   ppr In = text "+"
   ppr Out = text "-"
 
-instance (Show a, Alpha a, Typeable a) => Alpha (Moded a)
+instance (Alpha (XModed s), Show a, Alpha a, Typeable a) => Alpha (Moded' s a)
 
 instance Alpha Mode
 

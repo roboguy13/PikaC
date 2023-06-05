@@ -76,7 +76,7 @@ instance Ppr FnDef where
       let bnd1@(B vs _) = openBind (_fnDefBranches def)
       vs' <- mapM fresh (concatMap getNames vs)
       let modedVs' = zipWith Moded (map getMode vs) vs'
-      let branches = instantiate bnd1 (map V vs')
+      let branches = instantiate bnd1 (map V vs' :: [Expr])
       go modedVs' branches
     where
       go :: [ModedName Expr] -> [FnDefBranch] -> FreshM Doc
