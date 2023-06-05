@@ -262,7 +262,9 @@ copy ::
   GenC [Command]
 copy cv v = do
   sz <- lookupAllocM v
-  pure $ map go [0..sz]
+  if sz == 0
+    then pure [C.Assign (C.V (convertName v) :+ 0) (C.V cv)]
+    else pure $ map go [0..sz-1]
   where
     go i =
       C.Assign (C.V (convertName v) :+ i) (C.Deref ((C.V cv) :+ i))
