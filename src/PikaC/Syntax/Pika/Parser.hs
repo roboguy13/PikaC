@@ -346,6 +346,7 @@ genModule' size = do
               `suchThat` (noDups . map (\(x, _, _) -> x))
 
   fns <- mapM (genFnDef fnSigs layoutSigs dividedSize) fnSigs
+          `suchThat` (and . map isValid)
 
   pure $ PikaModule
     { moduleLayouts = layouts

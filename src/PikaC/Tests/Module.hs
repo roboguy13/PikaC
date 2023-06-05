@@ -45,7 +45,7 @@ prop_wellScoped_modFns :: Property
 prop_wellScoped_modFns =
   withMaxSuccess 700 $ ioProperty $
   catch (evaluate $
-    forAll genModule $ \pikaModule ->
+    forAllShrink genModule shrink $ \pikaModule ->
       case pikaModule `deepseq` prettyValidation (mconcat (map validate (moduleLayouts pikaModule)) <> mconcat (map validate (moduleFnDefs pikaModule))) of
         Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
         Nothing -> property True
@@ -88,7 +88,8 @@ prop_basicArgs_toPikaCore =
 prop_simplify_from_Pika :: Property
 prop_simplify_from_Pika =
   withMaxSuccess 700 $
-  forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
+  -- forAllShrinkShow genModule (filter isValid . shrink) ppr' $ \pikaModule ->
+  forAllShrinkShow genModule (shrink) ppr' $ \pikaModule ->
   -- forAllShow genModule ppr' $ \pikaModule ->
     -- TODO: Figure out why some rare test cases seem to be going into an
     -- infinite loop here

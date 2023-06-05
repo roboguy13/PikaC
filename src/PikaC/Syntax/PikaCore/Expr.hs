@@ -394,6 +394,10 @@ instance Validity Expr where
 exprIsOk :: Expr -> Validation
 exprIsOk = mconcat . map go . universe
   where
+    go (SslAssertion bnd) =
+      let (vars, body) = unsafeUnbind bnd
+      in
+      asnIsOk vars body
     go (App _ _ []) = invalid "Application must have at least one argument"
     go (App _ [] _) = invalid "Application must have at least one output size"
     go (App _ szs _)
@@ -403,6 +407,14 @@ exprIsOk = mconcat . map go . universe
     go (WithIn e (B vs' _)) =
       check (length vs' == getOutputCount e)
         "When a layout { ... } { ... } is bound by a with-in, the with-in must have the right number of variables"
+    go _ = mempty
+
+asnIsOk :: [Moded ExprName] -> ExprAssertion -> Validation
+asnIsOk _ = mconcat . map go
+  where
+    go (x :-> App _ sz _) =
+      check (length sz == 1)
+        "An application in the RHS of a points-to must have one output"
     go _ = mempty
 
 getOutputCount :: Expr -> Int

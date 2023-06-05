@@ -146,6 +146,7 @@ sequenceAssertions (x:xs) = do
 
 convertBase :: PikaCore.Expr -> SuSLik.Expr
 convertBase (PikaCore.V x) = SuSLik.V $ convertName x
+convertBase (PikaCore.LayoutV [x]) = convertBase x
 convertBase (PikaCore.LayoutV []) = SuSLik.IntLit 0 -- TODO: Is this correct?
 convertBase (PikaCore.IntLit i) = SuSLik.IntLit i
 convertBase (PikaCore.BoolLit b) = SuSLik.BoolLit b
