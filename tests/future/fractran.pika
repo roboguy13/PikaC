@@ -8,14 +8,14 @@ data Output := Nil | Cons Int Output;
 data State := NoUpdate | Updated;
 
 stepFraction : Int -> Fraction -> Int;
-stepFraction i (Fraction n d)
+stepFraction i (MkFraction n d)
   | (i * n) % d == 0       := (i * n) / d
   | not ((i * n) % d == 0) := i;
 
 step : Int -> Program -> State -> Output;
-step i _   NoUpdate := Cons i Nil;
-step i Nil _        := Cons i Nil;
-step i (Cons h t) state :=
+step i _     NoUpdate := Cons i Nil;
+step i Empty _        := Cons i Nil;
+step i (Seq h t) state :=
   let j := stepFraction i h
   in
   if j == i
