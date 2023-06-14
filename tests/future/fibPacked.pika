@@ -1,0 +1,39 @@
+-- Leaf tree
+data Tree := Leaf Int | Bin Tree Tree;
+
+SlowTree : layout(Tree);
+SlowTree [x, y] (Leaf i) := y :-> i;
+SlowTree [x, y] (Bin i p q) :=
+  (x+1) :-> left **
+  (x+2) :-> right **
+  SlowTree [left, z] p **
+  SlowTree [right, w] q;
+
+PackedTree : synthlayout(SlowTree);
+PackedTree [x, sz] Tip := sz == 0 ,, emp;
+PackedTree [x, sz] (Bin i a b) :=
+  sz == 1 + sz1 + sz2
+    ,,
+  x :-> i **
+  PackedTree [x + 2, sz1] a **
+  PackedTree [x + 2*(1 + sz1), sz2] b;
+
+fibTree : (a :~ Tree) => Int -> a;
+fibTree n
+  | n == 0 := Leaf 0
+  | n == 1 := Leaf 1
+  | otherwise := Bin (fibTree (n-1)) (fibTree (n-2));
+
+sumTree : (a :~ Tree) => a -> Int;
+sumTree (Leaf n) := n;
+sumTree (Bin l r) := sumTree l + sumTree r;
+
+fib : (a :~ Tree) => Int -> Int;
+fib [a] n := sumTree (fibTree [a] n)
+
+fibSlowTree : Int -> Int;
+fibSlowTree = fib [SlowTree];
+
+fibPackedTree : Int -> Int;
+fibPackedTree = fib [PackedTree];
+

@@ -1,0 +1,26 @@
+data Tree := Tip | Bin Int Tree Tree;
+
+SlowTree : layout(Tree);
+SlowTree [x] Tip := emp;
+SlowTree [x] (Bin i a b) :=
+  x :-> i **
+  (x+1) :-> left **
+  (x+2) :-> right **
+  SlowTree [left] a **
+  SlowTree [right] b;
+
+PackedTree : synthlayout(SlowTree);
+PackedTree [x, sz] Tip := sz == 0 ,, emp;
+PackedTree [x, sz] (Bin i a b) :=
+  sz == 1 + sz1 + sz2
+    ,,
+  x :-> i **
+  PackedTree [x + 2, sz1] a **
+  PackedTree [x + 2*(1 + sz1), sz2] b;
+
+find : (a :~ Tree) => Int -> a -> Bool
+find i Tip := False;
+find i (Bin j p q)
+  | j == i := True;
+  | not (j == i) := find i p || find i q;
+
