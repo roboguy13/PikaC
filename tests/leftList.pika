@@ -1,15 +1,17 @@
 %generate leftList
 
-Sll : layout[x](List);
+Sll : layout[-x](List);
 Sll Nil := emp;
 Sll (Cons head tail) :=
+  exists +nxt.
   x :-> head **
   (x+1) :-> nxt **
   Sll tail [nxt];
 
-TreeLayout : layout[x](Tree);
+TreeLayout : layout[-x](Tree);
 TreeLayout Leaf := emp;
 TreeLayout (Node payload left right) :=
+  exists +p, +q.
   x :-> payload **
   (x+1) :-> p **
   (x+2) :-> q **
