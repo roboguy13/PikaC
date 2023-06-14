@@ -29,6 +29,9 @@ sumTree : (a :~ Tree) => a -> Int;
 sumTree (Leaf n) := n;
 sumTree (Bin l r) := sumTree l + sumTree r;
 
+-- NOTE: 'a' is actually not used in the main part of the type. But it is
+-- used in the body of the function. It is used to tell fibTree which
+-- layout to use for its tree.
 fib : (a :~ Tree) => Int -> Int;
 fib [a] n := sumTree (fibTree [a] n)
 
