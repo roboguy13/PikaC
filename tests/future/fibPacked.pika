@@ -9,6 +9,7 @@ SlowTree [x, y] (Bin i p q) :=
   SlowTree [left, z] p **
   SlowTree [right, w] q;
 
+-- TODO: Packed leaf tree?
 PackedTree : synthlayout(SlowTree);
 PackedTree [x, sz] Tip := sz == 0 ,, emp;
 PackedTree [x, sz] (Bin i a b) :=
