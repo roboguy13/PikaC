@@ -1,0 +1,6 @@
+collatzTime : Int -> Int;
+collatzTime n
+  | n == 1 := 0
+  | n % 2 == 0 := 1 + collatzTime (n / 2)
+  | n % 2 == 1 := 1 + collatzTime ((3 * n) + 1);
+
