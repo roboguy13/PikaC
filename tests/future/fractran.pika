@@ -3,7 +3,7 @@
 
 data Fraction := MkFraction Int Int;
 data Program := Empty | Seq Fraction Program;
-data Output := Nil | Cons Int Output;
+data Output := Done Int State | Step Int Output;
 
 data State := NoUpdate | Updated;
 
@@ -13,12 +13,20 @@ stepFraction i (MkFraction n d)
   | not ((i * n) % d == 0) := i;
 
 step : Int -> Program -> State -> Output;
-step i _     NoUpdate := Cons i Nil;
-step i Empty _        := Cons i Nil;
+step i _     NoUpdate := Done i NoUpdate;
+step i Empty state    := Done i state;
 step i (Seq h t) state :=
   let j := stepFraction i h
   in
   if j == i
     then step i t state
-    else Cons i (step j t Updated);
+    else Step i (step j t Updated);
+
+iterateWhileUpdated : Output -> Program -> Output;
+iterateWhileUpdated (Done i NoUpdate) _ := Done i NoUpdate;
+iterateWhileUpdated (Done i Updated)  p := iterateWhileUpdated (step i p NoUpdate) p;
+iterateWhileUpdated (Step i rest)     p := Step i (iterateWhileUpdated rest p);
+
+run : Int -> Program -> Output;
+run i p := iterateWhileUpdated (step i p NoUpdate) p;
 
