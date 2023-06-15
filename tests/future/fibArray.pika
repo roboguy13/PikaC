@@ -64,3 +64,12 @@ search item xs := searchRange 0 (length xs - 1) item xs;
 isFib : (a :~ List) => Int -> Bool;
 isFib [a] n := search n (fibList [a] (2 ^ n));
 
+-- Build the Fibonacci list as a singly-linked list, then convert it into
+-- an array for faster random access and search
+isFib_converted : Int -> Bool;
+isFib_converted n :=
+  let fibs := fibList (2 ^ n)
+      fibsConverted := convert [Sll] [Array[[x, 2 ^ n]]] fibs
+  in
+  search n fibsConverted;
+
