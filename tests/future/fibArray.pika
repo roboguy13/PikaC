@@ -22,7 +22,7 @@ last : (a :~ List) => a -> Int;
 last (Cons head Nil) := head;
 last (Cons head tail) := last tail;
 
-fibList : (a :~ List) => Int -> a
+fibList : (a :~ List) => Int -> a;
 fibList 0 := Cons 1 Nil;
 fibList 1 := Cons 1 (Cons 1 Nil);
 fibList n := 
@@ -30,6 +30,21 @@ fibList n :=
       nextFib := index xs (n-1) + index xs (n-2)
   in
   Cons nextFib xs;
+
+fibListUntil_helper : (a :~ List) => Int -> Int -> a;
+fibListUntil_helper end curr
+  | curr == 0 := Cons 1 Nil;
+  | curr == 1 := Cons 1 (Cons 1 Nil);
+  | otherwise :=
+      let xs := fibList (n-1)
+          nextFib := index xs (n-1) + index xs (n-2)
+      in
+      if nextFib > end
+        then Nil
+        else Cons nextFib xs;
+
+fibListUntil : (a :~ List) => Int -> a;
+fibListUntil n := fibListUntil_helper n 0;
 
 fib : (a :~ List) => Int -> Int;
 fib [a] n = last (fibList [a] n);
@@ -61,15 +76,22 @@ searchRange start end item list :=
 search : (a :~ List) => Int -> a -> Bool;
 search item xs := searchRange 0 (length xs - 1) item xs;
 
+linearSearch : (a :~ List) => Int -> a -> Bool;
+linearSearch item Nil := False;
+linearSearch item (Cons head tail) :=
+  if head == item
+    then True
+    else linearSearch item tail;
+
 isFib : (a :~ List) => Int -> Bool;
-isFib [a] n := search n (fibList [a] (2 ^ n));
+isFib [a] n := linearSearch n (fibListUtil [a] (n+1));
 
 -- Build the Fibonacci list as a singly-linked list, then convert it into
 -- an array for faster random access and search
 isFib_converted : Int -> Bool;
 isFib_converted n :=
-  let fibs := fibList (2 ^ n)
-      fibsConverted := convert [Sll] [Array[[x, 2 ^ n]]] fibs
+  let fibs := fibListUntil [Sll] (n+1)
+      fibsConverted := convert [Sll] [Array[[x, n+1]]] fibs
   in
-  search n fibsConverted;
+  linearSearch n fibsConverted;
 
