@@ -1,0 +1,42 @@
+data List := Nil | Cons Int List;
+
+Sll : layout[-x](List);
+Sll Nil := emp;
+Sll (Cons h t) :=
+  x :-> h **
+  (x+1) :-> nxt **
+  Sll [nxt] t;
+
+Array : layout[-x](List);
+Array Nil := emp;
+Array (Cons h t) :=
+  x :-> h **
+  Array [x+1] t;
+
+index : (a :~ List) => a -> Int -> Int;
+index (Cons head tail) n
+  | n == 0 := head
+  | not (n == 0) := index tail (n-1);
+
+last : (a :~ List) => a -> Int;
+last (Cons head Nil) := head;
+last (Cons head tail) := last tail;
+
+fibList : (a :~ List) => Int -> a
+fibList 0 := Cons 1 Nil;
+fibList 1 := Cons 1 (Cons 1 Nil);
+fibList n := 
+  let xs := fibList (n-1)
+      nextFib := index xs (n-1) + index xs (n-2)
+  in
+  Cons nextFib xs;
+
+fib : (a :~ List) => Int -> Int;
+fib [a] n = last (fibList [a] n);
+
+fibSll : Int -> Int;
+fibSll n := fib [Sll] n;
+
+fibArray : Int -> Int;
+fibArray n := fib [Array] n;
+

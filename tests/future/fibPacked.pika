@@ -1,39 +1,46 @@
--- Leaf tree
-data Tree := Leaf Int | Bin Tree Tree;
+data Tree := Empty | Node Int Tree Tree;
 
-SlowTree : layout(Tree);
-SlowTree [x, y] (Leaf i) := y :-> i;
-SlowTree [x, y] (Bin i p q) :=
+SlowTree : layout[-x](Tree);
+SlowTree Empty := emp;
+SlowTree (Node i p q) :=
+  x :-> i **
   (x+1) :-> left **
   (x+2) :-> right **
   SlowTree [left, z] p **
   SlowTree [right, w] q;
 
--- TODO: Packed leaf tree?
 PackedTree : synthlayout(SlowTree);
-PackedTree [x, sz] Tip := sz == 0 ,, emp;
-PackedTree [x, sz] (Bin i a b) :=
+PackedTree [x, sz] Empty := sz == 0 ,, emp;
+PackedTree [x, sz] (Node i a b) :=
   sz == 1 + sz1 + sz2
     ,,
   x :-> i **
   PackedTree [x + 2, sz1] a **
   PackedTree [x + 2*(1 + sz1), sz2] b;
 
+leaf : (a :~ Tree) => Int -> a
+leaf x := Node x Empty Empty;
+
+label : (a :~ Tree) => a -> Int
+label (Node i _ _) := i;
+
+node : (a :~ Tree) => a -> a -> a;
+node l r := Node (label l + label r) l r;
+
 fibTree : (a :~ Tree) => Int -> a;
 fibTree n
-  | n == 0 := Leaf 0
-  | n == 1 := Leaf 1
-  | otherwise := Bin (fibTree (n-1)) (fibTree (n-2));
-
-sumTree : (a :~ Tree) => a -> Int;
-sumTree (Leaf n) := n;
-sumTree (Bin l r) := sumTree l + sumTree r;
+  | n == 0 := leaf 0
+  | n == 1 := Node 1 (leaf 0) Empty
+  | otherwise :=
+      let t@(Node _ left _) := fibTree (n-1)
+      in
+      node t left;
 
 -- NOTE: 'a' is actually not used in the main part of the type. But it is
 -- used in the body of the function. It is used to tell fibTree which
 -- layout to use for its tree.
 fib : (a :~ Tree) => Int -> Int;
-fib [a] n := sumTree (fibTree [a] n)
+fib [a] n := label (fibTree [a] n);
 
 fibSlowTree : Int -> Int;
 fibSlowTree = fib [SlowTree];

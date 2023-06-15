@@ -7,12 +7,20 @@ data Output := Done Int State | Step Int Output;
 
 data State := NoUpdate | Updated;
 
-stepFraction : Int -> Fraction -> Int;
+FractionLayout : layout[-x](Fraction)
+FractionLayout 
+
+ProgramArray : layout[-x](Program)
+ProgramArray Empty := emp;
+ProgramArray (Seq f
+
+stepFraction : (a :~ Fraction) => Int -> a -> Int;
 stepFraction i (MkFraction n d)
   | (i * n) % d == 0       := (i * n) / d
   | not ((i * n) % d == 0) := i;
 
-step : Int -> Program -> State -> Output;
+step : (a :~ Program, b :~ State, c :~ Output) =>
+  Int -> a -> b -> c;
 step i _     NoUpdate := Done i NoUpdate;
 step i Empty state    := Done i state;
 step i (Seq h t) state :=
@@ -22,11 +30,13 @@ step i (Seq h t) state :=
     then step i t state
     else Step i (step j t Updated);
 
-iterateWhileUpdated : Output -> Program -> Output;
+iterateWhileUpdated : (a :~ Output, b :~ Program) =>
+  a -> b -> a;
 iterateWhileUpdated (Done i NoUpdate) _ := Done i NoUpdate;
 iterateWhileUpdated (Done i Updated)  p := iterateWhileUpdated (step i p NoUpdate) p;
 iterateWhileUpdated (Step i rest)     p := Step i (iterateWhileUpdated rest p);
 
-run : Int -> Program -> Output;
+run : (a :~ Program, b :~ Output) =>
+  Int -> a -> b;
 run i p := iterateWhileUpdated (step i p NoUpdate) p;
 
