@@ -9,7 +9,7 @@ SlowTree (Node i p q) :=
   SlowTree [left, z] p **
   SlowTree [right, w] q;
 
-PackedTree : synthlayout(SlowTree);
+PackedTree : layout[-x, -sz](SlowTree);
 PackedTree [x, sz] Empty := sz == 0 ,, emp;
 PackedTree [x, sz] (Node i a b) :=
   sz == 1 + sz1 + sz2
@@ -43,8 +43,8 @@ fib : (a :~ Tree) => Int -> Int;
 fib [a] n := label (fibTree [a] n);
 
 fibSlowTree : Int -> Int;
-fibSlowTree = fib [SlowTree];
+fibSlowTree n := fib [SlowTree] n;
 
 fibPackedTree : Int -> Int;
-fibPackedTree = fib [PackedTree];
+fibPackedTree n := fib [PackedTree[[x, n], n]] n;
 

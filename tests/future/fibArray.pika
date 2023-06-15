@@ -38,5 +38,29 @@ fibSll : Int -> Int;
 fibSll n := fib [Sll] n;
 
 fibArray : Int -> Int;
-fibArray n := fib [Array] n;
+fibArray n := fib [Array[[x,n]]] n;
+
+-- Precondition: List must be sorted in increasing order
+searchRange : (a :~ List) => Int -> Int -> Int -> a -> Bool;
+searchRange start end item list :=
+  let i := (end - start) / 2
+  in
+  if start >= end
+    then False
+    else if index list i == item
+           then True
+           else -- search start i || search i end
+            -- NOTE: Manually doing a short-circuited or:
+            if searchRange start i
+              then True
+              else if searchRange i end
+                     then True
+                     else False;
+  
+
+search : (a :~ List) => Int -> a -> Bool;
+search item xs := searchRange 0 (length xs - 1) item xs;
+
+isFib : (a :~ List) => Int -> Bool;
+isFib [a] n := search n (fibList [a] (2 ^ n));
 
