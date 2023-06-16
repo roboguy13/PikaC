@@ -97,5 +97,7 @@ executable PikaC
                       genvalidity,
                       QuickCheck,
                       deepseq,
+                      process,
+                      directory,
     hs-source-dirs:   src
     default-language: GHC2021

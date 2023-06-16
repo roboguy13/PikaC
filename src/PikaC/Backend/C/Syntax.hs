@@ -123,9 +123,18 @@ readLoc (x :+ i) =
 
 instance Ppr CFunction where
   ppr fn =
-    hsep [text "void", text (cfunctionName fn) <> text "(" <> hsep (punctuate (text ",") (map ((text "loc" <+>) . ppr) (cfunctionParams fn))) <> text ")", text "{"]
+    hsep [
+         if cfunctionName fn == "main"
+           then text "int"
+           else text "void"
+         ,
+         text (cfunctionName fn) <> text "(" <> hsep (punctuate (text ",") (map ((text "loc" <+>) . ppr) (cfunctionParams fn))) <> text ")", text "{"]
       $$
        nest 1 (vcat (map ppr (cfunctionBody fn)))
+      $$
+        (if cfunctionName fn == "main"
+          then text "return 0;"
+          else mempty)
       $$
        text "}"
 

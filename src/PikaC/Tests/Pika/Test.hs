@@ -31,7 +31,7 @@ genTestMain layouts tests = runGenC $ do
   pure $ C.CFunction
     { C.cfunctionName = "main"
     , C.cfunctionParams = []
-    , C.cfunctionBody = mainBody
+    , C.cfunctionBody = mainBody ++ [C.Printf "\\n" []]
     }
 
 runTest :: [Layout Expr] -> Test Expr -> GenC [C.Command]

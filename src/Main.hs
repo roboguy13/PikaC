@@ -35,9 +35,13 @@ import qualified PikaC.Tests.Module as TestsModule
 import Control.Lens
 
 import Control.Monad
+import Control.Exception (bracket)
 
 import System.Environment
 import System.Exit
+import System.IO
+import System.Process
+import System.Directory (removeFile)
 
 import Data.List
 import Data.Maybe
@@ -59,6 +63,7 @@ data Options =
     , _optSimplifierLog :: Bool
     , _optSelfTest :: Bool
     , _optGenTests :: Bool
+    , _optRunTests :: Bool
     }
   deriving (Show)
 
@@ -66,7 +71,7 @@ makeLenses ''Options
 
 defaultOpts :: Options
 defaultOpts =
-  Options False False False False Unlimited False False False
+  Options False False False False Unlimited False False False False
 
 type OptionUpdate = ([String], Options) -> ([String], Options)
 
@@ -118,6 +123,9 @@ optHandlers =
 
   ,option "--gen-tests" Nothing "Generate C to run tests in the Pika file. Implies --only-c" $ nullaryOpt $
       ((optGenTests .~ True) . (optOnlyC .~ True))
+
+  ,option "--run-tests" Nothing "Generate and run tests from Pika code. Does not show generated code" $ nullaryOpt $
+      optRunTests .~ True
 
   ,option "--simplifier-fuel" (Just "<n>") "Run <n> simplifier steps" $ withOptParameter $ \n ->
       optSimplifierFuel .~ Fuel (read n)
@@ -187,8 +195,64 @@ main = do
             exitFailure
           Right () -> pure ()
 
-        withModule opts pikaModule
+        if _optRunTests opts
+          then genAndRunTests opts pikaModule
+          else withModule opts pikaModule
       _ -> error "Expected file name"
+
+genAndRunTests :: Options -> PikaModule -> IO ()
+genAndRunTests opts pikaModule = do
+      -- Generate C file
+  bracket (openTempFile "temp" "tests.c")
+      (\(fileName, handle) -> do
+        hClose handle
+        removeFile fileName)
+    $ \(fileName, handle) -> do
+      hPutStrLn handle =<< readFile "tests/common/common.h"
+
+      mapM_ (hPutStrLn handle . ppr' . layoutPrinter) convertedLayouts
+
+      mapM_ (hPutStrLn handle . ppr' . codeGenFn) =<< mapM generateFn (moduleGenerates pikaModule)
+
+      let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
+      hPutStrLn handle $ ppr' $ genTestMain convertedLayouts convertedTests
+
+      hClose handle
+
+      bracket (openBinaryTempFile "temp" "tests")
+          (\(execFile, execHandle) -> do
+            hClose execHandle
+            removeFile execFile)
+        $ \(execFile, execHandle) -> do 
+        hClose execHandle
+
+        system $ "gcc -w " ++ fileName ++ " -o " ++ execFile
+
+        callProcess execFile []
+
+        pure ()
+  where
+    fuel = _optSimplifierFuel opts
+    fnDefs = moduleFnDefs pikaModule
+    layouts = moduleLayouts pikaModule
+
+    mkConvertedTests :: [Test Expr] -> PikaConvert Quiet [Test PikaCore.Expr]
+    mkConvertedTests =
+        ((traversed . testExpr)
+          %%~
+            convertExprAndSimplify Nothing)
+
+    convertedLayouts = map (runIdentity . runPikaConvert layouts [] fnDefs . convertLayout) layouts
+    getPikaCore :: FnDef -> IO PikaCore.FnDef
+    getPikaCore fnDef
+      | _optSimplifierLog opts =
+          runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
+      | otherwise =
+          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
+
+    generateFn = getPikaCore . moduleLookupFn pikaModule
+
+
 
 withModule :: Options -> PikaModule -> IO ()
 withModule opts pikaModule = do
