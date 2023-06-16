@@ -53,48 +53,48 @@ codeGenFn fnDef = runGenC $ do
   let inParams = map (convertName . modedNameName) inVars0
       outParams = map (convertName . modedNameName) outVars0
 
-  -- inParams <- mapM fresh (map (convertName . modedNameName) inVars0)
-  -- outParams <- mapM fresh (map (convertName . modedNameName) outVars0)
-
   let params = inParams ++ outParams
 
-  -- let branches = instantiate (instantiate (_fnDefBranches fnDef) (map PikaCore.modedExpr inVars0)) (map PikaCore.modedExpr outVars0)
+  inParamsC <- mapM fresh inParams
 
-  -- let branches =
-  --       substs
-  --         (map PikaCore.modedExpr outVars0)
-  --         (substs
-  --           (map PikaCore.modedExpr inVars0)
-  --           (_fnDefBranches fnDef))
+  body <- mapM (convertBranch outParams)
+            -- $ rename (zip inParams derefedInParams)
+                branches0
 
-  body <- mapM (convertBranch outParams) branches0
-
-  -- trace ("params = " ++ show params)
   pure $ C.CFunction
     { C.cfunctionName = fnName
-    , C.cfunctionParams = params
-    , C.cfunctionBody = [flattenBranchCmds inParams (zip branches0 body)]
+    , C.cfunctionParams = inParamsC ++ outParams
+    , C.cfunctionBody = [flattenBranchCmds (zip inParamsC inParams) inParamsC (zip branches0 body)]
     }
 
--- genAsn ::
---   Bind [ModedName PikaCore.Expr] PikaCore.ExprAssertion ->
---   FreshM [C.Command]
--- genAsn bnd = do
---   (vars, asn) <- unbind bnd
---   let allocs = findAllocations (map modedNameName vars) asn
---
---   pure $ map codeGenAllocation allocs
---           ++ map (codeGenPointsTo . convertPointsTo) asn
-
-flattenBranchCmds :: [C.CName] -> [(FnDefBranch, [C.Command])] -> C.Command
-flattenBranchCmds _ [] = C.Nop
-flattenBranchCmds allNames ((branch, cmds) : rest) =
-  C.IfThenElse (computeBranchCondition allNames branchNames)
-    cmds
-    [flattenBranchCmds allNames rest]
+flattenBranchCmds ::
+  [(C.CName, C.CName)] ->  -- (actual parameter, deref'd name)
+  [C.CName] -> [(FnDefBranch, [C.Command])] -> C.Command
+flattenBranchCmds derefedNames _ [] = C.Nop
+flattenBranchCmds derefedNames allNames ((branch, cmds) : rest) =
+  let branchCond = computeBranchCondition allNames branchNames
+  in
+  C.IfThenElse branchCond
+    (mkDerefs derefedNames branchCond cmds)
+    [flattenBranchCmds derefedNames allNames rest]
   where
     branchNames =
+      rename derefedNames $
       concatMap (map (convertName . PikaCore.getV . locBase . pointsToLhs)) $ _fnDefBranchInputAssertions branch
+
+-- | Derefence the one extra layer of indirection from the actual
+-- parameters
+mkDerefs :: [(C.CName, C.CName)] -> C.CExpr -> [C.Command] -> [C.Command]
+mkDerefs derefed (C.Equal x (C.IntLit 0)) body = body
+mkDerefs derefed (C.Not (C.Equal (C.V x) (C.IntLit 0))) body =
+  let Just x' = lookup x derefed
+  in
+  [C.Let (C.V x :+ 0)
+    $ bind x' body
+  ]
+mkDerefs derefed (C.And x y) body =
+  mkDerefs derefed x (mkDerefs derefed y body)
+mkDerefs _ _ body = body
 
 convertBranch :: [C.CName] -> PikaCore.FnDefBranch -> GenC [C.Command]
 convertBranch outVars = enterBranch $ \branch -> do
