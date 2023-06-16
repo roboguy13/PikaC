@@ -103,8 +103,8 @@ instance Ppr Command where
 
       go (Printf fmt args) =
         pure $
-          text "printf(" <> text (show fmt) <> text ", "
-            <> hsep (punctuate (text ",") (map ppr args))
+          text "printf("
+            <> hsep (punctuate (text ",") (text (show fmt) : map ppr args))
             <> text ");"
 
       go Nop = pure mempty --text ";"

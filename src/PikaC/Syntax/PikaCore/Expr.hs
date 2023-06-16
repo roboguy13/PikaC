@@ -109,7 +109,7 @@ deriving instance (Show (XModed s), Show (XV s)) => Show (Expr' s)
 type Expr = Expr' PC
 
 type FnName = FnName' String
-newtype FnName' a = FnName a
+newtype FnName' a = FnName { unFnName :: a }
   deriving (Show, Eq, Ord, Generic)
 
 instance IsString FnName where

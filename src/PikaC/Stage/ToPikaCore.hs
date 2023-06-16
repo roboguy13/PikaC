@@ -6,7 +6,9 @@
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
 module PikaC.Stage.ToPikaCore
-  (toPikaCore)
+  (toPikaCore
+  ,convertLayout
+  )
   where
 
 import qualified PikaC.Syntax.Pika.Expr as Pika

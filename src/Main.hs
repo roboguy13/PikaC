@@ -17,6 +17,7 @@ import PikaC.Syntax.PikaCore.FnDef
 import PikaC.Syntax.ParserUtils
 
 import PikaC.Stage.ToPikaCore
+import PikaC.Stage.ToPikaCore.Monad
 import PikaC.Stage.ToPikaCore.SimplifyM
 import qualified PikaC.Stage.ToPikaCore.Simplify as Simplify
 
@@ -24,6 +25,8 @@ import PikaC.Backend.C.CodeGen
 import PikaC.Backend.SuSLik.CodeGen (codeGenIndPred)
 
 import PikaC.Ppr
+
+import PikaC.Tests.Pika.Test
 
 import qualified PikaC.Tests.Module as TestsModule
 
@@ -199,8 +202,10 @@ generateFn opts pikaModule fnName =
         -- putStrLn $ show pikaCore
 
         when (not (_optNoC opts)) $ do
+          let layouts = moduleLayouts pikaModule
           putStrLn "\n- C:"
           putStrLn $ ppr' $ codeGenFn pikaCore
+          mapM_ (putStrLn . ppr' . layoutPrinter . runIdentity . runPikaConvert layouts [] [] . convertLayout) layouts
           -- print $ codeGenFn pikaCore
 
         when (not (_optNoSuSLik opts)) $ do
