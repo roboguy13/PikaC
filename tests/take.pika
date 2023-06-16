@@ -22,3 +22,7 @@ take Z (Cons h t) := Nil [Sll];
 take (S n) (Cons h t) :=
   Cons h (take n t) [Sll];
 
+%test "take" Sll:
+  take (S (S (Z [NatLayout]) [NatLayout]) [NatLayout])
+    (Cons 10 (Cons 20 (Cons 30 (Cons 40 (Nil [Sll]) [Sll]) [Sll]) [Sll]) [Sll]);
+
