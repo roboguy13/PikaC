@@ -29,7 +29,8 @@ runTest layouts ty e = do
 runTestWithPrinter :: [C.CName] -> Printer -> Expr -> GenC [C.Command]
 runTestWithPrinter outVars printer e = do
   body <- convertExpr outVars e
-  pure
+  pure $
+    body ++
     [call printer (map C.V outVars)
     ]
 
