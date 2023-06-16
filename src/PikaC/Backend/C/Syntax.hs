@@ -41,6 +41,7 @@ data Command
   | Let CLoc (Bind CName [Command])
   | Free CName
   | Decl CName
+  | Printf String [CExpr]
   | Nop
   deriving (Show, Generic)
 
@@ -99,6 +100,13 @@ instance Ppr Command where
         pure $
           (text "loc" <+> ppr var <+> text "=" <+> readLoc x)
           $$ vcat bodyDocs
+
+      go (Printf fmt args) =
+        pure $
+          text "printf(" <> text (show fmt) <> text ", "
+            <> hsep (punctuate (text ",") (map ppr args))
+            <> text ");"
+
       go Nop = pure mempty --text ";"
 
 writeLoc :: Ppr b => CLoc -> b -> Doc

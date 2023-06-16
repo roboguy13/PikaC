@@ -71,6 +71,7 @@ executable PikaC
       PikaC.Stage
       PikaC.Tests.Module
       PikaC.Tests.C
+      PikaC.Tests.Pika.Test
       PikaC.Utils
       PikaC.Subst
       PikaC.FreshGen
