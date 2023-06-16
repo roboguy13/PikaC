@@ -54,10 +54,11 @@ import Debug.Trace
 
 import Data.Char
 
-convertExprAndSimplify :: Maybe [LayoutBody PikaCore.Expr] -> Pika.Expr -> PikaConvert Quiet PikaCore.Expr
-convertExprAndSimplify openedLayouts e =
-  (pcLift . lift . runSimplifyFn @Quiet Unlimited simplifyExpr)
-    =<< convertExpr openedLayouts e
+convertExprAndSimplify :: forall m. Logger m => Maybe [LayoutBody PikaCore.Expr] -> Pika.Expr -> PikaConvert m PikaCore.Expr
+convertExprAndSimplify openedLayouts e = do
+  converted <- convertExpr openedLayouts e 
+  (pcLift . lift . runSimplifyFn @m Unlimited simplifyExpr) converted
+
 
 -- | This does a basic conversion and then hands it off to the simplifier.
 --

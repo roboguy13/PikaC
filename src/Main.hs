@@ -273,7 +273,7 @@ withModule opts pikaModule = do
     layouts = moduleLayouts pikaModule
     convertedLayouts = map (runIdentity . runPikaConvert layouts [] fnDefs . convertLayout) layouts
 
-    mkConvertedTests :: [Test Expr] -> PikaConvert Quiet [Test PikaCore.Expr]
+    mkConvertedTests :: Logger m => [Test Expr] -> PikaConvert m [Test PikaCore.Expr]
     mkConvertedTests =
         ((traversed . testExpr)
           %%~

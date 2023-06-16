@@ -11,9 +11,11 @@ module PikaC.Stage.ToPikaCore.SimplifyM
   ,Quiet
   ,LogIO
   ,ErrorLog
+  ,StringLog
   ,runQuiet
   ,runLogIO
   ,runErrorLog
+  ,runStringLog
   ,runSimplifyQuiet
   ,runSimplifyLogIO
 
@@ -54,6 +56,9 @@ newtype Quiet a = Quiet (Identity a)
 newtype LogIO a = LogIO { runLogIO :: IO a }
   deriving (Functor, Applicative, Monad)
 
+newtype StringLog a = StringLog { unStringLog :: Writer String a }
+  deriving (Functor, Applicative, Monad)
+
 newtype ErrorLog a = ErrorLog (State String a)
   deriving (Functor, Applicative, Monad)
 
@@ -76,6 +81,13 @@ instance Logger Quiet where
 instance Logger LogIO where
   logM = LogIO . putStrLn
   logError = error
+
+instance Logger StringLog where
+  logM x = StringLog $ tell (x ++ "\n")
+  logError = error
+
+runStringLog :: StringLog a -> (a, String)
+runStringLog (StringLog s) = runWriter s
 
 newtype SimplifyM m a = SimplifyM (FreshMT (StateT SimplifyFuel m) a)
   deriving (Functor, Applicative, Monad, Fresh)

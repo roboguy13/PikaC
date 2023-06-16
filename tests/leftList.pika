@@ -23,3 +23,6 @@ leftList Leaf := Nil [Sll];
 leftList (Node a b c) :=
   Cons a (leftList b) [Sll];
 
+-- %test "leftList" Sll: leftList (Node 1 (Node 2 (Leaf [TreeLayout]) (Leaf [TreeLayout]) [TreeLayout]) (Leaf [TreeLayout]) [TreeLayout]);
+%test "leftList" Sll: leftList (Node 1 (Node 2 (Leaf [TreeLayout]) (Leaf [TreeLayout]) [TreeLayout]) (Node 3 (Leaf [TreeLayout]) (Leaf [TreeLayout]) [TreeLayout]) [TreeLayout]);
+

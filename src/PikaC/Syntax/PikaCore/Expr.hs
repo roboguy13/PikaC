@@ -140,25 +140,6 @@ instance IsBase Expr where
   mkEqual = Equal
   mkAnd = And
 
--- TODO: Does this work correct w.r.t. Bind's, etc?
-instance Plated Expr where
-  plate f (V x) = pure $ V x
-  plate f (LayoutV x) = pure $ LayoutV x
-  plate f (IntLit i) = pure $ IntLit i
-  plate f (BoolLit b) = pure $ BoolLit b
-  plate f (Add x y) = Add <$> f x <*> f y
-  plate f (Sub x y) = Sub <$> f x <*> f y
-  plate f (Equal x y) = Equal <$> f x <*> f y
-  plate f (Not x) = Not <$> f x
-  plate f (And x y) = And <$> f x <*> f y
-  plate f (WithIn x (B y z)) =
-      WithIn <$> f x <*> (B y <$> f z)
-  plate f (SslAssertion (B a b)) =
-    let z = plate (traverseOf (traversed.pointsToRhsLens) f) b
-    in
-    SslAssertion . B a <$> z
-  plate f (App x sz ys) = App x sz <$> traverse f ys
-
 type PointsToExpr = PointsTo Expr
 type ExprAssertion = [PointsToExpr]
 type ExprAssertion' s = [PointsTo (Expr' s)]
@@ -305,6 +286,28 @@ instance forall s a. Subst (Expr' s) a => Subst (Expr' s) (Loc a) where
 
 instance Subst Expr a => Subst Expr (LayoutBody a)
 instance Subst Expr a => Subst Expr (LayoutHeaplet a)
+
+-- TODO: Does this work correct w.r.t. Bind's, etc?
+instance Plated Expr where
+  plate f (V x) = pure $ V x
+  plate f (LayoutV x) = pure $ LayoutV x
+  plate f (IntLit i) = pure $ IntLit i
+  plate f (BoolLit b) = pure $ BoolLit b
+  plate f (Add x y) = Add <$> f x <*> f y
+  plate f (Sub x y) = Sub <$> f x <*> f y
+  plate f (Equal x y) = Equal <$> f x <*> f y
+  plate f (Not x) = Not <$> f x
+  plate f (And x y) = And <$> f x <*> f y
+  plate f (WithIn x bnd) =
+    let (y, z) = unsafeUnbind bnd
+    in
+      WithIn <$> f x <*> (bind y <$> f z)
+  plate f (SslAssertion bnd) =
+    let (a, b) = unsafeUnbind bnd
+        z = plate (traverseOf (traversed.pointsToRhsLens) f) b
+    in
+    SslAssertion . bind a <$> z
+  plate f (App x sz ys) = App x sz <$> traverse f ys
 
 getPointsToExpr :: forall m. Fresh m => Expr -> m [PointsToExpr]
 getPointsToExpr e = e ^!! (cosmos . _SslAssertion . to unbind' . acts . _2 . traversed)

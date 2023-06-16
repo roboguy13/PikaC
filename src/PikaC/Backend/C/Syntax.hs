@@ -133,7 +133,7 @@ instance Ppr CFunction where
        nest 1 (vcat (map ppr (cfunctionBody fn)))
       $$
         (if cfunctionName fn == "main"
-          then text "return 0;"
+          then nest 1 $ text "return 0;"
           else mempty)
       $$
        text "}"
