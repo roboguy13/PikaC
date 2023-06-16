@@ -29,8 +29,8 @@ import Unbound.Generics.LocallyNameless.Bind
 
 import Debug.Trace
 
-callOfWith :: Logger m => FnDef -> SimplifyM m FnDef
-callOfWith = step "callOfWith" $ onFnDef (rewriteM go)
+callOfWith :: Logger m => Expr -> SimplifyM m Expr
+callOfWith = step "callOfWith" $ rewriteM go
 
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (App f sz args) = do

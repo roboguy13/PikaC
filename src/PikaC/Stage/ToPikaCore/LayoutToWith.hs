@@ -30,8 +30,8 @@ import Unbound.Generics.LocallyNameless.Bind
 
 import Debug.Trace
 
-layoutToWith :: Logger m => FnDef -> SimplifyM m FnDef
-layoutToWith = step "layoutToWith" $ onFnDef layoutToWith'
+layoutToWith :: Logger m => Expr -> SimplifyM m Expr
+layoutToWith = step "layoutToWith" layoutToWith'
 
 layoutToWith' :: forall m. Fresh m => Expr -> m Expr
 layoutToWith' = rewriteM go

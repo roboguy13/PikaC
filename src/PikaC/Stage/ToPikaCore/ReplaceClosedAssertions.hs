@@ -31,8 +31,8 @@ import Control.Lens
 
 import Unbound.Generics.LocallyNameless
 
-replaceClosedAssertions :: Logger m => FnDef -> SimplifyM m FnDef
-replaceClosedAssertions = step "replaceClosedAssertions" $ onFnDef (rewriteM go)
+replaceClosedAssertions :: Logger m => Expr -> SimplifyM m Expr
+replaceClosedAssertions = step "replaceClosedAssertions" $ rewriteM go
 
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (SslAssertion bnd) = do

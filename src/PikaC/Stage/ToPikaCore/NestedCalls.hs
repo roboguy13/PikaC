@@ -33,8 +33,8 @@ import Unbound.Generics.LocallyNameless
 
 import Debug.Trace
 
-simplifyNestedCalls :: Logger m => FnDef -> SimplifyM m FnDef
-simplifyNestedCalls = step "simplifyNestedCalls" $ onFnDef (rewriteM simplifyOne)
+simplifyNestedCalls :: Logger m => Expr -> SimplifyM m Expr
+simplifyNestedCalls = step "simplifyNestedCalls" $ rewriteM simplifyOne
 
 simplifyOne :: Fresh m => Expr -> m (Maybe Expr)
 simplifyOne (SslAssertion bnd) = do

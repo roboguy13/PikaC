@@ -36,9 +36,9 @@ import Control.Lens
 import Unbound.Generics.LocallyNameless
 
 -- TODO: Make sure names aren't captured
-withOfWith :: Logger m => FnDef -> SimplifyM m FnDef
+withOfWith :: Logger m => Expr -> SimplifyM m Expr
 withOfWith =
-  step "withOfWith" $ onFnDef (rewriteM withOfWithOne)
+  step "withOfWith" $ rewriteM withOfWithOne
 
 -- withOfWithBranch :: Fresh m => FnDefBranch -> m FnDefBranch
 -- withOfWithBranch =

@@ -9,10 +9,11 @@ import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Parser
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
+import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 
 import PikaC.TypeChecker.Mode
 
-import PikaC.Syntax.PikaCore.FnDef
+-- import PikaC.Syntax.PikaCore.FnDef
 
 import PikaC.Syntax.ParserUtils
 
@@ -27,6 +28,7 @@ import PikaC.Backend.SuSLik.CodeGen (codeGenIndPred)
 import PikaC.Ppr
 
 import PikaC.Tests.Pika.Test
+import PikaC.Tests.Pika.Printer
 
 import qualified PikaC.Tests.Module as TestsModule
 
@@ -186,38 +188,52 @@ main = do
 
 withModule :: Options -> PikaModule -> IO ()
 withModule opts pikaModule = do
-  forM_ (moduleGenerates pikaModule) $ \fnName ->
+  forM_ (moduleGenerates pikaModule) $ \fnName -> do
     generateFn opts pikaModule fnName
 
-generateFn :: Options -> PikaModule -> String -> IO ()
-generateFn opts pikaModule fnName =
-    if _optOnlyC opts
-      then (putStrLn . ppr' . codeGenFn) =<< getPikaCore
-      else do
-        putStrLn $ "*** " <> fnName <> " ***"
-
-        putStrLn "- PikaCore:"
-        pikaCore <- getPikaCore
-        putStrLn $ ppr' pikaCore
-        -- putStrLn $ show pikaCore
-
-        when (not (_optNoC opts)) $ do
-          let layouts = moduleLayouts pikaModule
-          putStrLn "\n- C:"
-          putStrLn $ ppr' $ codeGenFn pikaCore
-          mapM_ (putStrLn . ppr' . layoutPrinter . runIdentity . runPikaConvert layouts [] [] . convertLayout) layouts
-          -- print $ codeGenFn pikaCore
-
-        when (not (_optNoSuSLik opts)) $ do
-          putStrLn "\n- SuSLik:"
-          putStrLn $ ppr' $ codeGenIndPred pikaCore
+    -- main function for tests
+    when (_optOnlyC opts) $ do
+      let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
+      putStrLn $ ppr' $ genTestMain convertedLayouts convertedTests
   where
+    fnDefs = moduleFnDefs pikaModule
+    layouts = moduleLayouts pikaModule
+    convertedLayouts = map (runIdentity . runPikaConvert layouts [] fnDefs . convertLayout) layouts
+
+    mkConvertedTests :: [Test Expr] -> PikaConvert Quiet [Test PikaCore.Expr]
+    mkConvertedTests =
+        ((traversed . testExpr)
+          %%~
+            convertExprAndSimplify Nothing)
+
+    generateFn :: Options -> PikaModule -> String -> IO ()
+    generateFn opts pikaModule fnName =
+        if _optOnlyC opts
+          then (putStrLn . ppr' . codeGenFn) =<< getPikaCore (moduleLookupFn pikaModule fnName)
+          else do
+            putStrLn $ "*** " <> fnName <> " ***"
+
+            putStrLn "- PikaCore:"
+            pikaCore <- getPikaCore $ moduleLookupFn pikaModule fnName
+            putStrLn $ ppr' pikaCore
+            -- putStrLn $ show pikaCore
+
+            when (not (_optNoC opts)) $ do
+              putStrLn "\n- C:"
+              putStrLn $ ppr' $ codeGenFn pikaCore
+              mapM_ (putStrLn . ppr' . layoutPrinter) convertedLayouts
+              -- print $ codeGenFn pikaCore
+
+            when (not (_optNoSuSLik opts)) $ do
+              putStrLn "\n- SuSLik:"
+              putStrLn $ ppr' $ codeGenIndPred pikaCore
     fuel = _optSimplifierFuel opts
 
-    getPikaCore
+    getPikaCore :: FnDef -> IO PikaCore.FnDef
+    getPikaCore fnDef
       | _optSimplifierLog opts =
-          runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+          runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
       | otherwise =
-          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
 
 

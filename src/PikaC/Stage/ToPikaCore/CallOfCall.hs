@@ -28,8 +28,8 @@ import Control.Monad
 
 import Unbound.Generics.LocallyNameless
 
-callOfCall :: Logger m => FnDef -> SimplifyM m FnDef
-callOfCall = step "callOfCall" $ onFnDef (rewriteM go)
+callOfCall :: Logger m => Expr -> SimplifyM m Expr
+callOfCall = step "callOfCall" $ rewriteM go
 
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (App f allocsF args)

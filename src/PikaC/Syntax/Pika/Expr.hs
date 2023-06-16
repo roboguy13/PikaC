@@ -58,10 +58,25 @@ data Expr
   -- | And Expr Expr
   deriving (Show, Generic)
 
+data Test a =
+  Test
+  { _testName :: String
+  , _testExpr :: a
+  , _testResultType :: Type
+  }
+  deriving (Show, Generic)
+
 instance NFData Expr
+instance NFData a => NFData (Test a)
 
 instance HasApp Expr where
   mkApp = App
+
+instance Ppr a => Ppr (Test a) where
+  ppr test =
+    ((text "test" <+> text (show (_testName test)) <+> ppr (_testResultType test))
+      <> text ":")
+      <+> ppr (_testExpr test)
 
 instance Ppr Expr where
   ppr (V x) = ppr x
@@ -162,6 +177,8 @@ instance Subst (Moded Expr) AdtName
 instance Subst Expr (Layout Expr)
 
 makePrisms ''Expr
+makeLenses ''Test
+
 
 instance IsName Expr Expr where
   getName (V x) = x

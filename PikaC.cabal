@@ -72,6 +72,7 @@ executable PikaC
       PikaC.Tests.Module
       PikaC.Tests.C
       PikaC.Tests.Pika.Test
+      PikaC.Tests.Pika.Printer
       PikaC.Utils
       PikaC.Subst
       PikaC.FreshGen

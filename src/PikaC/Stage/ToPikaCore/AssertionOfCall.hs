@@ -27,8 +27,8 @@ import Control.Lens
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
 
-assertionOfCall :: Logger m => FnDef -> SimplifyM m FnDef
-assertionOfCall = step "assertionOfCall" $ onFnDef (rewriteM go)
+assertionOfCall :: Logger m => Expr -> SimplifyM m Expr
+assertionOfCall = step "assertionOfCall" $ rewriteM go
 
 go :: Fresh m => Expr -> m (Maybe Expr)
 go (SslAssertion bnd) = do

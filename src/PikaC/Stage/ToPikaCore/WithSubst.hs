@@ -29,8 +29,8 @@ import Unbound.Generics.LocallyNameless
 
 import Debug.Trace
 
-withSubst :: Logger m => FnDef -> SimplifyM m FnDef
-withSubst = step "withSubst" $ onFnDef (rewriteM go)
+withSubst :: Logger m => Expr -> SimplifyM m Expr
+withSubst = step "withSubst" $ rewriteM go
 
 go :: (Logger m, Fresh m) => Expr -> m (Maybe Expr)
 go (WithIn (LayoutV []) _) = pure Nothing

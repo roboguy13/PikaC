@@ -24,9 +24,9 @@ import Unbound.Generics.LocallyNameless
 
 import Debug.Trace
 
-substWithLayoutVar :: Logger m => FnDef -> SimplifyM m FnDef
+substWithLayoutVar :: Logger m => Expr -> SimplifyM m Expr
 substWithLayoutVar =
-  step "substWithLayoutVar" $ onFnDef (rewriteM substWithLayoutVar'Expr)
+  step "substWithLayoutVar" $ rewriteM substWithLayoutVar'Expr
   -- (fnDefBranches.traverse.fnDefBranchBody) %~ rewrite substWithLayoutVar'Expr
 
 substWithLayoutVar'Expr :: Fresh m => Expr -> m (Maybe Expr)
