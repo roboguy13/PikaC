@@ -58,6 +58,7 @@ data Options =
     , _optSimplifierFuel :: SimplifyFuel
     , _optSimplifierLog :: Bool
     , _optSelfTest :: Bool
+    , _optPikaTests :: Bool
     }
   deriving (Show)
 
@@ -65,7 +66,7 @@ makeLenses ''Options
 
 defaultOpts :: Options
 defaultOpts =
-  Options False False False False Unlimited False False
+  Options False False False False Unlimited False False False
 
 type OptionUpdate = ([String], Options) -> ([String], Options)
 
@@ -112,8 +113,11 @@ optHandlers =
   ,option "--no-suslik" Nothing "Disable SuSLik generation" $ nullaryOpt $
       optNoSuSLik .~ True
 
-  ,option "--only-c" Nothing "Only print generated C" $ nullaryOpt $
+  ,option "--only-c" Nothing "Only print generated C. This will also generate the 'main' function for any Pika tests" $ nullaryOpt $
       optOnlyC .~ True
+
+  ,option "--test" Nothing "Generate C to run tests in the Pika file. Implies --only-c" $ nullaryOpt $
+      ((optPikaTests .~ True) . (optOnlyC .~ True))
 
   ,option "--simplifier-fuel" (Just "<n>") "Run <n> simplifier steps" $ withOptParameter $ \n ->
       optSimplifierFuel .~ Fuel (read n)
@@ -188,6 +192,11 @@ main = do
 
 withModule :: Options -> PikaModule -> IO ()
 withModule opts pikaModule = do
+    -- Generate the C preamble for testing
+  when (_optPikaTests opts) $ do
+    putStrLn =<< readFile "tests/common/common.h"
+    mapM_ (putStrLn . ppr' . layoutPrinter) convertedLayouts
+
   forM_ (moduleGenerates pikaModule) $ \fnName -> do
     generateFn opts pikaModule fnName
 
@@ -221,7 +230,6 @@ withModule opts pikaModule = do
             when (not (_optNoC opts)) $ do
               putStrLn "\n- C:"
               putStrLn $ ppr' $ codeGenFn pikaCore
-              mapM_ (putStrLn . ppr' . layoutPrinter) convertedLayouts
               -- print $ codeGenFn pikaCore
 
             when (not (_optNoSuSLik opts)) $ do

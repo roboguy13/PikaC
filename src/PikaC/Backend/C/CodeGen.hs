@@ -55,51 +55,67 @@ codeGenFn fnDef = runGenC $ do
 
   let params = inParams ++ outParams
 
-  inParamsC <- mapM fresh inParams
+  -- inParamsC <- mapM fresh inParams
+  outParamsC <- mapM fresh outParams
 
-  body <- mapM (convertBranch outParams)
+  body <- mapM (convertBranch outParams outParamsC)
             -- $ rename (zip inParams derefedInParams)
                 branches0
 
   pure $ C.CFunction
     { C.cfunctionName = fnName
-    , C.cfunctionParams = inParamsC ++ outParams
-    , C.cfunctionBody = [flattenBranchCmds (zip inParamsC inParams) inParamsC (zip branches0 body)]
+    , C.cfunctionParams = inParams ++ outParamsC
+    , C.cfunctionBody =
+        map C.Decl outParams
+          ++
+        [flattenBranchCmds (zip outParams outParamsC) inParams outParams (zip branches0 body)]
     }
 
 flattenBranchCmds ::
   [(C.CName, C.CName)] ->  -- (actual parameter, deref'd name)
-  [C.CName] -> [(FnDefBranch, [C.Command])] -> C.Command
-flattenBranchCmds derefedNames _ [] = C.Nop
-flattenBranchCmds derefedNames allNames ((branch, cmds) : rest) =
+  [C.CName] ->
+  [C.CName] -> -- Output parameters
+  [(FnDefBranch, [C.Command])] -> C.Command
+flattenBranchCmds outNameMap _ outNames [] = C.Nop
+flattenBranchCmds outNameMap allNames outNames ((branch, cmds) : rest) =
   let branchCond = computeBranchCondition allNames branchNames
+      cmdsFvs = toListOf fv cmds
   in
   C.IfThenElse branchCond
-    (mkDerefs derefedNames branchCond cmds)
-    [flattenBranchCmds derefedNames allNames rest]
+    (cmds ++ mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
+    [flattenBranchCmds outNameMap allNames outNames rest]
   where
     branchNames =
-      rename derefedNames $
+      -- rename outNameMap $
       concatMap (map (convertName . PikaCore.getV . locBase . pointsToLhs)) $ _fnDefBranchInputAssertions branch
 
--- | Derefence the one extra layer of indirection from the actual
--- parameters
-mkDerefs :: [(C.CName, C.CName)] -> C.CExpr -> [C.Command] -> [C.Command]
-mkDerefs derefed (C.Equal x (C.IntLit 0)) body = body
-mkDerefs derefed (C.Not (C.Equal (C.V x) (C.IntLit 0))) body =
-  let Just x' = lookup x derefed
+-- | Write to the actual output parameters
+mkOutputWrites :: [(C.CName, C.CName)] -> [C.CName] -> [C.Command]
+mkOutputWrites _ [] = []
+mkOutputWrites outNameMap (n:ns) =
+  let Just actualOutParam = lookup n outNameMap
   in
-  [C.Let (C.V x :+ 0)
-    $ bind x' body
-  ]
-mkDerefs derefed (C.And x y) body =
-  mkDerefs derefed x (mkDerefs derefed y body)
-mkDerefs _ _ body = body
+  C.Assign (C.V actualOutParam :+ 0) (C.V n)
+    : mkOutputWrites outNameMap ns
 
-convertBranch :: [C.CName] -> PikaCore.FnDefBranch -> GenC [C.Command]
-convertBranch outVars = enterBranch $ \branch -> do
+-- -- | Derefence the one extra layer of indirection from the actual
+-- -- parameters
+-- mkDerefs :: [(C.CName, C.CName)] -> C.CExpr -> [C.Command] -> [C.Command]
+-- mkDerefs derefed (C.Equal x (C.IntLit 0)) body = body
+-- mkDerefs derefed (C.Not (C.Equal (C.V x) (C.IntLit 0))) body =
+--   let Just x' = lookup x derefed
+--   in
+--   [C.Let (C.V x :+ 0)
+--     $ bind x' body
+--   ]
+-- mkDerefs derefed (C.And x y) body =
+--   mkDerefs derefed x (mkDerefs derefed y body)
+-- mkDerefs _ _ body = body
+
+convertBranch :: [C.CName] -> [C.CName] -> PikaCore.FnDefBranch -> GenC [C.Command]
+convertBranch outVars actualOutVars = enterBranch $ \branch -> do
   body <-
-    enterBranchBody (convertBranchBody outVars) $ _fnDefBranchBody branch
+    enterBranchBody (convertBranchBody outVars actualOutVars) $ _fnDefBranchBody branch
   pure $
     -- codeGenAllocations (_fnDefBranchInAllocs branch)
     setupInputs (concat (_fnDefBranchInputAssertions branch)) body
@@ -123,9 +139,10 @@ convertName = string2Name . show
 
 convertBranchBody ::
   [C.CName] ->
+  [C.CName] ->
   PikaCore.Expr' AllocAnnotated ->
   GenC [C.Command]
-convertBranchBody outVars = go
+convertBranchBody outVars actualOutVars = go
   where
     go :: PikaCore.Expr' AllocAnnotated -> GenC [C.Command]
     go (PikaCore.V x) = assignVar (getOneVar outVars) x
@@ -209,17 +226,24 @@ convertBranchBody outVars = go
 
     go (PikaCore.SslAssertion bnd) = do
       (vars, body) <- unbind bnd
-      let unmodedVars = map modedNameName vars
-          modes = map getMode vars
+      case body of
+        [] -> pure $ map C.SetToNull outVars
+        _ -> do
+          let unmodedVars = map modedNameName vars
+              modes = map getMode vars
+              allocs = zipWith Alloc (map PikaCore.getV outVars') $ map getModedAnnotation vars
 
-          outVars' :: [AllocExpr]
-          outVars' =
-            map (PikaCore.V . string2Name . show) outVars
-            -- zipWith (\m v -> Moded m (PikaCore.V (string2Name (name2String v))))
-            -- zipWith (\m v -> Moded m (PikaCore.V (string2Name (show v))))
-            --   modes
-            --   outVars
-      pure (map codeGenPointsTo (substs (zip unmodedVars outVars') body))
+              outVars' :: [AllocExpr]
+              outVars' =
+                map (PikaCore.V . string2Name . show) outVars
+                -- zipWith (\m v -> Moded m (PikaCore.V (string2Name (name2String v))))
+                -- zipWith (\m v -> Moded m (PikaCore.V (string2Name (show v))))
+                --   modes
+                --   outVars
+          pure $
+            codeGenAllocations allocs
+              (map codeGenPointsTo (substs (zip unmodedVars outVars') body)
+                ++ zipWith C.Assign (map ((:+ 0) . C.V) actualOutVars) (map convertBase outVars'))
     go e = error $ "convertBranchBody: " ++ ppr' e
 
     goBin f x y = 

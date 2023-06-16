@@ -40,7 +40,7 @@ go (SslAssertion bnd) = do
   case vars of
     [] ->
       case asn of
-        [] -> pure $ Just $ IntLit 0
+        [] -> pure Nothing --pure $ Just $ IntLit 0
         (_:_) -> pure $ Just $ LayoutV $ map V (lhsNames asn)
     (_:_) -> pure Nothing
 go _ = pure Nothing

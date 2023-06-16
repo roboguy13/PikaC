@@ -50,6 +50,7 @@ runTestWithPrinter :: [C.CName] -> Printer -> Expr -> GenC [C.Command]
 runTestWithPrinter outVars printer e = do
   body <- convertExprCmds outVars e
   pure $
+    map C.Decl outVars ++
     body ++
     [call printer (map C.V outVars)
     ]
@@ -66,5 +67,5 @@ mkOutVars layouts (TyVar x) =
   mapM fresh vs
 
 convertExprCmds :: [C.CName] -> Expr -> GenC [C.Command]
-convertExprCmds outVars = enterBranchBody (convertBranchBody outVars)
+convertExprCmds outVars = enterBranchBody (convertBranchBody outVars outVars)
 

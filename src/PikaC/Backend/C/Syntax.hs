@@ -32,6 +32,7 @@ data CExpr
 
 data Command
   = Assign CLoc CExpr
+  | SetToNull CName
   | IfThenElse CExpr [Command] [Command]
   | Call
       String
@@ -72,6 +73,9 @@ instance Ppr Command where
         pure $ writeLoc loc e
         -- hsep [text "*" <> ppr loc, text "=", ppr e] <> text ";"
 
+      go (SetToNull n) =
+        pure $ ppr n <+> text "=" <+> text "NULL;"
+
       go (IfThenElse c t f) = do
         tDoc <- mapM go t
         fDoc <- mapM go f
@@ -83,7 +87,7 @@ instance Ppr Command where
             ]
 
       go (Call f inArgs outArgs) =
-        pure $ text f <> text "(" <> hsep (punctuate (text ",") (map ppr inArgs ++ map ppr outArgs)) <> text ");"
+        pure $ text f <> text "(" <> hsep (punctuate (text ",") (map ppr inArgs ++ map ((text "&" <>) . ppr) outArgs)) <> text ");"
 
       go (IntoMalloc size bnd) = do
         (target, body) <- unbind bnd
@@ -104,7 +108,7 @@ instance Ppr Command where
       go (Printf fmt args) =
         pure $
           text "printf("
-            <> hsep (punctuate (text ",") (text (show fmt) : map ppr args))
+            <> hsep (punctuate (text ",") ((text "\"" <> text fmt <> text "\"") : map ppr args))
             <> text ");"
 
       go Nop = pure mempty --text ";"
@@ -158,17 +162,17 @@ instance IsName CExpr CExpr where
   getName (V x) = x
   getName e = error $ "IsName CExpr CExpr requires var, got " ++ ppr' e
 
-findSetToZero :: [CName] -> [CName] -> [PointsTo CExpr] -> [CName]
-findSetToZero possiblyUpdated names xs =
-    let modified = go xs
-    in
-    filter (`elem` possiblyUpdated) $ filter (`notElem` modified) names
-    -- filter (`notElem` modified) names
-  where
-    go [] = []
-    -- go ((x :-> V y):rest) = locBase x : y : go rest
-    -- go ((x :-> LocValue y):rest) = locBase x : locBase y : go rest
-    go ((x :-> y):rest) = getName (locBase x) : go rest
+-- findSetToZero :: [CName] -> [CName] -> [PointsTo CExpr] -> [CName]
+-- findSetToZero possiblyUpdated names xs =
+--     let modified = go xs
+--     in
+--     filter (`elem` possiblyUpdated) $ filter (`notElem` modified) names
+--     -- filter (`notElem` modified) names
+--   where
+--     go [] = []
+--     -- go ((x :-> V y):rest) = locBase x : y : go rest
+--     -- go ((x :-> LocValue y):rest) = locBase x : locBase y : go rest
+--     go ((x :-> y):rest) = getName (locBase x) : go rest
 
 instance IsBase CExpr where
   isVar (V {}) = True

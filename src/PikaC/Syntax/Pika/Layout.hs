@@ -132,6 +132,9 @@ annotateModed :: (a -> b) -> (XModed s -> XModed s') -> Moded' s a -> Moded' s' 
 annotateModed f g (Moded' ann x y) =
   Moded' (g ann) x (f y)
 
+getModedAnnotation :: Moded' s a -> XModed s
+getModedAnnotation (Moded' ann _ _) = ann
+
 lookupMode :: ModeEnv a -> Name a -> Maybe Mode
 lookupMode env n =
   lookup n (map (\(Moded x y) -> (y, x)) env)
