@@ -67,6 +67,10 @@ data Loc a = a :+ Int
 mapPointsTo :: (a -> b) -> PointsTo a -> PointsTo b
 mapPointsTo f ((x :+ i) :-> y) = (f x :+ i) :-> f y
 
+mapPointsToM :: Applicative f => (a -> f b) -> PointsTo a -> f (PointsTo b)
+mapPointsToM f ((x :+ i) :-> y) =
+  liftA2 (\a b -> (a :+ i) :-> b) (f x) (f y)
+
 instance NFData a => NFData (PointsTo a)
 instance NFData a => NFData (Loc a)
 

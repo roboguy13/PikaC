@@ -11,6 +11,8 @@ import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 
 import PikaC.Syntax.PikaCore.FnDef (FnDef (..), FnDefBranch (..))
 
+import PikaC.Stage.ToPikaCore.Utils
+
 import qualified PikaC.Backend.C.Syntax as C
 import PikaC.Backend.C.Syntax (CExpr, CLoc, Command)
 
@@ -58,7 +60,7 @@ codeGenFn fnDef = runGenC $ do
   -- inParamsC <- mapM fresh inParams
   outParamsC <- mapM fresh outParams
 
-  body <- mapM (convertBranch outParams outParamsC)
+  body <- mapM (convertBranch outParams (_fnDefOutputSizes fnDef) outParamsC)
             -- $ rename (zip inParams derefedInParams)
                 branches0
 
@@ -66,8 +68,8 @@ codeGenFn fnDef = runGenC $ do
     { C.cfunctionName = fnName
     , C.cfunctionParams = inParams ++ outParamsC
     , C.cfunctionBody =
-        map C.Decl outParams
-          ++
+        -- map C.Decl outParams
+        --   ++
         [flattenBranchCmds (zip outParams outParamsC) inParams outParams (zip branches0 body)]
     }
 
@@ -112,42 +114,40 @@ mkOutputWrites outNameMap (n:ns) =
 --   mkDerefs derefed x (mkDerefs derefed y body)
 -- mkDerefs _ _ body = body
 
-convertBranch :: [C.CName] -> [C.CName] -> PikaCore.FnDefBranch -> GenC [C.Command]
-convertBranch outVars actualOutVars = enterBranch $ \branch -> do
+convertBranch :: [C.CName] -> [Int] -> [C.CName] -> PikaCore.FnDefBranch -> GenC [C.Command]
+convertBranch outVars outSizes actualOutVars = enterBranch $ \branch -> do
   body <-
-    enterBranchBody (convertBranchBody outVars actualOutVars) $ _fnDefBranchBody branch
-  pure $
+    enterBranchBody (convertBranchBody outVars outSizes actualOutVars) $ _fnDefBranchBody branch
     -- codeGenAllocations (_fnDefBranchInAllocs branch)
-    setupInputs (concat (_fnDefBranchInputAssertions branch)) body
+  setupInputs (concat (_fnDefBranchInputAssertions branch)) body
 
-setupInputs :: [PointsTo PikaCore.Expr] -> [C.Command] -> [C.Command]
-setupInputs [] cmds = cmds
-setupInputs (p:ps) cmds =
-  [setupInput p (setupInputs ps cmds)]
+setupInputs :: [PointsTo PikaCore.Expr] -> [C.Command] -> GenC [C.Command]
+setupInputs [] cmds = pure cmds
+setupInputs (p:ps) cmds = do
+  cmd <- setupInput p =<< setupInputs ps cmds
+  pure [cmd]
 
 -- | Take inputs heaplets like (x+2) :-> v and generate v = *(x+2)
-setupInput :: PointsTo PikaCore.Expr -> [C.Command] -> C.Command
-setupInput ((PikaCore.V lhs :+ i) :-> PikaCore.V rhs) body =
-  C.Let (C.V (convertName lhs) :+ i)
-    $ bind (convertName rhs) body
+setupInput :: PointsTo PikaCore.Expr -> [C.Command] -> GenC C.Command
+setupInput ((PikaCore.V lhs :+ i) :-> PikaCore.V rhs) body = do
+  pure $ C.Let (C.V (convertName lhs) :+ i)
+    (convertName rhs)
+    body
 setupInput e _ = error $ "setupInput: " ++ ppr' e
   -- C.Let (convertName rhs) (C.V (convertName lhs) :+ i)
 
-convertName :: Name (PikaCore.Expr' s) -> C.CName
--- convertName = string2Name . name2String
-convertName = string2Name . show
-
 convertBranchBody ::
   [C.CName] ->
+  [Int] ->
   [C.CName] ->
   PikaCore.Expr' AllocAnnotated ->
   GenC [C.Command]
-convertBranchBody outVars actualOutVars = go
+convertBranchBody outVars outSizes actualOutVars = go
   where
     go :: PikaCore.Expr' AllocAnnotated -> GenC [C.Command]
-    go (PikaCore.V x) = assignVar (getOneVar outVars) x
+    go (PikaCore.V x) = copy (head outSizes) (getOneVar outVars) x
     go (PikaCore.LayoutV xs) = -- TODO: Make sure lengths match
-        fmap concat $ zipWithM assignVar outVars (map PikaCore.getV xs)
+        fmap concat $ sequenceA $ zipWith3 copy outSizes outVars (map PikaCore.getV xs)
     go (PikaCore.IntLit i) =
         pure [assignValue (getOneVar outVars) (C.IntLit i)]
     go (PikaCore.BoolLit b) =
@@ -167,8 +167,10 @@ convertBranchBody outVars actualOutVars = go
             ]
 
     go (PikaCore.App {}) = error "convertBranchBody: App should be bound by with-in if its arguments are not basic expressions"
-    go (PikaCore.WithIn e bnd) = do
-      (vars, body) <- unbind bnd
+    go e0@(PikaCore.WithIn e bnd) = do
+      (vars0, body0) <- unbind bnd
+      vars <- mapM freshModed vars0
+      let body = rename (zip (map modedNameName vars0) (map modedNameName vars)) body0
       let modes = map getMode vars
           unmodedVars = map modedNameName vars
       -- freshVars <- mapM fresh vars
@@ -188,8 +190,7 @@ convertBranchBody outVars actualOutVars = go
           let outs = map (C.V . convertName) unmodedVars
               allocs = zipWith Alloc unmodedVars szs
 
-          pure $
-            codeGenAllocations allocs $
+          codeGenAllocations allocs $
             [C.Call f
               (getAppArgs args)
               outs
@@ -214,7 +215,7 @@ convertBranchBody outVars actualOutVars = go
                 _ -> do
                   body' <- go body
 
-                  pure $ codeGenAllocations allocs $
+                  codeGenAllocations allocs $
                     map codeGenPointsTo heaplets'
                     ++ body'
         _
@@ -227,7 +228,8 @@ convertBranchBody outVars actualOutVars = go
     go (PikaCore.SslAssertion bnd) = do
       (vars, body) <- unbind bnd
       case body of
-        [] -> pure $ map C.SetToNull outVars
+        -- [] -> pure $ map C.SetToNull outVars
+        [] -> pure $ map C.Decl outVars
         _ -> do
           let unmodedVars = map modedNameName vars
               modes = map getMode vars
@@ -235,15 +237,14 @@ convertBranchBody outVars actualOutVars = go
 
               outVars' :: [AllocExpr]
               outVars' =
-                map (PikaCore.V . string2Name . show) outVars
+                map (PikaCore.V . convertName) outVars
                 -- zipWith (\m v -> Moded m (PikaCore.V (string2Name (name2String v))))
                 -- zipWith (\m v -> Moded m (PikaCore.V (string2Name (show v))))
                 --   modes
                 --   outVars
-          pure $
-            codeGenAllocations allocs
-              (map codeGenPointsTo (substs (zip unmodedVars outVars') body)
-                ++ zipWith C.Assign (map ((:+ 0) . C.V) actualOutVars) (map convertBase outVars'))
+          codeGenAllocations allocs
+            (map codeGenPointsTo (substs (zip unmodedVars outVars') body)
+              ++ zipWith C.Assign (map ((:+ 0) . C.V) actualOutVars) (map convertBase outVars'))
     go e = error $ "convertBranchBody: " ++ ppr' e
 
     goBin f x y = 
@@ -263,9 +264,6 @@ getOneVar vs = error $ "Expected one variable, got " ++ show vs
 -- assignVar :: C.CName -> PikaCore.ExprName -> C.Command
 -- assignVar cv = assignValue cv . C.V . convertName
 
-assignVar :: C.CName -> Name (PikaCore.Expr' AllocAnnotated) -> GenC [Command]
-assignVar = copy
-
 assignValue :: C.CName -> CExpr -> C.Command
 assignValue cv = C.Assign (C.V cv :+ 0)
 
@@ -281,11 +279,11 @@ convertBase (PikaCore.Not x) = C.Not (convertBase x)
 convertBase e = error $ "convertBase: " ++ ppr' e
 
 copy ::
+  Int ->
   C.CName ->
   Name (PikaCore.Expr' AllocAnnotated) ->
   GenC [Command]
-copy cv v = do
-  sz <- lookupAllocM v
+copy sz cv v = do
   if sz == 0
     then pure [C.Assign (C.V (convertName v) :+ 0) (C.V cv)]
     else pure $ map go [0..sz-1]
@@ -305,14 +303,15 @@ codeGenPointsTo p = error $ "codeGenPointsTo: " ++ ppr' p
 convertLoc :: Loc AllocExpr -> Loc CExpr
 convertLoc (x :+ i) = convertBase x :+ i
 
-codeGenAllocations :: [Allocation AllocExpr] -> [Command] -> [Command]
-codeGenAllocations [] cmds = cmds
-codeGenAllocations (a:as) cmds =
-  [codeGenAllocation a (codeGenAllocations as cmds)]
+codeGenAllocations :: [Allocation AllocExpr] -> [Command] -> GenC [Command]
+codeGenAllocations [] cmds = pure cmds
+codeGenAllocations (a:as) cmds = do
+  cmd <- codeGenAllocation a =<< codeGenAllocations as cmds
+  pure [cmd]
 
-codeGenAllocation :: Allocation AllocExpr -> [Command] -> Command
-codeGenAllocation (Alloc x sz) cmds =
-  C.IntoMalloc sz
-    $ bind (convertName x)
-        cmds
+codeGenAllocation :: Allocation AllocExpr -> [Command] -> GenC Command
+codeGenAllocation (Alloc x sz) cmds = do
+  pure $ C.IntoMalloc sz
+    (convertName x)
+    cmds
 

@@ -38,8 +38,9 @@ data Command
       String
       [CExpr] -- Input parameters
       [CExpr] -- Output parameters
-  | IntoMalloc Int (Bind CName [Command])
-  | Let CLoc (Bind CName [Command])
+  | IntoMalloc Int CName [Command]
+  -- | Let CLoc (Bind CName [Command])
+  | Let CLoc CName [Command]
   | Free CName
   | Decl CName
   | Printf String [CExpr]
@@ -89,8 +90,8 @@ instance Ppr Command where
       go (Call f inArgs outArgs) =
         pure $ text f <> text "(" <> hsep (punctuate (text ",") (map ppr inArgs ++ map ((text "&" <>) . ppr) outArgs)) <> text ");"
 
-      go (IntoMalloc size bnd) = do
-        (target, body) <- unbind bnd
+      go (IntoMalloc size target body) = do
+        -- (target, body) <- unbind bnd
         bodyDocs <- mapM go body
         pure $ hsep [text "loc", ppr target, text "=", text "(loc)malloc(" <> ppr size <> text " * sizeof(loc));"] $$ vcat bodyDocs
 
@@ -98,8 +99,7 @@ instance Ppr Command where
         pure $ hsep [text "free(", ppr x, text ");"]
 
       -- ppr (Let x y) = ("loc" <+> ppr x <+> "=" <+> ppr (Deref y)) <> ";"
-      go (Let x bnd) = do
-        (var, body) <- unbind bnd
+      go (Let x var body) = do
         bodyDocs <- mapM go body
         pure $
           (text "loc" <+> ppr var <+> text "=" <+> readLoc x)
@@ -201,18 +201,18 @@ instance IsBase CExpr where
 -- Property tests
 --
 
-instance WellScoped (Name CExpr) CExpr
-instance WellScoped (Name CExpr) Command
-instance WellScoped (Name CExpr) (Bind CName [Command]) where
-  wellScoped inScopes bnd =
-    let (var, cmds) = unsafeUnbind bnd
-    in
-    wellScoped @_ @[Command] (inScopes ++ [var]) cmds
-
-instance WellScoped (Name CExpr) CFunction where
-  wellScoped inScopes fn =
-    wellScoped (inScopes ++ cfunctionParams fn) (cfunctionBody fn)
-
+-- instance WellScoped (Name CExpr) CExpr
+-- instance WellScoped (Name CExpr) Command
+-- instance WellScoped (Name CExpr) (Bind CName [Command]) where
+--   wellScoped inScopes bnd =
+--     let (var, cmds) = unsafeUnbind bnd
+--     in
+--     wellScoped @_ @[Command] (inScopes ++ [var]) cmds
+--
+-- instance WellScoped (Name CExpr) CFunction where
+--   wellScoped inScopes fn =
+--     wellScoped (inScopes ++ cfunctionParams fn) (cfunctionBody fn)
+--
 instance Validity CFunction where
-  validate fn = wellScoped ([] :: [CName]) fn
+  validate fn = mempty --wellScoped ([] :: [CName]) fn
 

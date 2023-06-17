@@ -15,6 +15,7 @@ import           PikaC.Syntax.Heaplet
 import           PikaC.Ppr
 
 import           PikaC.Backend.C.CodeGen
+import           PikaC.Backend.C.Monad (convertName, runGenC)
 import           PikaC.Backend.Utils
 
 import           Unbound.Generics.LocallyNameless
@@ -75,7 +76,7 @@ layoutPrinter layout =
                         ]
                       ]
           in
-            [setupInput p $
+            [runGenC $ setupInput p $
                cmdHere ++ restCmds
             ]
         -- TODO: Handle layouts that apply *other* layouts.

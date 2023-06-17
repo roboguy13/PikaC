@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module PikaC.Tests.Pika.Test
   where
 
@@ -46,9 +48,9 @@ runTest' layouts ty e = do
   outVars <- mkOutVars layouts ty
   runTestWithPrinter outVars (getPrinter ty) e
 
-runTestWithPrinter :: [C.CName] -> Printer -> Expr -> GenC [C.Command]
-runTestWithPrinter outVars printer e = do
-  body <- convertExprCmds outVars e
+runTestWithPrinter :: ([Int], [C.CName]) -> Printer -> Expr -> GenC [C.Command]
+runTestWithPrinter outs@(_, outVars) printer e = do
+  body <- convertExprCmds outs e
   pure $
     map C.Decl outVars ++
     body ++
@@ -58,14 +60,17 @@ runTestWithPrinter outVars printer e = do
 call :: FnName -> [C.CExpr] -> C.Command
 call (FnName n) args = C.Call n args []
 
-mkOutVars :: [Layout Expr] -> Type -> GenC [C.CName]
-mkOutVars _ IntType = (:[]) <$> fresh (string2Name "i")
-mkOutVars _ BoolType = (:[]) <$> fresh (string2Name "b")
-mkOutVars layouts (TyVar x) =
-  let vs = layoutParamNames $ lookupLayout layouts (name2String x)
-  in
-  mapM fresh vs
+mkOutVars :: [Layout Expr] -> Type -> GenC ([Int], [C.CName])
+mkOutVars _ IntType = ([0],) . (:[]) <$> fresh (string2Name "i")
+mkOutVars _ BoolType = ([0],) . (:[]) <$> fresh (string2Name "b")
+mkOutVars layouts (TyVar x) = do
+  let layout = lookupLayout layouts (name2String x)
+      vs = layoutParamNames layout
+      allocs = maxAllocsForLayout layout (map (string2Name . name2String) vs)
+  freshVs <- mapM fresh vs
 
-convertExprCmds :: [C.CName] -> Expr -> GenC [C.Command]
-convertExprCmds outVars = enterBranchBody (convertBranchBody outVars outVars)
+  pure (map allocSize allocs, freshVs)
+
+convertExprCmds :: ([Int], [C.CName]) -> Expr -> GenC [C.Command]
+convertExprCmds (outSizes, outVars) = enterBranchBody (convertBranchBody outVars outSizes outVars)
 

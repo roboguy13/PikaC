@@ -89,10 +89,17 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
   branches' <-
     runPikaConvert'' layouts0 layouts globalFns $ mapM (convertBranch openedArgLayouts) $ Pika.fnDefBranches fn
 
+  let outAllocs =
+        case resultLayout of
+          Nothing -> [Alloc (modedNameName (head outParams)) 0]
+          Just layout -> maxAllocsForLayout layout (map modedNameName outParams)
+
   piLift . lift . runSimplifyFn @m simplifyFuel simplifyFnDef $
   -- pure $
     PikaCore.FnDef
       { PikaCore._fnDefName = PikaCore.FnName $ Pika.fnDefName fn
+      , PikaCore._fnDefOutputSizes =
+          map (lookupAllocation outAllocs . modedNameName) outParams
       , PikaCore._fnDefBranches =
           bind (concat inParams)
             (bind outParams branches')

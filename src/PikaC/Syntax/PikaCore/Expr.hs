@@ -146,11 +146,12 @@ type ExprAssertion' s = [PointsTo (Expr' s)]
 
 makePrisms ''Expr'
 
-bindXV :: forall s. (Show (Expr' s), XV s ~ XModed s, Alpha (XModed s), Typeable s, Alpha (Expr' s)) =>
-  (Expr -> ModedName Expr -> ModedName' s (Expr' s)) ->
+bindXV :: forall m s. (Fresh m, Show (Expr' s), XV s ~ XModed s, Alpha (XModed s), Typeable s, Alpha (Expr' s)) =>
+  (Expr -> ModedName Expr -> m (ModedName' s (Expr' s))) ->
   (ExprAssertion -> ModedName Expr -> ModedName' s (Expr' s)) ->
   [ModedName' s (Expr' s)] ->
-  Expr -> Expr' s
+  Expr ->
+  m (Expr' s)
 bindXV convertNameExpr convertNameAsn vars = go
   where
     -- lookupV :: ExprName -> ModedName' s (Expr' s)
@@ -166,33 +167,32 @@ bindXV convertNameExpr convertNameAsn vars = go
 
     go' = bindXV convertNameExpr convertNameAsn
 
-    go :: Expr -> Expr' s
-    go (V x) = V (string2Name (show x)) --toV' x
-    go (LayoutV xs) = LayoutV $ map go xs
-    go (IntLit i) = IntLit i
-    go (BoolLit b) = BoolLit b
-    go (Add x y) = Add (go x) (go y)
-    go (Sub x y) = Sub (go x) (go y)
-    go (Equal x y) = Equal (go x) (go y)
-    go (Not x) = Not (go x)
-    go (And x y) = And (go x) (go y)
+    go :: Expr -> m (Expr' s)
+    go (V x) = pure $ V (string2Name (show x)) --toV' x
+    go (LayoutV xs) = LayoutV <$> mapM go xs
+    go (IntLit i) = pure $ IntLit i
+    go (BoolLit b) = pure $ BoolLit b
+    go (Add x y) = liftA2 Add (go x) (go y)
+    go (Sub x y) = liftA2 Sub (go x) (go y)
+    go (Equal x y) = liftA2 Equal (go x) (go y)
+    go (Not x) = fmap Not (go x)
+    go (And x y) = liftA2 And (go x) (go y)
     go (App f sz args) =
-      App f sz (map go args)
-    go (WithIn e bnd) =
-      let -- TODO: Is this a safe use of unsafeUnbind?
-          (newVars, body) = unsafeUnbind bnd
-          newVars' = map (convertNameExpr body) newVars
-      in
-      WithIn (go e)
-      $ bind newVars'
-        $ go' (newVars' ++ vars) body
-    go (SslAssertion bnd) =
-      let (newVars, asn) = unsafeUnbind bnd
-          newVars' = map (convertNameAsn asn) newVars
-      in
+      App f sz <$> (mapM go args)
+    go (WithIn e bnd) = do
+      -- let -- TODO: Is this a safe use of unsafeUnbind?
+      --     (newVars, body) = unsafeUnbind bnd
+      (newVars, body) <- unbind bnd
+      newVars' <- mapM (convertNameExpr body) newVars
+      WithIn <$> (go e)
+        <*> (bind newVars' <$> go' (newVars' ++ vars) body)
+    go (SslAssertion bnd) = do
+      -- let (newVars, asn) = unsafeUnbind bnd
+      (newVars, asn) <- unbind bnd
+      let newVars' = map (convertNameAsn asn) newVars
       SslAssertion
-        $ bind newVars'
-          $ map (mapPointsTo (go' (newVars' ++ vars))) asn
+        <$> (bind newVars'
+              <$> mapM (mapPointsToM (go' (newVars' ++ vars))) asn)
 
 
 instance HasApp Expr where
@@ -485,6 +485,7 @@ exprIsOk = mconcat . map go . universe
       | not (all (> 0) szs) = invalid "All sizes in application must by positive"
     -- go (SslAssertion (B _ [])) = invalid "Empty assertion"
     go (WithIn _ (B [] _)) = invalid "with-in with empty variable list"
+    go (WithIn (SslAssertion (B _ [])) _) = mempty
     go (WithIn e (B vs' _)) =
       check (length vs' == getOutputCount e)
         "When a layout { ... } { ... } is bound by a with-in, the with-in must have the right number of variables"

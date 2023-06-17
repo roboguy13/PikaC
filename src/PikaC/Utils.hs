@@ -47,6 +47,10 @@ import Data.Validity
 
 import Data.Char
 
+strength :: Functor f => (a, f b) -> f (a, b)
+strength (a, fb) =
+  fmap (\x -> (a, x)) fb
+
 -- -- TODO: Write property tests for this
 -- joinBind :: (Typeable a, Fresh m, Alpha a, Alpha b, HasVar a) => Bind [Name a] (Bind [Name a] b) -> m (Bind [Name a] b)
 -- joinBind bnd1 = do

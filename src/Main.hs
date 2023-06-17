@@ -264,10 +264,10 @@ withModule opts pikaModule = do
   forM_ (moduleGenerates pikaModule) $ \fnName -> do
     generateFn opts pikaModule fnName
 
-    -- main function for tests
-    when (_optOnlyC opts) $ do
-      let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
-      putStrLn $ ppr' $ genTestMain convertedLayouts convertedTests
+  -- main function for tests
+  when (_optOnlyC opts) $ do
+    let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
+    putStrLn $ ppr' $ genTestMain convertedLayouts convertedTests
   where
     fnDefs = moduleFnDefs pikaModule
     layouts = moduleLayouts pikaModule

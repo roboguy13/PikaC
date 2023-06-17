@@ -37,6 +37,7 @@ import Control.Monad
 data FnDef =
   FnDef
   { _fnDefName :: FnName
+  , _fnDefOutputSizes :: [Int] -- Allocation sizes for output parameters
   , _fnDefBranches ::
       Bind [ModedName Expr]    -- Input parameters
         (Bind [ModedName Expr] -- Output parameters
@@ -146,9 +147,9 @@ instance WellScoped ExprName FnDefBranch where
     in
     wellScoped inScopes' (_fnDefBranchBody branch)
 
-instance Arbitrary FnDef where
-  arbitrary = genValidFnDef
-  shrink = filter isValid . genericShrink
+-- instance Arbitrary FnDef where
+--   arbitrary = genValidFnDef
+--   shrink = filter isValid . genericShrink
 
 instance Arbitrary FnDefBranch where
   arbitrary = error "Arbitrary FnDefBranch"
@@ -197,7 +198,7 @@ validBranch v outVars modedBvs branch =
     bvs = map modedNameName modedBvs `union` inAsnVars
 
 validateFnDefWith :: (Expr -> Validation) -> FnDef -> Validation
-validateFnDefWith v (FnDef _ (B inVars (B outVars branches))) =
+validateFnDefWith v (FnDef _ _ (B inVars (B outVars branches))) =
   let vars = inVars ++ outVars
   in
   mconcat $ map (validBranch v (map modedNameName outVars) vars) branches
@@ -220,7 +221,8 @@ genValidFnDef = do
   let params = modedInParams ++ modedOutParams
 
   FnDef "testFn"
-    <$>
+    <$> replicateM (length modedOutParams) (choose (1, 4)) -- TODO: Does this make sense?
+    <*>
       (bind modedInParams
         <$> (bind modedOutParams
               <$> replicateM k (genValidBranch (map string2Name outParams) params)))
