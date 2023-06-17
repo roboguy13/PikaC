@@ -192,7 +192,7 @@ convertBranchBody outVars outSizes actualOutVars = go
           let outs = map (C.V . convertName) unmodedVars
               allocs = zipWith Alloc unmodedVars szs
 
-          trace ("App allocs = " ++ show allocs) $ codeGenAllocations allocs $
+          codeGenAllocations allocs $
             [C.Call f
               (getAppArgs args)
               outs
@@ -217,7 +217,7 @@ convertBranchBody outVars outSizes actualOutVars = go
                 _ -> do
                   body' <- go body
 
-                  trace ("allocs = " ++ show allocs ++ ", asnVars = " ++ show asnVars) $ codeGenAllocations allocs $
+                  codeGenAllocations allocs $
                     map codeGenPointsTo heaplets'
                     ++ body'
         _

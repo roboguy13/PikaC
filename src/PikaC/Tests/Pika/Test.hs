@@ -52,7 +52,7 @@ runTestWithPrinter :: ([Int], [C.CName]) -> Printer -> Expr -> GenC [C.Command]
 runTestWithPrinter outs@(_, outVars) printer e = do
   body <- convertExprCmds outs e
   pure $
-    map C.Decl outVars ++
+    -- map C.Decl outVars ++
     body ++
     [call printer (map C.V outVars)
     ]
