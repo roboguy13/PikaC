@@ -160,7 +160,9 @@ convertBranchBody outVars outSizes actualOutVars = go
     go (PikaCore.And x y) = goBin C.And x y
     go (PikaCore.App (PikaCore.FnName f) sizes xs)
       | not (isConstructor f) && all PikaCore.isBasic xs =
-          pure
+          let allocs = zipWith Alloc (map convertName outVars) outSizes
+          in
+          codeGenAllocations allocs
             [C.Call f
               (map convertBase xs)
               (map C.V outVars)
@@ -190,7 +192,7 @@ convertBranchBody outVars outSizes actualOutVars = go
           let outs = map (C.V . convertName) unmodedVars
               allocs = zipWith Alloc unmodedVars szs
 
-          codeGenAllocations allocs $
+          trace ("App allocs = " ++ show allocs) $ codeGenAllocations allocs $
             [C.Call f
               (getAppArgs args)
               outs
@@ -215,7 +217,7 @@ convertBranchBody outVars outSizes actualOutVars = go
                 _ -> do
                   body' <- go body
 
-                  codeGenAllocations allocs $
+                  trace ("allocs = " ++ show allocs ++ ", asnVars = " ++ show asnVars) $ codeGenAllocations allocs $
                     map codeGenPointsTo heaplets'
                     ++ body'
         _
