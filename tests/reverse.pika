@@ -1,5 +1,5 @@
 %generate revcat
--- %generate reverse
+%generate reverse
 
 Sll : layout[-x](List);
 Sll Nil := emp;
@@ -23,3 +23,5 @@ reverse (Cons h t) := revcat (Cons h t [Sll]) (Nil [Sll]);
   revcat (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll])
     (Cons 10 (Cons 20 (Nil [Sll]) [Sll]) [Sll]);
 
+%test "reverse" Sll:
+  reverse (Cons 1 (Cons 2 (Cons 3 (Cons 4 (Nil [Sll]) [Sll]) [Sll]) [Sll]) [Sll]);
