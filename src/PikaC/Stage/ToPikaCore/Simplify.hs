@@ -48,7 +48,10 @@ import Data.Validity
 simplifyFnDef :: Logger m => FnDef -> SimplifyM m FnDef
 simplifyFnDef =
   fixedPoint
-    (reuseExistingPtrs <=< onFnDef simplifyExprStep)
+    (
+    -- reuseExistingPtrs <=<
+    onFnDef simplifyExprStep
+    )
   -- renameResultLayout <=< -- NOTE: This should go last
     -- .
   -- myTraceWith (("simplifying " ++) . ppr')
