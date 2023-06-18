@@ -179,6 +179,7 @@ parsePattern = label "pattern" $ lexeme $
 parseExpr :: Parser Expr
 parseExpr = label "expression" $ lexeme $
   try (parseBinOp "+" Add) <|>
+  try (parseBinOp "*" Mul) <|>
   try (parseBinOp "-" Sub) <|>
   try (parseBinOp "==" Equal) <|>
   try parseLayoutLambda <|>

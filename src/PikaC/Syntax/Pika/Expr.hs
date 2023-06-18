@@ -51,6 +51,7 @@ data Expr
   | ApplyLayout Expr TypeName
   | App String [Expr]
   | Add Expr Expr
+  | Mul Expr Expr
   | Sub Expr Expr
   | Equal Expr Expr
   | LName LayoutName -- TODO: Remove?
@@ -85,6 +86,7 @@ instance Ppr Expr where
   ppr (LayoutLambda a (B v p)) = hsep [text "/\\(" <> ppr v <> text " :~ " <> ppr a <> text ").", ppr p]
   ppr (ApplyLayout e ty) = hsep [ppr e, text "[" <> ppr ty <> text "]"]
   ppr (App f xs) = hsep (ppr f : map pprP xs)
+  ppr (Mul x y) = hsep [pprP x, text "*", pprP y]
   ppr (Add x y) = hsep [pprP x, text "+", pprP y]
   ppr (Sub x y) = hsep [pprP x, text "-", pprP y]
   ppr (Equal x y) = hsep [pprP x, text "==", pprP y]
@@ -98,6 +100,7 @@ instance IsNested Expr where
   isNested (ApplyLayout {}) = True
   isNested (App {}) = True
   isNested (Add {}) = True
+  isNested (Mul {}) = True
   isNested (Sub {}) = True
   isNested (Equal {}) = True
   isNested (LName {}) = False
@@ -112,6 +115,8 @@ instance Plated Expr where
     App k <$> traverse (plate f) xs
   plate f (Add x y) =
     Add <$> plate f x <*> plate f y
+  plate f (Mul x y) =
+    Mul <$> plate f x <*> plate f y
   plate f (Sub x y) =
     Sub <$> plate f x <*> plate f y
   plate f (Equal x y) =

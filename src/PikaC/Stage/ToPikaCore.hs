@@ -355,6 +355,7 @@ convertExpr openedArgLayouts = go
     go e@(Pika.ApplyLayout {}) = convertAppHere openedArgLayouts e
     go e@(Pika.App {}) = convertAppHere openedArgLayouts e
     go (Pika.Add x y) = PikaCore.Add <$> go x <*> go y
+    go (Pika.Mul x y) = PikaCore.Mul <$> go x <*> go y
     go (Pika.Sub x y) = PikaCore.Sub <$> go x <*> go y
     go (Pika.Equal x y) = PikaCore.Equal <$> go x <*> go y
     go (Pika.IntLit i) = pure $ PikaCore.IntLit i

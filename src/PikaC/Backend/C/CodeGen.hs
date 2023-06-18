@@ -155,6 +155,7 @@ convertBranchBody outVars outSizes actualOutVars = go
     go (PikaCore.BoolLit b) =
         pure [assignValue (getOneVar outVars) (C.BoolLit b)]
     go (PikaCore.Add x y) = goBin C.Add x y
+    go (PikaCore.Mul x y) = goBin C.Mul x y
     go (PikaCore.Sub x y) = goBin C.Sub x y
     go (PikaCore.Equal x y) = goBin C.Equal x y
     go (PikaCore.Not x) =
@@ -276,6 +277,7 @@ convertBase (PikaCore.V x) = C.V $ convertName x
 convertBase (PikaCore.IntLit i) = C.IntLit i
 convertBase (PikaCore.BoolLit b) = C.BoolLit b
 convertBase (PikaCore.Add x y) = C.Add (convertBase x) (convertBase y)
+convertBase (PikaCore.Mul x y) = C.Mul (convertBase x) (convertBase y)
 convertBase (PikaCore.Sub x y) = C.Sub (convertBase x) (convertBase y)
 convertBase (PikaCore.Equal x y) = C.Equal (convertBase x) (convertBase y)
 convertBase (PikaCore.And x y) = C.And (convertBase x) (convertBase y)

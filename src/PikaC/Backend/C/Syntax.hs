@@ -23,6 +23,7 @@ data CExpr
   | IntLit Int
   | BoolLit Bool
   | Add CExpr CExpr
+  | Mul CExpr CExpr
   | Sub CExpr CExpr
   | Equal CExpr CExpr
   | And CExpr CExpr
@@ -145,6 +146,7 @@ instance Ppr CExpr where
   ppr (BoolLit True) = text "true"
   ppr (BoolLit False) = text "false"
   ppr (Add x y) = sep [intCast (pprP x), text "+", intCast (pprP y)]
+  ppr (Mul x y) = sep [intCast (pprP x), text "*", intCast (pprP y)]
   ppr (Sub x y) = sep [intCast (pprP x), text "-", intCast (pprP y)]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
   ppr (Not x) = text "!" <> pprP x
@@ -161,6 +163,7 @@ instance IsNested CExpr where
   isNested (BoolLit _) = False
 
   isNested (Add {}) = True
+  isNested (Mul {}) = True
   isNested (Sub {}) = True
   isNested (Equal {}) = True
   isNested (Not {}) = True
