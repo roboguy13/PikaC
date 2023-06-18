@@ -69,7 +69,7 @@ annotateAllocs =
       outAllocs <- exprOutputAllocs e
       case find ((== modedNameName v) . allocName) outAllocs of
         Nothing -> --error $ "annotateAllocs: cannot find " ++ show v
-          pure $ annotateModed convertName (\_ -> 0) v -- TODO: Does this work?
+          pure $ annotateModed convertName (\_ -> 1) v -- TODO: Does this work?
         Just r ->
           pure $ annotateModed convertName (\_ -> allocSize r) v
 

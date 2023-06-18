@@ -15,5 +15,9 @@ typedef union sslval
 #define WRITE_LOC(x, y, z) (*(x + y)).ssl_ptr = z
 #define WRITE_INT(x, y, z) (*(x + y)).ssl_int = z
 
+void _printInt(loc x) {
+  printf("%d", x->ssl_int);
+}
+
 #endif
 

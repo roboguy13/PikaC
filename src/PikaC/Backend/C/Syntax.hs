@@ -29,6 +29,7 @@ data CExpr
   | And CExpr CExpr
   | Not CExpr
   | Deref CLoc
+  | AsInt CExpr
   deriving (Show, Eq, Ord, Generic)
 
 data Command
@@ -45,6 +46,7 @@ data Command
   | Free CName
   | Decl CName
   | Printf String [CExpr]
+  | ToInt CName
   | Nop
   deriving (Show, Generic)
 
@@ -69,6 +71,8 @@ instance Ppr Command where
   ppr = runFreshM . go
     where
       go :: Command -> FreshM Doc
+      go (ToInt n) =
+        pure $ ppr n <+> text "=" <+> (text "(long)(" <> ppr n <> text "->ssl_int);")
       go (Decl n) = do
         pure $ hsep [text "loc", ppr n <> text " = NULL;"]
       go (Assign loc e) =
@@ -141,6 +145,7 @@ instance Ppr CFunction where
 
 instance Ppr CExpr where
   ppr (V x) = ppr x
+  ppr (AsInt x) = ppr x <> text "->ssl_int"
   ppr (LocValue x) = ppr x
   ppr (IntLit i) = ppr i
   ppr (BoolLit True) = text "true"
@@ -154,7 +159,7 @@ instance Ppr CExpr where
   ppr (Deref x) = text "*" <> ppr x
 
 intCast :: Doc -> Doc
-intCast d = text "(int)" <> d
+intCast d = text "(long)" <> d
 
 instance IsNested CExpr where
   isNested (V _) = False
@@ -162,6 +167,7 @@ instance IsNested CExpr where
   isNested (IntLit _) = False
   isNested (BoolLit _) = False
 
+  isNested (AsInt _) = True
   isNested (Add {}) = True
   isNested (Mul {}) = True
   isNested (Sub {}) = True

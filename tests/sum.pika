@@ -12,4 +12,5 @@ sum : Sll -> Int;
 sum Nil := 0;
 sum (Cons h t) := h + (sum t);
 
+%test "sum" Int: sum (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll]);
 

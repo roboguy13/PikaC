@@ -70,7 +70,7 @@ codeGenFn fnDef = runGenC $ do
     { C.cfunctionName = fnName
     , C.cfunctionParams = inParams ++ outParamsC
     , C.cfunctionBody =
-        map C.Decl outParams
+        map baseDecl outParams -- TODO: Only use base type parameters here
           ++
         [flattenBranchCmds (zip outParams outParamsC) inParams outParams (zip branches0 body)]
     }
@@ -168,9 +168,11 @@ convertBranchBody outVars outSizes actualOutVars = go
       p <- fresh $ string2Name "p"
       let xCmd = convertBaseInto p x
       -- pure [convertBaseInto (getOneVar outVars) (C.Not (convertBase x))]
-      pure [C.Decl p
+      pure [baseDecl p
            ,xCmd
-           ,assignValue (getOneVar outVars) (C.Not (C.V p))]
+           ,baseReassign p
+           ,assignValue (getOneVar outVars) (C.Not (C.V p))
+           ]
     go (PikaCore.And x y) = goBin C.And x y
     go (PikaCore.App (PikaCore.FnName f) sizes xs)
       | not (isConstructor f) && all PikaCore.isBasic xs =
@@ -270,13 +272,22 @@ convertBranchBody outVars outSizes actualOutVars = go
       let xCmd = convertBaseInto p x
           yCmd = convertBaseInto q y
           -- eCmd = convertBaseInto (getOneVar outVars) (f (C.V p) (C.V q))
-      pure [C.Decl p
-           ,C.Decl q
+      pure [baseDecl p
+           ,baseDecl q
            ,xCmd
            ,yCmd
+           ,baseReassign p
+           ,baseReassign q
            ,assignValue (getOneVar outVars) (f (C.V p) (C.V q))
            ]
         -- pure [assignValue (getOneVar outVars) (f (convertBase x) (convertBase y))]
+
+baseDecl :: C.CName -> C.Command
+baseDecl n = C.IntoMalloc 1 n []
+
+-- TODO: Is there a cleaner way? Also, is this undefined behavior?
+baseReassign :: C.CName -> C.Command
+baseReassign n = C.ToInt n
 
 getAppArgs :: [AllocExpr] -> [C.CExpr]
 getAppArgs = concatMap go
@@ -314,6 +325,21 @@ convertBase (PikaCore.And x y) = C.And (convertBase x) (convertBase y)
 convertBase (PikaCore.Not x) = C.Not (convertBase x)
 convertBase e = error $ "convertBase: " ++ ppr' e
 
+-- asInt :: CExpr -> CExpr
+-- asInt (C.V x) = C.AsInt $ C.V x
+-- asInt (C.Add x y) = C.Add (asInt x) (asInt y)
+-- asInt (C.Mul x y) = C.Mul (asInt x) (asInt y)
+-- asInt (C.Sub x y) = C.Sub (asInt x) (asInt y)
+-- asInt (C.Equal x y) = C.Equal (asInt x) (asInt y)
+-- asInt (C.And x y) = C.And (asInt x) (asInt y)
+-- asInt (C.Not x) = C.Not (asInt x)
+-- asInt e = e
+--
+-- assign :: CLoc -> CExpr -> Command
+-- assign lhs e
+--   | isNested e = C.Assign lhs (asInt e)
+--   | otherwise  = C.Assign lhs e
+
 copy ::
   Int ->
   C.CName ->
@@ -346,7 +372,8 @@ codeGenAllocations (a:as) cmds = do
   pure [cmd]
 
 codeGenAllocation :: Allocation AllocExpr -> [Command] -> GenC Command
-codeGenAllocation (Alloc x sz) cmds = do
+codeGenAllocation (Alloc x sz0) cmds = do
+  let sz = if sz0 == 0 then 1 else sz0 -- TODO: Find a better solution
   pure $ C.IntoMalloc sz
     (convertName x)
     cmds
