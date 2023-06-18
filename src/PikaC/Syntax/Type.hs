@@ -31,6 +31,11 @@ data Type
   | TyVar TypeName
   deriving (Show, Generic)
 
+isBaseType :: Type -> Bool
+isBaseType IntType = True
+isBaseType BoolType = True
+isBaseType _ = False
+
 instance Alpha Type
 
 splitFnType :: Type -> ([Type], Type)

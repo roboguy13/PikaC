@@ -85,6 +85,11 @@ inputNames :: Input -> [ExprName]
 inputNames (InputAsn asn) = map (getV . locBase . pointsToLhs) asn
 inputNames (InputVar v) = [v]
 
+inputBaseNames :: [Input] -> [ExprName]
+inputBaseNames [] = []
+inputBaseNames (InputAsn {} : rest) = inputBaseNames rest
+inputBaseNames (InputVar v : rest) = v : inputBaseNames rest
+
 instance Ppr Input where
   ppr (InputAsn asn) = ppr asn
   ppr (InputVar v) = ppr v

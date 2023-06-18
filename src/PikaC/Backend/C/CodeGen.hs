@@ -68,8 +68,8 @@ codeGenFn fnDef = runGenC $ do
     { C.cfunctionName = fnName
     , C.cfunctionParams = inParams ++ outParamsC
     , C.cfunctionBody =
-        -- map C.Decl outParams
-        --   ++
+        map C.Decl outParams
+          ++
         [flattenBranchCmds (zip outParams outParamsC) inParams outParams (zip branches0 body)]
     }
 
@@ -87,6 +87,8 @@ flattenBranchCmds outNameMap allNames outNames ((branch, cmds) : rest) =
     (cmds ++ mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
     [flattenBranchCmds outNameMap allNames outNames rest]
   where
+    -- baseDecls =
+    --   map (C.Decl . convertName) $ PikaCore.inputBaseNames $ _fnDefBranchInputAssertions branch
     branchNames =
       -- rename outNameMap $
       concatMap (map convertName . inputNames) $ _fnDefBranchInputAssertions branch
