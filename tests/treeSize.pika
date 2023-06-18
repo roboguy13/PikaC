@@ -1,0 +1,17 @@
+%generate treeSize
+
+TreeLayout : layout[-x](Tree);
+TreeLayout Leaf := emp;
+TreeLayout (Node payload left right) :=
+  exists +p, +q.
+  x :-> payload **
+  (x+1) :-> p **
+  (x+2) :-> q **
+  TreeLayout left [p] **
+  TreeLayout right [q];
+
+treeSize : TreeLayout -> Int;
+treeSize Leaf := 1;
+treeSize (Node v l r) := 1 + ((treeSize l) + (treeSize r));
+
+%test "treeSize" Int: treeSize (Node 1 (Node 2 (Leaf [TreeLayout]) (Leaf [TreeLayout]) [TreeLayout]) (Node 3 (Leaf [TreeLayout]) (Leaf [TreeLayout]) [TreeLayout]) [TreeLayout]);

@@ -166,22 +166,24 @@ convertBranchBody outVars outSizes actualOutVars = go
     go (PikaCore.Equal x y) = goBin C.Equal x y
     go (PikaCore.Not x) = do
       p <- fresh $ string2Name "p"
-      let xCmd = convertBaseInto p x
+      xCmds <- convertBaseInto p x
       -- pure [convertBaseInto (getOneVar outVars) (C.Not (convertBase x))]
-      pure [baseDecl p
-           ,xCmd
-           ,baseReassign p
-           ,assignValue (getOneVar outVars) (C.Not (C.V p))
-           ]
+      pure $ [baseDecl p]
+             ++ xCmds
+             ++
+             [baseReassign p
+             ,assignValue (getOneVar outVars) (C.Not (C.V p))
+             ]
     go (PikaCore.And x y) = goBin C.And x y
     go (PikaCore.App (PikaCore.FnName f) sizes xs)
-      | not (isConstructor f) && all PikaCore.isBasic xs =
+      | not (isConstructor f) && all PikaCore.isBasic xs = do
           let allocs = zipWith Alloc (map convertName outVars) outSizes
-          in
+          (argNames, argCmds) <- unzip <$> mapM convertBaseIntoFresh xs
             -- TODO: Handle nested calls here?
-          codeGenAllocations allocs
+          codeGenAllocations allocs $
+            concat argCmds ++
             [C.Call f
-              (map convertBase xs)
+              (map C.V argNames)
               (map C.V outVars)
             ]
 
@@ -266,20 +268,24 @@ convertBranchBody outVars outSizes actualOutVars = go
               ++ zipWith C.Assign (map ((:+ 0) . C.V) actualOutVars) (map convertBase outVars'))
     go e = error $ "convertBranchBody: " ++ ppr' e
 
-    goBin f x y = do
-      p <- fresh (string2Name "p")
-      q <- fresh (string2Name "q")
-      let xCmd = convertBaseInto p x
-          yCmd = convertBaseInto q y
-          -- eCmd = convertBaseInto (getOneVar outVars) (f (C.V p) (C.V q))
-      pure [baseDecl p
-           ,baseDecl q
-           ,xCmd
-           ,yCmd
-           ,baseReassign p
-           ,baseReassign q
-           ,assignValue (getOneVar outVars) (f (C.V p) (C.V q))
-           ]
+    goBin = convertBaseBin (getOneVar outVars)
+
+convertBaseBin outVar f x y = do
+  p <- fresh (string2Name "p")
+  q <- fresh (string2Name "q")
+  xCmds <- convertBaseInto p x
+  yCmds <- convertBaseInto q y
+      -- eCmd = convertBaseInto (getOneVar outVars) (f (C.V p) (C.V q))
+  pure $ [baseDecl p
+       ,baseDecl q
+       ]
+       ++ xCmds
+       ++ yCmds
+       ++
+       [baseReassign p
+       ,baseReassign q
+       ,assignValue outVar (f (C.V p) (C.V q))
+       ]
         -- pure [assignValue (getOneVar outVars) (f (convertBase x) (convertBase y))]
 
 baseDecl :: C.CName -> C.Command
@@ -306,12 +312,31 @@ getOneVar vs = error $ "Expected one variable, got " ++ show vs
 assignValue :: C.CName -> CExpr -> C.Command
 assignValue cv = C.Assign (C.V cv :+ 0)
 
-convertBaseInto :: HasCallStack => C.CName -> AllocExpr -> C.Command
-convertBaseInto outVar (PikaCore.App (PikaCore.FnName f) _ xs) =
+convertBaseIntoFresh :: Fresh m => AllocExpr -> m (C.CName, [C.Command])
+convertBaseIntoFresh e = do
+  v <- fresh $ string2Name "p"
+  cmds <- convertBaseInto v e
+  pure (v, baseDecl v : cmds ++ [baseReassign v])
+  -- pure (v, [baseDecl v, convertBaseInto v e, baseReassign v])
+
+convertBaseInto :: (Fresh m, HasCallStack) => C.CName -> AllocExpr -> m [C.Command]
+convertBaseInto outVar (PikaCore.App (PikaCore.FnName f) _ xs) = do
     -- TODO: Handle nested calls here?
-  C.Call f (map convertBase xs) [C.V outVar]
-convertBaseInto outVar e = 
-  assignValue outVar (convertBase e)
+  (names, cmds) <- unzip <$> mapM convertBaseIntoFresh xs
+  pure $ concat cmds ++ [C.Call f (map C.V names) [C.V outVar]]
+convertBaseInto outVar (PikaCore.V x) = pure [assignValue outVar (C.V (convertName x))]
+convertBaseInto outVar (PikaCore.IntLit i) = pure [assignValue outVar (C.IntLit i)]
+convertBaseInto outVar (PikaCore.BoolLit b) = pure [assignValue outVar (C.BoolLit b)]
+convertBaseInto outVar (PikaCore.Add x y) = convertBaseBin outVar C.Add x y
+convertBaseInto outVar (PikaCore.Mul x y) = convertBaseBin outVar C.Mul x y
+convertBaseInto outVar (PikaCore.Sub x y) = convertBaseBin outVar C.Sub x y
+convertBaseInto outVar (PikaCore.Equal x y) = convertBaseBin outVar C.Equal x y
+convertBaseInto outVar (PikaCore.And x y) = convertBaseBin outVar C.And x y
+convertBaseInto outVar (PikaCore.Not x) = do
+  (name, cmds) <- convertBaseIntoFresh x
+  pure $ cmds ++ [assignValue outVar (C.Not (C.V name))]
+-- convertBaseInto outVar e = 
+--   pure [assignValue outVar (convertBase e)]
 
 convertBase :: HasCallStack => AllocExpr -> CExpr
 convertBase (PikaCore.V x) = C.V $ convertName x
