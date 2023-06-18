@@ -42,6 +42,8 @@ import Unbound.Generics.LocallyNameless
 
 import Control.Lens
 
+import Data.List
+
 import Control.Arrow
 
 type Outputs = LayoutArg CExpr
@@ -80,9 +82,12 @@ flattenBranchCmds ::
   [(FnDefBranch, [C.Command])] -> C.Command
 flattenBranchCmds outNameMap _ outNames [] = C.Nop
 flattenBranchCmds outNameMap allNames outNames ((branch, cmds) : rest) =
-  let branchCond = computeBranchCondition allNames branchNames
+  let 
+      baseNames = map convertName (PikaCore.inputBaseNames (_fnDefBranchInputAssertions branch))
+      branchCond = computeBranchCondition (allNames \\ baseNames) branchNames
       cmdsFvs = toListOf fv cmds
   in
+  trace ("branchNames = " ++ show branchNames ++ ", baseNames = " ++ show baseNames ++ ", cmds free vars = " ++ show (toListOf fv cmds :: [C.CName]) ++ "cmdsFvs = " ++ show cmdsFvs) $
   C.IfThenElse branchCond
     (cmds ++ mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
     [flattenBranchCmds outNameMap allNames outNames rest]
@@ -91,7 +96,7 @@ flattenBranchCmds outNameMap allNames outNames ((branch, cmds) : rest) =
     --   map (C.Decl . convertName) $ PikaCore.inputBaseNames $ _fnDefBranchInputAssertions branch
     branchNames =
       -- rename outNameMap $
-      concatMap (map convertName . inputNames) $ _fnDefBranchInputAssertions branch
+      map (convertName . PikaCore.getV . locBase . pointsToLhs) $ concat $ getInputAsns $ _fnDefBranchInputAssertions branch
 
 -- | Write to the actual output parameters
 mkOutputWrites :: [(C.CName, C.CName)] -> [C.CName] -> [C.Command]

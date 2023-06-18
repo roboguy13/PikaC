@@ -22,6 +22,7 @@ data Expr
   | IntLit Int
   | BoolLit Bool
   | Add Expr Expr
+  | Mul Expr Expr
   | Sub Expr Expr
   | Equal Expr Expr
   | And Expr Expr
@@ -110,6 +111,7 @@ instance Ppr Expr where
   ppr (BoolLit True) = text "true"
   ppr (BoolLit False) = text "false"
   ppr (Add x y) = sep [pprP x, text "+", pprP y]
+  ppr (Mul x y) = sep [pprP x, text "*", pprP y]
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
   ppr (Not x) = text "!" <> pprP x

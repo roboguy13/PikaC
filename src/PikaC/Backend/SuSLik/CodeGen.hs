@@ -152,6 +152,7 @@ convertBase (PikaCore.LayoutV []) = SuSLik.IntLit 0 -- TODO: Is this correct?
 convertBase (PikaCore.IntLit i) = SuSLik.IntLit i
 convertBase (PikaCore.BoolLit b) = SuSLik.BoolLit b
 convertBase (PikaCore.Add x y) = SuSLik.Add (convertBase x) (convertBase y)
+convertBase (PikaCore.Mul x y) = SuSLik.Mul (convertBase x) (convertBase y)
 convertBase (PikaCore.Sub x y) = SuSLik.Sub (convertBase x) (convertBase y)
 convertBase (PikaCore.Equal x y) = SuSLik.Equal (convertBase x) (convertBase y)
 convertBase (PikaCore.And x y) = SuSLik.And (convertBase x) (convertBase y)
