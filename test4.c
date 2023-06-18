@@ -32,67 +32,58 @@ void _print_Sll(loc x) {
  }
  printf(")");
 }
-void revcat(loc x1, loc x, loc x23) {
- if ((x1 == 0) && (x == 0)) {
-  loc x2 = NULL;
-  WRITE_LOC(x23, 0, x2);
+void _print_Dll(loc x, loc z) {
+ printf("(");
+ if ((x == 0) && (z == 0)) {
  } else {
-  if ((x1 == 0) && (!(x == 0))) {
-   loc h = READ_LOC(x, 0);
-   loc nxt21 = READ_LOC(x, 1);
-   loc x2 = (loc)malloc(2 * sizeof(loc));
-   WRITE_LOC(x2, 0, h);
-   WRITE_LOC(x2, 1, nxt21);
-   WRITE_LOC(x23, 0, x2);
-   WRITE_LOC(x23, 0, x2);
+  if ((!(x == 0)) && (z == 0)) {
+   loc head = READ_LOC(x, 0);
+   printf("%d ", head);
+   loc w = READ_LOC(x, 1);
+   loc z = READ_LOC(x, 2);
+   printf("%d ", z);
+   _print_Dll(w, x);
   } else {
-   if ((!(x1 == 0)) && (x == 0)) {
-    loc h = READ_LOC(x1, 0);
-    loc nxt38 = READ_LOC(x1, 1);
-    loc x1117 = (loc)malloc(2 * sizeof(loc));
-    WRITE_LOC(x1117, 0, h);
-    WRITE_LOC(x1117, 1, 0);
-    loc x2 = (loc)malloc(2 * sizeof(loc));
-    revcat(nxt38, x1117, &x2);
-    WRITE_LOC(x23, 0, x2);
-   } else {
-    if ((!(x1 == 0)) && (!(x == 0))) {
-     loc h1 = READ_LOC(x1, 0);
-     loc nxt61 = READ_LOC(x1, 1);
-     loc h2 = READ_LOC(x, 0);
-     loc nxt62 = READ_LOC(x, 1);
-     loc nxt1925 = (loc)malloc(2 * sizeof(loc));
-     WRITE_LOC(nxt1925, 0, h2);
-     WRITE_LOC(nxt1925, 1, nxt62);
-     loc x2228 = (loc)malloc(2 * sizeof(loc));
-     WRITE_LOC(x2228, 0, h1);
-     WRITE_LOC(x2228, 1, nxt1925);
-    loc x2 = (loc)malloc(2 * sizeof(loc));
-     revcat(nxt61, x2228, &x2);
-     WRITE_LOC(x23, 0, x2);
-    } else {
-    }
-   }
+  }
+ }
+ printf(")");
+}
+void mapAdd1(loc x, loc x12) {
+ if (x == 0) {
+  loc x1 = NULL;
+  WRITE_LOC(x12, 0, x1);
+ } else {
+  if (!(x == 0)) {
+   loc h = READ_LOC(x, 0);
+   loc nxt16 = READ_LOC(x, 1);
+   loc nxt59 = (loc)malloc(2 * sizeof(loc));
+   mapAdd1(nxt16, &nxt59);
+   loc x1 = (loc)malloc(2 * sizeof(loc));
+   WRITE_LOC(x1, 0, (int)h + (int)1);
+   WRITE_LOC(x1, 1, nxt59);
+   WRITE_LOC(x12, 0, x1);
+   WRITE_LOC(x12, 0, x1);
+  } else {
   }
  }
 }
 int main() {
- printf("*** Running test revcat\n");
- loc x = NULL;
- loc nxt1435 = (loc)malloc(2 * sizeof(loc));
- WRITE_LOC(nxt1435, 0, 2);
- WRITE_LOC(nxt1435, 1, 0);
- loc nxt1938 = (loc)malloc(2 * sizeof(loc));
- WRITE_LOC(nxt1938, 0, 20);
- WRITE_LOC(nxt1938, 1, 0);
- loc x2341 = (loc)malloc(2 * sizeof(loc));
- WRITE_LOC(x2341, 0, 1);
- WRITE_LOC(x2341, 1, nxt1435);
- loc x2644 = (loc)malloc(2 * sizeof(loc));
- WRITE_LOC(x2644, 0, 10);
- WRITE_LOC(x2644, 1, nxt1938);
- revcat(x2341, x2644, &x);
+ printf("*** Running test mapAdd1\n");
+ loc nxt725 = (loc)malloc(2 * sizeof(loc));
+ WRITE_LOC(nxt725, 0, 4);
+ WRITE_LOC(nxt725, 1, 0);
+ loc nxt1228 = (loc)malloc(2 * sizeof(loc));
+ WRITE_LOC(nxt1228, 0, 3);
+ WRITE_LOC(nxt1228, 1, nxt725);
+ loc nxt1631 = (loc)malloc(2 * sizeof(loc));
+ WRITE_LOC(nxt1631, 0, 2);
+ WRITE_LOC(nxt1631, 1, nxt1228);
+ loc x1934 = (loc)malloc(2 * sizeof(loc));
+ WRITE_LOC(x1934, 0, 1);
+ WRITE_LOC(x1934, 1, nxt1631);
+ loc x = (loc)malloc(2 * sizeof(loc));
+ mapAdd1(x1934, &x);
  _print_Sll(x);
- printf("\n");
+ printf("\n\n");
  return 0;
 }

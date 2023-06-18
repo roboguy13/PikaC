@@ -9,7 +9,7 @@ module PikaC.Backend.C.CodeGen
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 
-import PikaC.Syntax.PikaCore.FnDef (FnDef (..), FnDefBranch (..))
+import PikaC.Syntax.PikaCore.FnDef (FnDef (..), FnDefBranch (..), inputNames, getInputAsns)
 
 import PikaC.Stage.ToPikaCore.Utils
 
@@ -89,7 +89,7 @@ flattenBranchCmds outNameMap allNames outNames ((branch, cmds) : rest) =
   where
     branchNames =
       -- rename outNameMap $
-      concatMap (map (convertName . PikaCore.getV . locBase . pointsToLhs)) $ _fnDefBranchInputAssertions branch
+      concatMap (map convertName . inputNames) $ _fnDefBranchInputAssertions branch
 
 -- | Write to the actual output parameters
 mkOutputWrites :: [(C.CName, C.CName)] -> [C.CName] -> [C.Command]
@@ -119,7 +119,7 @@ convertBranch outVars outSizes actualOutVars = enterBranch $ \branch -> do
   body <-
     enterBranchBody (convertBranchBody outVars outSizes actualOutVars) $ _fnDefBranchBody branch
     -- codeGenAllocations (_fnDefBranchInAllocs branch)
-  setupInputs (concat (_fnDefBranchInputAssertions branch)) body
+  setupInputs (concat (getInputAsns (_fnDefBranchInputAssertions branch))) body
 
 setupInputs :: [PointsTo PikaCore.Expr] -> [C.Command] -> GenC [C.Command]
 setupInputs [] cmds = pure cmds

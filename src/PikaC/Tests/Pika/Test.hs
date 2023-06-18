@@ -33,15 +33,16 @@ genTestMain layouts tests = runGenC $ do
   pure $ C.CFunction
     { C.cfunctionName = "main"
     , C.cfunctionParams = []
-    , C.cfunctionBody = mainBody ++ [C.Printf "\\n" []]
+    , C.cfunctionBody = mainBody
     }
 
 runTest :: [Layout Expr] -> Test Expr -> GenC [C.Command]
 runTest layouts test = do
   testCmds <- runTest' layouts (_testResultType test) (_testExpr test)
   pure $
-    C.Printf ("*** Running test " ++ _testName test ++ "\\n") []
-    : testCmds
+    (C.Printf ("*** Running test " ++ _testName test ++ "\\n") []
+      : testCmds
+    ) ++ [C.Printf "\\n\\n" []]
 
 runTest' :: [Layout Expr] -> Type -> Expr -> GenC [C.Command]
 runTest' layouts ty e = do

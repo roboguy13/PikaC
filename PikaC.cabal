@@ -99,5 +99,6 @@ executable PikaC
                       deepseq,
                       process,
                       directory,
+                      bifunctors,
     hs-source-dirs:   src
     default-language: GHC2021

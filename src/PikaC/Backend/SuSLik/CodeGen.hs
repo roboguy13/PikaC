@@ -4,6 +4,7 @@ module PikaC.Backend.SuSLik.CodeGen
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
+import PikaC.Syntax.PikaCore.FnDef (inputNames, getInputAsns)
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 
@@ -52,12 +53,12 @@ genBranch allNames outNames branch = do
     , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
     , SuSLik._predBranchAssertion =
         bind asnVars $
-          map convertPointsTo (concat inAsns) ++ heaplets
+          map convertPointsTo (concat (getInputAsns inAsns)) ++ heaplets
     }
   where
     inAsns = PikaCore._fnDefBranchInputAssertions branch
     branchNames =
-      concatMap (map (convertName . PikaCore.getV . locBase . pointsToLhs)) inAsns
+      concatMap (map convertName . inputNames) inAsns
 
 
 toAssertion :: Fresh m => [SuSLik.ExprName] -> PikaCore.Expr -> m SuSLik.Assertion

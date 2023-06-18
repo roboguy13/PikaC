@@ -44,7 +44,7 @@ goBranch branch = do
   let e = _fnDefBranchBody branch
       asns = _fnDefBranchInputAssertions branch
 
-  e' <- go asns e
+  e' <- go (getInputAsns asns) e
   pure $ branch { _fnDefBranchBody = e' }
 
 go :: Fresh m => [ExprAssertion] -> Expr -> m Expr

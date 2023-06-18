@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Syntax.PikaCore.FnDef
   where
@@ -46,10 +47,18 @@ data FnDef =
   }
   deriving (Show, Generic)
 
+data Input = InputAsn ExprAssertion | InputVar ExprName
+  deriving (Show, Generic)
+
+getInputAsns :: [Input] -> [ExprAssertion]
+getInputAsns [] = []
+getInputAsns (InputAsn x : xs) = x : getInputAsns xs
+getInputAsns (InputVar {} : xs) = getInputAsns xs
+
 data FnDefBranch =
   FnDefBranch
   -- { _fnDefOutputParams :: [ModedName Expr]
-  { _fnDefBranchInputAssertions :: [ExprAssertion]
+  { _fnDefBranchInputAssertions :: [Input]
   , _fnDefBranchInAllocs :: [Allocation Expr]
   , _fnDefBranchBody :: Expr
   }
@@ -71,6 +80,18 @@ instance Alpha FnDef
 instance Subst Expr FnDefBranch
 
 instance Subst (Moded Expr) FnDefBranch
+
+inputNames :: Input -> [ExprName]
+inputNames (InputAsn asn) = map (getV . locBase . pointsToLhs) asn
+inputNames (InputVar v) = [v]
+
+instance Ppr Input where
+  ppr (InputAsn asn) = ppr asn
+  ppr (InputVar v) = ppr v
+
+instance Alpha Input
+
+instance Subst a (PointsTo Expr) => Subst a Input
 
 instance Ppr FnDef where
   ppr def = runFreshM $ do
@@ -143,7 +164,7 @@ instance WellScoped ExprName FnDef
 
 instance WellScoped ExprName FnDefBranch where
   wellScoped inScopes branch =
-    let inScopes' = inScopes ++ map (getV . pointsToRhs) (concat (_fnDefBranchInputAssertions branch))
+    let inScopes' = inScopes ++ concatMap inputNames (_fnDefBranchInputAssertions branch)
     in
     wellScoped inScopes' (_fnDefBranchBody branch)
 
@@ -230,6 +251,13 @@ genValidFnDef = do
 genValidBranch :: [Name Expr] -> [ModedName Expr] -> Gen FnDefBranch
 genValidBranch outVars = sized . genValidBranch' outVars
 
+instance Arbitrary Input where
+  arbitrary =
+    oneof
+      [ InputAsn <$> arbitrary
+      , InputVar <$> arbitrary
+      ]
+
 genValidBranch' :: [Name Expr] -> [ModedName Expr] -> Int -> Gen FnDefBranch
 genValidBranch' outVars modedBvs size = do
     i <- choose (1, 3)
@@ -244,7 +272,7 @@ genValidBranch' outVars modedBvs size = do
       --   then discard
       --   else genValidExpr' bvs (size `div` 2)
     allocs <- genValidAllocations $ concat inAsns
-    pure $ FnDefBranch inAsns allocs e
+    pure $ FnDefBranch (map InputAsn inAsns) allocs e
   where
     bvs = map modedNameName modedBvs
     asnName = newName bvs

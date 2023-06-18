@@ -240,7 +240,7 @@ genAndRunTests opts pikaModule = do
     mkConvertedTests =
         ((traversed . testExpr)
           %%~
-            convertExprAndSimplify Nothing)
+            convertExprAndSimplify [])
 
     convertedLayouts = map (runIdentity . runPikaConvert layouts [] fnDefs . convertLayout) layouts
     getPikaCore :: FnDef -> IO PikaCore.FnDef
@@ -277,7 +277,7 @@ withModule opts pikaModule = do
     mkConvertedTests =
         ((traversed . testExpr)
           %%~
-            convertExprAndSimplify Nothing)
+            convertExprAndSimplify [])
 
     generateFn :: Options -> PikaModule -> String -> IO ()
     generateFn opts pikaModule fnName =

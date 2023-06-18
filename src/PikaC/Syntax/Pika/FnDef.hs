@@ -51,6 +51,17 @@ newtype FnDefBranch =
 instance NFData FnDef
 instance NFData FnDefBranch
 
+-- | Take the patterns of the first branch. This is to be used when
+-- determining names for arguments of base type. Only the PatternVar's
+-- should be used. The other patterns are used so that the PatternVar's
+-- land in the right places.
+getFirstPatterns :: FnDef -> [Pattern Expr]
+getFirstPatterns fnDef =
+  let (FnDefBranch (PatternMatches matches):_) = fnDefBranches fnDef
+      (pats, _) = unsafeUnbind matches
+  in
+  pats
+
 getResultAllocSize :: [Layout Expr] -> FnDef -> [ExprName] -> [Allocation Expr]
 getResultAllocSize layouts fnDef outParams =
   let TypeSig _ ty = fnDefTypeSig fnDef
