@@ -65,10 +65,15 @@ getFirstPatterns fnDef =
 getResultAllocSize :: [Layout Expr] -> FnDef -> [ExprName] -> [Allocation Expr]
 getResultAllocSize layouts fnDef outParams =
   let TypeSig _ ty = fnDefTypeSig fnDef
-      (_, TyVar layoutName) = splitFnType ty
-      layout = lookupLayout layouts (name2String layoutName)
+      (_, resultTy) = splitFnType ty
   in
-  maxAllocsForLayout layout outParams
+  case resultTy of
+    _ | isBaseType resultTy -> []
+    TyVar layoutName ->
+      let
+          layout = lookupLayout layouts (name2String layoutName)
+      in
+      maxAllocsForLayout layout outParams
 
 getResultAllocSizeInts :: [Layout Expr] -> FnDef -> [Int]
 getResultAllocSizeInts layouts fnDef =

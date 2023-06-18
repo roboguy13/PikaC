@@ -227,27 +227,36 @@ getParameters (LayoutArg (vars, _)) = vars
 
 convertAppHereUsing :: (Monad m, HasCallStack) =>
   [OpenedArgBody] -> Pika.Expr ->
-  Layout PikaCore.Expr ->
+  [Moded PikaCore.ExprName] ->
+  -- Layout PikaCore.Expr ->
   PikaConvert m PikaCore.Expr
-convertAppHereUsing opened e layout = do
-  let params0 = getLayoutParams layout
-  params <- mapM (fresh . modedNameName) params0
-  let modedParams = zipWith Moded (map getMode params0) params
-  convertApp opened e (modedParams, PikaCore.LayoutV (map PikaCore.V params))
+convertAppHereUsing opened e params = do
+  convertApp opened e (params, PikaCore.LayoutV (map PikaCore.V (map modedNameName params)))
 
 convertAppHere :: (Monad m, HasCallStack) =>
   [OpenedArgBody] -> Pika.Expr ->
   PikaConvert m PikaCore.Expr
 convertAppHere opened e@(Pika.ApplyLayout _ layoutName) = do
   layout <- lookupLayoutM (name2String layoutName)
-  convertAppHereUsing opened e layout
+  let params0 = getLayoutParams layout
+  params <- mapM (fresh . modedNameName) params0
+  let modedParams = zipWith Moded (map getMode params0) params
+  convertAppHereUsing opened e modedParams
 convertAppHere opened e@(Pika.App f args)
   | isConstructor f = error $ "convertAppHere: Found constructor that's not applied to a layout: " ++ ppr' e
   | otherwise = do
         -- TODO: Handle base types
-      TyVar layoutName <- lookupFnResultType f
-      layout <- lookupLayoutM (name2String layoutName)
-      convertAppHereUsing opened e layout
+      resultTy <- lookupFnResultType f
+      case resultTy of
+        _ | isBaseType resultTy -> do
+          param <- fresh (string2Name "p")
+          convertAppHereUsing opened e [Moded Out param]
+        TyVar layoutName  -> do
+          layout <- lookupLayoutM (name2String layoutName)
+          let params0 = getLayoutParams layout
+          params <- mapM (fresh . modedNameName) params0
+          let modedParams = zipWith Moded (map getMode params0) params
+          convertAppHereUsing opened e modedParams
 convertAppHere opened e = convertExpr opened e
 
 convertApps :: (Monad m, HasCallStack) =>
@@ -267,23 +276,23 @@ convertApp openedArgLayouts (Pika.ApplyLayout app@(Pika.App f args) layoutName) 
   --     lowerConstructor openedArgLayouts f args (name2String layoutName)
   -- | otherwise =
   | not (isConstructor f) =
-      lowerApp openedArgLayouts (PikaCore.FnName f) args (name2String layoutName) (vs, z)
+      lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z)
 convertApp openedArgLayouts e0@(Pika.App f args) (vs, z)
   | isConstructor f = error $ "convertApp: Found constructor that's not applied to a layout: " ++ ppr' e0
   | otherwise = do
         -- TODO: Handle base types
-      TyVar layoutName <- lookupFnResultType f
-      lowerApp openedArgLayouts (PikaCore.FnName f) args (name2String layoutName) (vs, z)
+      -- TyVar layoutName <- lookupFnResultType f
+      lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z)
 convertApp openedArgLayouts e (vs, z) =
   PikaCore.WithIn
     <$> convertExpr openedArgLayouts e
     <*> pure (bind vs z)
 
 lowerApp ::  Monad m =>
-  [OpenedArgBody] -> PikaCore.FnName -> [Pika.Expr] -> String ->
+  [OpenedArgBody] -> PikaCore.FnName -> [Pika.Expr] ->
   ([ModedName PikaCore.Expr], PikaCore.Expr) ->
   PikaConvert m PikaCore.Expr
-lowerApp openedArgLayouts (PikaCore.FnName f) args layoutName (vs, z) = do
+lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z) = do
   args' <- mapM (convertExpr openedArgLayouts) args
   fnDef <- lookupFnDef f
   layouts <- asks _origLayoutEnv

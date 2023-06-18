@@ -155,20 +155,28 @@ convertBranchBody outVars outSizes actualOutVars = go
     go (PikaCore.LayoutV xs) = -- TODO: Make sure lengths match
         fmap concat $ sequenceA $ zipWith3 copy outSizes outVars (map PikaCore.getV xs)
     go (PikaCore.IntLit i) =
+      -- pure [convertBaseInto (getOneVar outVars) (C.IntLit i)]
         pure [assignValue (getOneVar outVars) (C.IntLit i)]
     go (PikaCore.BoolLit b) =
+      -- pure [convertBaseInto (getOneVar outVars) (C.BoolLit b)]
         pure [assignValue (getOneVar outVars) (C.BoolLit b)]
     go (PikaCore.Add x y) = goBin C.Add x y
     go (PikaCore.Mul x y) = goBin C.Mul x y
     go (PikaCore.Sub x y) = goBin C.Sub x y
     go (PikaCore.Equal x y) = goBin C.Equal x y
-    go (PikaCore.Not x) =
-      pure [assignValue (getOneVar outVars) (C.Not (convertBase x))]
+    go (PikaCore.Not x) = do
+      p <- fresh $ string2Name "p"
+      let xCmd = convertBaseInto p x
+      -- pure [convertBaseInto (getOneVar outVars) (C.Not (convertBase x))]
+      pure [C.Decl p
+           ,xCmd
+           ,assignValue (getOneVar outVars) (C.Not (C.V p))]
     go (PikaCore.And x y) = goBin C.And x y
     go (PikaCore.App (PikaCore.FnName f) sizes xs)
       | not (isConstructor f) && all PikaCore.isBasic xs =
           let allocs = zipWith Alloc (map convertName outVars) outSizes
           in
+            -- TODO: Handle nested calls here?
           codeGenAllocations allocs
             [C.Call f
               (map convertBase xs)
@@ -256,8 +264,19 @@ convertBranchBody outVars outSizes actualOutVars = go
               ++ zipWith C.Assign (map ((:+ 0) . C.V) actualOutVars) (map convertBase outVars'))
     go e = error $ "convertBranchBody: " ++ ppr' e
 
-    goBin f x y = 
-        pure [assignValue (getOneVar outVars) (f (convertBase x) (convertBase y))]
+    goBin f x y = do
+      p <- fresh (string2Name "p")
+      q <- fresh (string2Name "q")
+      let xCmd = convertBaseInto p x
+          yCmd = convertBaseInto q y
+          -- eCmd = convertBaseInto (getOneVar outVars) (f (C.V p) (C.V q))
+      pure [C.Decl p
+           ,C.Decl q
+           ,xCmd
+           ,yCmd
+           ,assignValue (getOneVar outVars) (f (C.V p) (C.V q))
+           ]
+        -- pure [assignValue (getOneVar outVars) (f (convertBase x) (convertBase y))]
 
 getAppArgs :: [AllocExpr] -> [C.CExpr]
 getAppArgs = concatMap go
@@ -275,6 +294,13 @@ getOneVar vs = error $ "Expected one variable, got " ++ show vs
 
 assignValue :: C.CName -> CExpr -> C.Command
 assignValue cv = C.Assign (C.V cv :+ 0)
+
+convertBaseInto :: HasCallStack => C.CName -> AllocExpr -> C.Command
+convertBaseInto outVar (PikaCore.App (PikaCore.FnName f) _ xs) =
+    -- TODO: Handle nested calls here?
+  C.Call f (map convertBase xs) [C.V outVar]
+convertBaseInto outVar e = 
+  assignValue outVar (convertBase e)
 
 convertBase :: HasCallStack => AllocExpr -> CExpr
 convertBase (PikaCore.V x) = C.V $ convertName x

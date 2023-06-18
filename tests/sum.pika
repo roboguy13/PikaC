@@ -1,0 +1,15 @@
+%generate sum
+
+Sll : layout[-x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  exists +nxt.
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+sum : Sll -> Int;
+sum Nil := 0;
+sum (Cons h t) := h + (sum t);
+
+
