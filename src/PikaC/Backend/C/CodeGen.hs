@@ -87,7 +87,6 @@ flattenBranchCmds outNameMap allNames outNames ((branch, cmds) : rest) =
       branchCond = computeBranchCondition (allNames \\ baseNames) branchNames
       cmdsFvs = toListOf fv cmds
   in
-  trace ("branchNames = " ++ show branchNames ++ ", baseNames = " ++ show baseNames ++ ", cmds free vars = " ++ show (toListOf fv cmds :: [C.CName]) ++ "cmdsFvs = " ++ show cmdsFvs) $
   C.IfThenElse branchCond
     (cmds ++ mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
     [flattenBranchCmds outNameMap allNames outNames rest]
