@@ -284,7 +284,7 @@ withModule opts pikaModule = do
         if _optOnlyC opts
           then (putStrLn . ppr' . codeGenFn) =<< getPikaCore (moduleLookupFn pikaModule fnName)
           else do
-            putStrLn $ "*** " <> fnName <> " ***"
+            putStrLn $ "\n*** " <> fnName <> " ***"
 
             putStrLn "- PikaCore:"
             pikaCore <- getPikaCore $ moduleLookupFn pikaModule fnName

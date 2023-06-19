@@ -148,6 +148,9 @@ pprBranch outParams doc branch = do
                 , hsep $ map ppr (_fnDefBranchInAllocs branch)
                 , text "==>"
                 , text "{" <+> hsep (punctuate (text ",") (map ppr outParams)) <+> text "}"
+                $$ case _fnDefBranchCondition branch of
+                    BoolLit True -> mempty
+                    cond -> text "|" <+> ppr cond
                 , text ":="
                 ]
         ])
