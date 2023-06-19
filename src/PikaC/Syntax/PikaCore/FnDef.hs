@@ -57,9 +57,9 @@ getInputAsns (InputVar {} : xs) = getInputAsns xs
 
 data FnDefBranch =
   FnDefBranch
-  -- { _fnDefOutputParams :: [ModedName Expr]
   { _fnDefBranchInputAssertions :: [Input]
   , _fnDefBranchInAllocs :: [Allocation Expr]
+  , _fnDefBranchCondition :: Expr -- Guard condition
   , _fnDefBranchBody :: Expr
   }
   deriving (Show, Generic)
@@ -277,7 +277,8 @@ genValidBranch' outVars modedBvs size = do
       --   then discard
       --   else genValidExpr' bvs (size `div` 2)
     allocs <- genValidAllocations $ concat inAsns
-    pure $ FnDefBranch (map InputAsn inAsns) allocs e
+    -- TODO: Generate the Boolean guard condition
+    pure $ FnDefBranch (map InputAsn inAsns) allocs (BoolLit True) e
   where
     bvs = map modedNameName modedBvs
     asnName = newName bvs

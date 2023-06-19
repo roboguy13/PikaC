@@ -39,17 +39,32 @@ data FnDef =
     }
   deriving (Show, Generic)
 
+data GuardedExpr =
+  GuardedExpr
+    Expr -- Boolean condition
+    Expr -- Body
+  deriving (Show, Generic)
+
 newtype FnDefBranch =
   FnDefBranch
-  { fnBranchMatch :: PatternMatches Expr Expr
+  { fnBranchMatch :: PatternMatches Expr GuardedExpr
   }
     -- { fnBranchPats :: [Pattern Expr]
     -- , fnBranchBody :: Bind [ExprName] Expr
     -- }
   deriving (Show, Generic)
 
+unguardMatches :: PatternMatches Expr GuardedExpr -> PatternMatches Expr Expr
+unguardMatches (PatternMatches matches) =
+  let (vars, GuardedExpr _ body) = unsafeUnbind matches
+  in
+  PatternMatches $ bind vars body
+
 instance NFData FnDef
+instance NFData GuardedExpr
 instance NFData FnDefBranch
+
+instance Alpha GuardedExpr
 
 -- | Take the patterns of the first branch. This is to be used when
 -- determining names for arguments of base type. Only the PatternVar's
@@ -122,6 +137,19 @@ instance Arbitrary FnDef where
     branches' <- sequenceA b
     pure $ fn { fnDefBranches = branches' }
 
+instance Arbitrary GuardedExpr where
+  arbitrary = error "Arbitrary GuardedExpr"
+  shrink = genericShrink
+
+instance WellScoped (Pattern Expr) GuardedExpr
+
+instance Subst Expr GuardedExpr
+
+instance Ppr GuardedExpr where
+  ppr (GuardedExpr (BoolLit True) body) = ppr body
+  ppr (GuardedExpr cond body) =
+    text "|" <+> ppr cond <+> text "=>" <+> ppr body
+
 genFnSig ::
    [(LayoutName, [(String, [Maybe LayoutName])])] ->
    Gen (String, [Maybe LayoutName], LayoutName)
@@ -183,7 +211,8 @@ genFnDefBranch fnSigs layouts outLayout size inLayouts = do
     { fnBranchMatch =
         PatternMatches
           $ bind (toPatterns $ zip (map fst inLayouts) $ map (map fst) locals)
-            $ body
+            $ GuardedExpr (BoolLit True) -- TODO: Generate this condition expression
+              $ body
     }
 
 toPatterns :: [(String, [ExprName])] -> [Pattern Expr]

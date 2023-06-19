@@ -201,9 +201,10 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
 
   let openedArgs = branchOpenedArgs matches1 openedLayoutBodies
 
-  matches <- convertPatternMatches openedArgs matches0
+  matches <- convertPatternMatches openedArgs (Pika.unguardMatches matches0)
 
-  (_, bodyExpr) <- openPatternMatches matches0
+  (_, Pika.GuardedExpr cond bodyExpr) <- openPatternMatches matches0
+  condExpr <- convertExpr openedArgs cond
   bodyExpr' <- convertExpr openedArgs bodyExpr
 
   -- inAsns <- zipWithM getAssertion openedArgLayouts $ patternMatchesPats matches
@@ -214,6 +215,7 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
   pure $ PikaCore.FnDefBranch
     { PikaCore._fnDefBranchInputAssertions = mkInputs openedArgLayouts inAsns
     , PikaCore._fnDefBranchInAllocs = allocs
+    , PikaCore._fnDefBranchCondition = condExpr
     , PikaCore._fnDefBranchBody = bodyExpr'
     }
 
@@ -365,6 +367,7 @@ convertExpr openedArgLayouts = go
     go e@(Pika.App {}) = convertAppHere openedArgLayouts e
     go (Pika.Add x y) = PikaCore.Add <$> go x <*> go y
     go (Pika.Mul x y) = PikaCore.Mul <$> go x <*> go y
+    go (Pika.Not x) = PikaCore.Not <$> go x
     go (Pika.Sub x y) = PikaCore.Sub <$> go x <*> go y
     go (Pika.Equal x y) = PikaCore.Equal <$> go x <*> go y
     go (Pika.IntLit i) = pure $ PikaCore.IntLit i

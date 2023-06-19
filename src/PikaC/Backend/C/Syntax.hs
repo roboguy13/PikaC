@@ -176,6 +176,10 @@ instance IsNested CExpr where
   isNested (And {}) = True
   isNested (Deref {}) = False
 
+whenTrue :: CExpr -> [Command] -> [Command]
+whenTrue (BoolLit True) cmds = cmds
+whenTrue cond cmds = [IfThenElse cond cmds []]
+
 instance IsName CExpr CExpr where
   getName (V x) = x
   getName e = error $ "IsName CExpr CExpr requires var, got " ++ ppr' e
@@ -205,6 +209,11 @@ instance IsBase CExpr where
   mkNot = Not
   mkEqual = Equal
   mkAnd = And
+
+andExpr :: CExpr -> CExpr -> CExpr
+andExpr x (BoolLit True) = x
+andExpr (BoolLit True) y = y
+andExpr x y = And x y
 
 --
 -- Property tests

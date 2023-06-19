@@ -11,10 +11,12 @@ Sll (Cons head tail) :=
 
 equal : Sll -> Sll -> Bool;
 equal Nil Nil := True;
-equal (Cons a as) (Cons b bs) := (equal as bs);
+equal (Cons a as) (Cons b bs) | (a == b) := (equal as bs);
+equal (Cons a as) (Cons b bs) | not (a == b) := False;
 equal Nil (Cons b bs) := False;
 equal (Cons a as) Nil := False;
 
 %test "equal1" Bool: equal (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]);
 %test "equal2" Bool: equal (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) (Nil [Sll]);
+%test "equal3" Bool: equal (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]);
 

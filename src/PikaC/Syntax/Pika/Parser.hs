@@ -155,12 +155,19 @@ parseFnDefBranch fnName = label "function branch" $ lexeme $ try $ do
   parserGuard (nameHere == fnName) (Just nameHere) fnName
 
   pats <- some parsePattern
+  cond <- fromMaybe (BoolLit True) <$> (optional parseGuard)
   symbol ":="
   body <- parseExpr
 
   symbol ";"
 
-  pure $ FnDefBranch (PatternMatches (bind pats body))
+  pure $ FnDefBranch (PatternMatches (bind pats (GuardedExpr cond body)))
+
+parseGuard :: Parser Expr
+parseGuard = label "guard" $ lexeme $ do
+  symbol "|"
+  cond <- parseExpr
+  pure cond
 
 parsePattern :: Parser (Pattern Expr)
 parsePattern = label "pattern" $ lexeme $
@@ -182,6 +189,7 @@ parseExpr = label "expression" $ lexeme $
   try (parseBinOp "*" Mul) <|>
   try (parseBinOp "-" Sub) <|>
   try (parseBinOp "==" Equal) <|>
+  try (Not <$> (keyword "not" *> parseExpr')) <|>
   try parseLayoutLambda <|>
   try parseApplyLayout <|>
   try parseApp <|>

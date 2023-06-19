@@ -54,6 +54,7 @@ data Expr
   | Mul Expr Expr
   | Sub Expr Expr
   | Equal Expr Expr
+  | Not Expr
   | LName LayoutName -- TODO: Remove?
   -- | Not Expr
   -- | And Expr Expr
@@ -90,6 +91,7 @@ instance Ppr Expr where
   ppr (Add x y) = hsep [pprP x, text "+", pprP y]
   ppr (Sub x y) = hsep [pprP x, text "-", pprP y]
   ppr (Equal x y) = hsep [pprP x, text "==", pprP y]
+  ppr (Not x) = hsep [text "not", parens (pprP x)]
   ppr (LName x) = ppr x
 
 instance IsNested Expr where
@@ -103,6 +105,7 @@ instance IsNested Expr where
   isNested (Mul {}) = True
   isNested (Sub {}) = True
   isNested (Equal {}) = True
+  isNested (Not {}) = True
   isNested (LName {}) = False
 
 instance Plated Expr where
@@ -121,6 +124,7 @@ instance Plated Expr where
     Sub <$> plate f x <*> plate f y
   plate f (Equal x y) =
     Equal <$> plate f x <*> plate f y
+  plate f (Not x) = Not <$> f x
   plate f (LName x) = pure $ LName x
 
 -- example :: Expr
@@ -142,7 +146,7 @@ instance IsBase Expr where
 
   intLit = IntLit
   boolLit = BoolLit
-  mkNot = error "Pika.mkNot" -- TODO: Add constructor for these
+  mkNot = Not
   mkEqual = Equal
   mkAnd = error "Pika.mkAnd"
 
@@ -217,6 +221,7 @@ reduceLayouts = go
       App f (map go args)
     go (Add x y) = Add (go x) (go y)
     go (Sub x y) = Sub (go x) (go y)
+    go (Not x) = Not (go x)
     go (Equal x y) = Equal (go x) (go y)
     go (LName x) = LName x
 

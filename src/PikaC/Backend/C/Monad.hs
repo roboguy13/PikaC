@@ -148,3 +148,13 @@ enterBranchBody f e = do
   annotated <- GenC $ annotateAllocs e
   f annotated
 
+-- | Also return the guard condition
+enterBranchBody' :: 
+  (PikaCore.Expr' AllocAnnotated -> GenC a) ->
+  PikaCore.FnDefBranch -> GenC (PikaCore.Expr' AllocAnnotated, a)
+enterBranchBody' f branch = do
+  annotatedBody <- GenC $ annotateAllocs $ PikaCore._fnDefBranchBody branch
+  annotatedCond <- GenC $ annotateAllocs $ PikaCore._fnDefBranchCondition branch
+  x <- f annotatedBody
+  pure (annotatedCond, x)
+

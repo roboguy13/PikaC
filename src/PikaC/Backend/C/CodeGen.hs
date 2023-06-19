@@ -62,9 +62,8 @@ codeGenFn fnDef = runGenC $ do
   -- inParamsC <- mapM fresh inParams
   outParamsC <- mapM fresh outParams
 
-  body <- mapM (convertBranch outParams (_fnDefOutputSizes fnDef) outParamsC)
-            -- $ rename (zip inParams derefedInParams)
-                branches0
+  let body = map (convertBranch outParams (_fnDefOutputSizes fnDef) outParamsC) branches0
+  bodyCmd <- flattenBranchCmds (zip outParams outParamsC) inParams outParams (zip branches0 body)
 
   pure $ C.CFunction
     { C.cfunctionName = fnName
@@ -72,24 +71,26 @@ codeGenFn fnDef = runGenC $ do
     , C.cfunctionBody =
         map baseDecl outParams -- TODO: Only use base type parameters here
           ++
-        [flattenBranchCmds (zip outParams outParamsC) inParams outParams (zip branches0 body)]
+        [bodyCmd]
     }
 
 flattenBranchCmds ::
   [(C.CName, C.CName)] ->  -- (actual parameter, deref'd name)
   [C.CName] ->
   [C.CName] -> -- Output parameters
-  [(FnDefBranch, [C.Command])] -> C.Command
-flattenBranchCmds outNameMap _ outNames [] = C.Nop
-flattenBranchCmds outNameMap allNames outNames ((branch, cmds) : rest) =
+  [(FnDefBranch, ([C.CName] -> [C.Command]) -> GenC [C.Command])] -> GenC C.Command
+flattenBranchCmds outNameMap _ outNames [] = pure C.Nop
+flattenBranchCmds outNameMap allNames outNames ((branch, cmdsFn) : rest) = do
   let 
       baseNames = map convertName (PikaCore.inputBaseNames (_fnDefBranchInputAssertions branch))
-      branchCond = computeBranchCondition (allNames \\ baseNames) branchNames
-      cmdsFvs = toListOf fv cmds
-  in
-  C.IfThenElse branchCond
-    (cmds ++ mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
-    [flattenBranchCmds outNameMap allNames outNames rest]
+      branchCond =
+          (computeBranchCondition (allNames \\ baseNames) branchNames)
+      -- cmdsFvs = toListOf fv (cmdsFn [])
+  cmds <- cmdsFn (\cmdsFvs -> mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
+  restCmd <- flattenBranchCmds outNameMap allNames outNames rest
+  pure $ C.IfThenElse branchCond
+    cmds
+    [restCmd]
   where
     -- baseDecls =
     --   map (C.Decl . convertName) $ PikaCore.inputBaseNames $ _fnDefBranchInputAssertions branch
@@ -120,12 +121,19 @@ mkOutputWrites outNameMap (n:ns) =
 --   mkDerefs derefed x (mkDerefs derefed y body)
 -- mkDerefs _ _ body = body
 
-convertBranch :: [C.CName] -> [Int] -> [C.CName] -> PikaCore.FnDefBranch -> GenC [C.Command]
-convertBranch outVars outSizes actualOutVars = enterBranch $ \branch -> do
-  body <-
-    enterBranchBody (convertBranchBody outVars outSizes actualOutVars) $ _fnDefBranchBody branch
+convertBranch :: [C.CName] -> [Int] -> [C.CName] -> PikaCore.FnDefBranch -> ([C.CName] -> [C.Command]) -> GenC [C.Command]
+convertBranch outVars outSizes actualOutVars = flip $ \k -> enterBranch $ \branch -> do
+  (cond, body) <-
+    enterBranchBody' (convertBranchBody outVars outSizes actualOutVars) branch
     -- codeGenAllocations (_fnDefBranchInAllocs branch)
-  setupInputs (concat (getInputAsns (_fnDefBranchInputAssertions branch))) body
+  (condName, condCmds) <- convertBaseIntoFresh cond
+  let restCmds = k $ toListOf fv body
+  let body' =
+        case cond of
+          PikaCore.BoolLit True -> body ++ restCmds
+          _ -> condCmds ++ C.whenTrue (C.V condName) (body ++ restCmds)
+
+  setupInputs (concat (getInputAsns (_fnDefBranchInputAssertions branch))) body'
 
 setupInputs :: [PointsTo PikaCore.Expr] -> [C.Command] -> GenC [C.Command]
 setupInputs [] cmds = pure cmds
