@@ -86,7 +86,8 @@ flattenBranchCmds outNameMap allNames outNames ((branch, cmdsFn) : rest) = do
       branchCond =
           (computeBranchCondition (allNames \\ baseNames) branchNames)
       -- cmdsFvs = toListOf fv (cmdsFn [])
-  cmds <- cmdsFn (\cmdsFvs -> mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
+  cmds <-
+    cmdsFn (\cmdsFvs -> mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
   restCmds <- flattenBranchCmds outNameMap allNames outNames rest
   pure $ C.IfThen branchCond cmds
     : restCmds
@@ -159,7 +160,8 @@ convertBranchBody ::
 convertBranchBody outVars outSizes actualOutVars = go
   where
     go :: PikaCore.Expr' AllocAnnotated -> GenC [C.Command]
-    go (PikaCore.V x) = copy (head outSizes) (getOneVar outVars) x
+    go (PikaCore.V x) =
+      copy (head outSizes) (getOneVar outVars) x
     go (PikaCore.LayoutV xs) = -- TODO: Make sure lengths match
         fmap concat $ sequenceA $ zipWith3 copy outSizes outVars (map PikaCore.getV xs)
     go (PikaCore.IntLit i) =
@@ -321,6 +323,7 @@ assignValue :: C.CName -> CExpr -> C.Command
 assignValue cv = C.Assign (C.V cv :+ 0)
 
 convertBaseIntoFresh :: Fresh m => AllocExpr -> m (C.CName, [C.Command])
+convertBaseIntoFresh (PikaCore.V x) = pure (convertName x, [])
 convertBaseIntoFresh e = do
   v <- fresh $ string2Name "p"
   cmds <- convertBaseInto v e
@@ -328,11 +331,13 @@ convertBaseIntoFresh e = do
   -- pure (v, [baseDecl v, convertBaseInto v e, baseReassign v])
 
 convertBaseInto :: (Fresh m, HasCallStack) => C.CName -> AllocExpr -> m [C.Command]
+convertBaseInto outVar (PikaCore.V x) =
+  pure [C.SimpleAssign outVar (convertName x)]
 convertBaseInto outVar (PikaCore.App (PikaCore.FnName f) _ xs) = do
     -- TODO: Handle nested calls here?
   (names, cmds) <- unzip <$> mapM convertBaseIntoFresh xs
   pure $ concat cmds ++ [C.Call f (map C.V names) [C.V outVar]]
-convertBaseInto outVar (PikaCore.V x) = pure [assignValue outVar (C.V (convertName x))]
+-- convertBaseInto outVar (PikaCore.V x) = pure [assignValue outVar (C.V (convertName x))]
 convertBaseInto outVar (PikaCore.LayoutV [PikaCore.V x]) = pure [assignValue outVar (C.V (convertName x))]
 convertBaseInto outVar (PikaCore.IntLit i) = pure [assignValue outVar (C.IntLit i)]
 convertBaseInto outVar (PikaCore.BoolLit b) = pure [assignValue outVar (C.BoolLit b)]
@@ -382,13 +387,13 @@ copy ::
   C.CName ->
   Name (PikaCore.Expr' AllocAnnotated) ->
   GenC [Command]
-copy sz cv v = do
+copy sz cv v =
   if sz == 0
-    then pure [C.Assign (C.V (convertName v) :+ 0) (C.V cv)]
+    then pure [C.Assign (C.V cv :+ 0) (C.V (convertName v))]
     else pure $ map go [0..sz-1]
   where
     go i =
-      C.Assign (C.V (convertName v) :+ i) (C.Deref ((C.V cv) :+ i))
+      C.Assign (C.V cv :+ i) (C.Deref ((C.V (convertName v)) :+ i))
 
 codeGenPointsTo :: PointsTo AllocExpr -> Command
 codeGenPointsTo ((PikaCore.V lhs :+ i) :-> rhs) =

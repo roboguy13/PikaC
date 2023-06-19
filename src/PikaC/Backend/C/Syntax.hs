@@ -35,6 +35,7 @@ data CExpr
 
 data Command
   = Assign CLoc CExpr
+  | SimpleAssign CName CName
   | SetToNull CName
   -- | IfThenElse CExpr [Command] [Command]
   | IfThen CExpr [Command]
@@ -75,6 +76,8 @@ instance Ppr Command where
       go :: Command -> FreshM Doc
       go (ToInt n) =
         pure $ ppr n <+> text "=" <+> (text "(long)(" <> ppr n <> text "->ssl_int);")
+      go (SimpleAssign x y) =
+        pure $ (ppr x <> text " = &" <> ppr y) <> text ";"
       go (Decl n) = do
         pure $ hsep [text "loc", ppr n <> text " = NULL;"]
       go (Assign loc e) =

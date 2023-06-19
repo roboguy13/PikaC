@@ -298,7 +298,7 @@ withModule opts pikaModule = do
             putStrLn "- PikaCore:"
             pikaCore <- getPikaCore $ moduleLookupFn pikaModule fnName
             putStrLn $ ppr' pikaCore
-            -- putStrLn $ show pikaCore
+            putStrLn $ show pikaCore
 
             when (not (_optNoC opts)) $ do
               putStrLn "\n- C:"
