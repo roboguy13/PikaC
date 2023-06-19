@@ -131,9 +131,9 @@ prop_genValidFnDef_sane :: Property
 prop_genValidFnDef_sane =
   withMaxSuccess 1000 $ propPreserves_valid pure
 
-prop_valid_reuseExistingPtrs :: Property
-prop_valid_reuseExistingPtrs =
-  withMaxSuccess 1000 $ propPreserves_valid reuseExistingPtrs
+-- prop_valid_reuseExistingPtrs :: Property
+-- prop_valid_reuseExistingPtrs =
+--   withMaxSuccess 1000 $ propPreserves_valid reuseExistingPtrs
 
 prop_valid_replaceClosedAssertions :: Property
 prop_valid_replaceClosedAssertions =

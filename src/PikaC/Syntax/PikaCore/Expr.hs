@@ -548,6 +548,7 @@ getOutputCount (Sub {}) = 1
 getOutputCount (Equal {}) = 1
 getOutputCount (And {}) = 1
 getOutputCount (Not {}) = 1
+getOutputCount (Lt {}) = 1
 getOutputCount (WithIn _ bnd) =
   let (_, body) = unsafeUnbind bnd
   in
