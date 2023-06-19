@@ -29,117 +29,160 @@ void _printBool(loc x) {
 #endif
 
 
-void _print_Sll(loc x) {
+void _print_SetLayout(loc x);
+void _print_SetLayout(loc x) {
  printf("(");
  if (x == 0) {
  }
  if (!(x == 0)) {
   if (!(x == 0)) {
-   loc head = READ_LOC(x, 0);
-   printf("%d ", head);
-   loc nxt = READ_LOC(x, 1);
-   _print_Sll(nxt);
+   loc p = READ_LOC(x, 0);
+   loc v = READ_LOC(x, 1);
+   printf("%d ", v);
+   loc q = READ_LOC(x, 2);
+   _print_SetLayout(p);
+   _print_SetLayout(q);
   }
   if (!(!(x == 0))) {
   }
  }
  printf(")");
 }
-void max(loc i1, loc i, loc i23) {
- loc i2 = (loc)malloc(1 * sizeof(loc));
- if (true) {
-  loc p4 = (loc)malloc(1 * sizeof(loc));
+void member(loc i1, loc x, loc b23) {
+ loc b2 = (loc)malloc(1 * sizeof(loc));
+ if (x == 0) {
+  WRITE_LOC(b2, 0, false);
+  WRITE_LOC(b23, 0, b2);
+ }
+ if (!(x == 0)) {
+  loc p18 = READ_LOC(x, 0);
+  loc a = READ_LOC(x, 1);
+  loc q19 = READ_LOC(x, 2);
   loc p5 = (loc)malloc(1 * sizeof(loc));
-  loc q6 = (loc)malloc(1 * sizeof(loc));
-  p5 = &i1;
-  q6 = &i;
+  loc p6 = (loc)malloc(1 * sizeof(loc));
+  loc q7 = (loc)malloc(1 * sizeof(loc));
+  p6 = &i1;
+  q7 = &a;
+  p6 = (long)(p6->ssl_int);
+  q7 = (long)(q7->ssl_int);
+  WRITE_LOC(p5, 0, p6 < q7);
   p5 = (long)(p5->ssl_int);
-  q6 = (long)(q6->ssl_int);
-  WRITE_LOC(p4, 0, p5 < q6);
-  p4 = (long)(p4->ssl_int);
-  if (p4) {
-   WRITE_LOC(i2, 0, i);
-   WRITE_LOC(i23, 0, i2);
+  if (p5) {
+   loc b2 = NULL;
+   member(i1, p18, &b2);
+   WRITE_LOC(b23, 0, b2);
   }
  }
- if (true) {
-  loc p7 = (loc)malloc(1 * sizeof(loc));
+ if (!(x == 0)) {
+  loc p35 = READ_LOC(x, 0);
+  loc a = READ_LOC(x, 1);
+  loc q36 = READ_LOC(x, 2);
   loc p8 = (loc)malloc(1 * sizeof(loc));
   loc p9 = (loc)malloc(1 * sizeof(loc));
   loc q10 = (loc)malloc(1 * sizeof(loc));
-  p9 = &i1;
-  q10 = &i;
+  p9 = &a;
+  q10 = &i1;
   p9 = (long)(p9->ssl_int);
   q10 = (long)(q10->ssl_int);
   WRITE_LOC(p8, 0, p9 < q10);
   p8 = (long)(p8->ssl_int);
-  WRITE_LOC(p7, 0, !p8);
-  p7 = (long)(p7->ssl_int);
-  if (p7) {
-   WRITE_LOC(i2, 0, i1);
-   WRITE_LOC(i23, 0, i2);
+  if (p8) {
+   loc b2 = NULL;
+   member(i1, q36, &b2);
+   WRITE_LOC(b23, 0, b2);
   }
  }
+ if (!(x == 0)) {
+  loc p52 = READ_LOC(x, 0);
+  loc a = READ_LOC(x, 1);
+  loc q53 = READ_LOC(x, 2);
+  WRITE_LOC(b2, 0, true);
+  WRITE_LOC(b23, 0, b2);
+ }
 }
-void maximum(loc x, loc i12) {
- loc i1 = (loc)malloc(1 * sizeof(loc));
+void insert(loc i1, loc x, loc x23) {
+ loc x2 = (loc)malloc(1 * sizeof(loc));
  if (x == 0) {
-  WRITE_LOC(i1, 0, 0);
-  WRITE_LOC(i12, 0, i1);
+  loc x2 = (loc)malloc(3 * sizeof(loc));
+  WRITE_LOC(x2, 0, 0);
+  WRITE_LOC(x2, 1, i1);
+  WRITE_LOC(x2, 2, 0);
+  WRITE_LOC(x23, 0, x2);
+  WRITE_LOC(x23, 0, x2);
  }
  if (!(x == 0)) {
-  loc a = READ_LOC(x, 0);
-  loc nxt10 = READ_LOC(x, 1);
-  loc ww46 = (loc)malloc(1 * sizeof(loc));
-  maximum(nxt10, &ww46);
-  loc i1 = (loc)malloc(1 * sizeof(loc));
-  loc p7 = (loc)malloc(1 * sizeof(loc));
-  p7 = READ_LOC(ww46, 0);
-  /* WRITE_LOC(p7, 0, ww46); */
-  /* p7 = (long)(p7->ssl_int); */
-  max(a, p7, &i1);
-  WRITE_LOC(i12, 0, i1);
+  loc p34 = READ_LOC(x, 0);
+  loc a = READ_LOC(x, 1);
+  loc q35 = READ_LOC(x, 2);
+  loc p26 = (loc)malloc(1 * sizeof(loc));
+  loc p27 = (loc)malloc(1 * sizeof(loc));
+  loc q28 = (loc)malloc(1 * sizeof(loc));
+  p27 = &i1;
+  q28 = &a;
+  p27 = (long)(p27->ssl_int);
+  q28 = (long)(q28->ssl_int);
+  WRITE_LOC(p26, 0, p27 < q28);
+  p26 = (long)(p26->ssl_int);
+  if (p26) {
+   loc p2024 = (loc)malloc(3 * sizeof(loc));
+   insert(i1, p34, &p2024);
+   loc x2 = (loc)malloc(3 * sizeof(loc));
+   WRITE_LOC(x2, 0, p2024);
+   WRITE_LOC(x2, 1, a);
+   WRITE_LOC(x2, 2, q35);
+   WRITE_LOC(x23, 0, x2);
+   WRITE_LOC(x23, 0, x2);
+  }
+ }
+ if (!(x == 0)) {
+  loc p59 = READ_LOC(x, 0);
+  loc a = READ_LOC(x, 1);
+  loc q60 = READ_LOC(x, 2);
+  loc p35 = (loc)malloc(1 * sizeof(loc));
+  loc p36 = (loc)malloc(1 * sizeof(loc));
+  loc q37 = (loc)malloc(1 * sizeof(loc));
+  p36 = &a;
+  q37 = &i1;
+  p36 = (long)(p36->ssl_int);
+  q37 = (long)(q37->ssl_int);
+  WRITE_LOC(p35, 0, p36 < q37);
+  p35 = (long)(p35->ssl_int);
+  if (p35) {
+   loc q2933 = (loc)malloc(3 * sizeof(loc));
+   insert(i1, q60, &q2933);
+   loc x2 = (loc)malloc(3 * sizeof(loc));
+   WRITE_LOC(x2, 0, p59);
+   WRITE_LOC(x2, 1, a);
+   WRITE_LOC(x2, 2, q2933);
+   WRITE_LOC(x23, 0, x2);
+   WRITE_LOC(x23, 0, x2);
+  }
+ }
+ if (!(x == 0)) {
+  loc p84 = READ_LOC(x, 0);
+  loc a = READ_LOC(x, 1);
+  loc q85 = READ_LOC(x, 2);
+  loc x2 = (loc)malloc(3 * sizeof(loc));
+  WRITE_LOC(x2, 0, p84);
+  WRITE_LOC(x2, 1, a);
+  WRITE_LOC(x2, 2, q85);
+  WRITE_LOC(x23, 0, x2);
+  WRITE_LOC(x23, 0, x2);
  }
 }
 int main() {
- printf("*** Running test max1\n");
- loc i = (loc)malloc(1 * sizeof(loc));
- loc p1 = (loc)malloc(1 * sizeof(loc));
- WRITE_LOC(p1, 0, 1);
- p1 = (long)(p1->ssl_int);
- loc p2 = (loc)malloc(1 * sizeof(loc));
- WRITE_LOC(p2, 0, 3);
- p2 = (long)(p2->ssl_int);
- max(p1, p2, &i);
- _printInt(i);
- printf("\n\n");
- printf("*** Running test max2\n");
- loc i3 = (loc)malloc(1 * sizeof(loc));
- loc p4 = (loc)malloc(1 * sizeof(loc));
- WRITE_LOC(p4, 0, 10);
- p4 = (long)(p4->ssl_int);
- loc p5 = (loc)malloc(1 * sizeof(loc));
- WRITE_LOC(p5, 0, 7);
- p5 = (long)(p5->ssl_int);
- max(p4, p5, &i3);
- _printInt(i3);
- printf("\n\n");
- printf("*** Running test maximum1\n");
- loc nxt1331 = (loc)malloc(2 * sizeof(loc));
- WRITE_LOC(nxt1331, 0, 30);
- WRITE_LOC(nxt1331, 1, 0);
- loc nxt1834 = (loc)malloc(2 * sizeof(loc));
- WRITE_LOC(nxt1834, 0, 40);
- WRITE_LOC(nxt1834, 1, nxt1331);
- loc nxt2237 = (loc)malloc(2 * sizeof(loc));
- WRITE_LOC(nxt2237, 0, 20);
- WRITE_LOC(nxt2237, 1, nxt1834);
- loc x2540 = (loc)malloc(2 * sizeof(loc));
- WRITE_LOC(x2540, 0, 10);
- WRITE_LOC(x2540, 1, nxt2237);
- loc i6 = (loc)malloc(1 * sizeof(loc));
- maximum(x2540, &i6);
- _printInt(i6);
+ printf("*** Running test member1\n");
+ loc ww49 = (loc)malloc(3 * sizeof(loc));
+ insert(20, 0, &ww49);
+ loc x = (loc)malloc(3 * sizeof(loc));
+ loc p10 = (loc)malloc(1 * sizeof(loc));
+ WRITE_LOC(p10, 0, 20);
+ p10 = (long)(p10->ssl_int);
+ loc p11 = (loc)malloc(1 * sizeof(loc));
+ WRITE_LOC(p11, 0, ww49);
+ p11 = (long)(p11->ssl_int);
+ member(p10, p11, &x);
+ _print_SetLayout(x);
  printf("\n\n");
  return 0;
 }

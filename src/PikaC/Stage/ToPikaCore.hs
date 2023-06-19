@@ -370,6 +370,7 @@ convertExpr openedArgLayouts = go
     go e@(Pika.App {}) = convertAppHere openedArgLayouts e
     go (Pika.Div x y) = PikaCore.Div <$> go x <*> go y
     go (Pika.Mod x y) = PikaCore.Mod <$> go x <*> go y
+    go (Pika.And x y) = PikaCore.And <$> go x <*> go y
     go (Pika.Add x y) = PikaCore.Add <$> go x <*> go y
     go (Pika.Mul x y) = PikaCore.Mul <$> go x <*> go y
     go (Pika.Not x) = PikaCore.Not <$> go x

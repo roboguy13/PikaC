@@ -1,0 +1,50 @@
+%generate member
+%generate insert
+
+-- Sets as BSTs
+
+SetLayout : layout[-x](Set);
+SetLayout Empty := emp;
+SetLayout (Node left v right) :=
+  exists +p, +q.
+  x :-> p **
+  (x+1) :-> v **
+  (x+2) :-> q **
+  SetLayout left [p] **
+  SetLayout right [q];
+
+member : Int -> SetLayout -> Bool;
+member n Empty := False;
+member n (Node l a r) | n < a := member n l;
+member n (Node l a r) | a < n := member n r;
+member n (Node l a r) | ((not (n < a)) && (not (a < n))) := True;
+
+insert : Int -> SetLayout -> SetLayout;
+insert n Empty := Node (Empty [SetLayout]) n (Empty [SetLayout]) [SetLayout];
+insert n (Node l a r) | n < a := Node (insert n l) a r [SetLayout];
+insert n (Node l a r) | a < n := Node l a (insert n r) [SetLayout];
+insert n (Node l a r) | ((not (n < a)) && (not (a < n))) := Node l a r [SetLayout];
+
+%test "insert1" SetLayout:
+  insert 3
+    (insert 2
+      (insert 5
+        (insert 20
+          (Empty [SetLayout]))));
+
+%test "member1" Bool:
+  member 20
+    (insert 3
+      (insert 2
+        (insert 5
+          (insert 20
+            (Empty [SetLayout])))));
+
+%test "member2" Bool:
+  member 100
+    (insert 3
+      (insert 2
+        (insert 5
+          (insert 20
+            (Empty [SetLayout])))));
+

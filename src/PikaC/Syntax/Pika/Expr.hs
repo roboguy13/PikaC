@@ -53,6 +53,7 @@ data Expr
   | Div Expr Expr
   | Mod Expr Expr
   | Add Expr Expr
+  | And Expr Expr
   | Mul Expr Expr
   | Sub Expr Expr
   | Equal Expr Expr
@@ -60,7 +61,6 @@ data Expr
   | Not Expr
   | LName LayoutName -- TODO: Remove?
   -- | Not Expr
-  -- | And Expr Expr
   deriving (Show, Generic)
 
 data Test a =
@@ -94,6 +94,7 @@ instance Ppr Expr where
   ppr (Mod x y) = hsep [pprP x, text "%", pprP y]
   ppr (Div x y) = hsep [pprP x, text "/", pprP y]
   ppr (Add x y) = hsep [pprP x, text "+", pprP y]
+  ppr (And x y) = hsep [pprP x, text "&&", pprP y]
   ppr (Sub x y) = hsep [pprP x, text "-", pprP y]
   ppr (Equal x y) = hsep [pprP x, text "==", pprP y]
   ppr (Lt x y) = hsep [pprP x, text "<", pprP y]
@@ -110,6 +111,7 @@ instance IsNested Expr where
   isNested (Div {}) = True
   isNested (Mod {}) = True
   isNested (Add {}) = True
+  isNested (And {}) = True
   isNested (Mul {}) = True
   isNested (Sub {}) = True
   isNested (Equal {}) = True
@@ -129,6 +131,8 @@ instance Plated Expr where
     Mod <$> plate f x <*> plate f y
   plate f (Div x y) =
     Div <$> plate f x <*> plate f y
+  plate f (And x y) =
+    And <$> plate f x <*> plate f y
   plate f (Add x y) =
     Add <$> plate f x <*> plate f y
   plate f (Mul x y) =
@@ -235,6 +239,7 @@ reduceLayouts = go
     go (App f args) =
       App f (map go args)
     go (Mod x y) = Mod (go x) (go y)
+    go (And x y) = And (go x) (go y)
     go (Add x y) = Add (go x) (go y)
     go (Sub x y) = Sub (go x) (go y)
     go (Not x) = Not (go x)

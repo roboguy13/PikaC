@@ -186,6 +186,7 @@ parsePattern = label "pattern" $ lexeme $
 parseExpr :: Parser Expr
 parseExpr = label "expression" $ lexeme $
   try (parseBinOp "%" Mod) <|>
+  try (parseBinOp "&&" And) <|>
   try (parseBinOp "/" Div) <|>
   try (parseBinOp "+" Add) <|>
   try (parseBinOp "*" Mul) <|>
