@@ -22,5 +22,9 @@ void _printInt(loc x) {
   printf("%d", x->ssl_int);
 }
 
+void _printBool(loc x) {
+  printf("%d", x->ssl_int);
+}
+
 #endif
 

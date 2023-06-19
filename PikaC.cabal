@@ -37,7 +37,6 @@ executable PikaC
       PikaC.Backend.Utils
       -- PikaC.Backend.C.DataDeps
       PikaC.Ppr
-      PikaC.Preorder.Preorder
       PikaC.Syntax.ParserUtils
       PikaC.Syntax.Heaplet
       PikaC.Syntax.PikaCore.Expr

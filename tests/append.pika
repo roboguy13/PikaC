@@ -15,3 +15,8 @@ append (Cons h t) Nil := Cons h t [Sll];
 append (Cons h t) (Cons h2 t2) :=
   Cons h (append t (Cons h2 t2 [Sll])) [Sll];
 
+%test "append" Sll:
+  append
+    (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll])
+    (Cons 10 (Cons 20 (Cons 30 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
+

@@ -1,0 +1,20 @@
+%generate equal
+-- %generate isAnagram
+
+Sll : layout[-x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  exists +nxt.
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+equal : Sll -> Sll -> Bool;
+equal Nil Nil := True;
+equal (Cons a as) (Cons b bs) := (equal as bs);
+equal Nil (Cons b bs) := False;
+equal (Cons a as) Nil := False;
+
+%test "equal1" Bool: equal (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]);
+%test "equal2" Bool: equal (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) (Nil [Sll]);
+
