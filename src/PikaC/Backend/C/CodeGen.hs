@@ -333,6 +333,7 @@ convertBaseInto outVar (PikaCore.App (PikaCore.FnName f) _ xs) = do
   (names, cmds) <- unzip <$> mapM convertBaseIntoFresh xs
   pure $ concat cmds ++ [C.Call f (map C.V names) [C.V outVar]]
 convertBaseInto outVar (PikaCore.V x) = pure [assignValue outVar (C.V (convertName x))]
+convertBaseInto outVar (PikaCore.LayoutV [PikaCore.V x]) = pure [assignValue outVar (C.V (convertName x))]
 convertBaseInto outVar (PikaCore.IntLit i) = pure [assignValue outVar (C.IntLit i)]
 convertBaseInto outVar (PikaCore.BoolLit b) = pure [assignValue outVar (C.BoolLit b)]
 convertBaseInto outVar (PikaCore.Add x y) = convertBaseBin outVar C.Add x y
@@ -343,6 +344,7 @@ convertBaseInto outVar (PikaCore.And x y) = convertBaseBin outVar C.And x y
 convertBaseInto outVar (PikaCore.Not x) = do
   (name, cmds) <- convertBaseIntoFresh x
   pure $ cmds ++ [assignValue outVar (C.Not (C.V name))]
+convertBaseInto _ e = error $ "convertBaseInto: " ++ ppr' e
 -- convertBaseInto outVar e = 
 --   pure [assignValue outVar (convertBase e)]
 
