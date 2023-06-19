@@ -23,6 +23,7 @@ import PikaC.Stage.ToPikaCore.SimplifyM
 import qualified PikaC.Stage.ToPikaCore.Simplify as Simplify
 
 import PikaC.Backend.C.CodeGen
+import PikaC.Backend.C.Syntax (declFunction)
 import PikaC.Backend.SuSLik.CodeGen (codeGenIndPred)
 
 import PikaC.Ppr
@@ -204,6 +205,13 @@ main = do
           else withModule opts pikaModule
       _ -> error "Expected file name"
 
+-- | Add forward declarations
+pprGenFns :: [PikaCore.FnDef] -> Doc
+pprGenFns fns =
+  let genFns = map codeGenFn fns
+  in
+  vcat (map declFunction genFns) $$ vcat (map ppr genFns)
+
 genAndRunTests :: Options -> PikaModule -> IO ()
 genAndRunTests opts pikaModule = do
       -- Generate C file
@@ -216,7 +224,7 @@ genAndRunTests opts pikaModule = do
 
       hPutStrLn handle . render . pprLayoutPrinters $ convertedLayouts
 
-      mapM_ (hPutStrLn handle . ppr' . codeGenFn) =<< mapM generateFn (moduleGenerates pikaModule)
+      (hPutStrLn handle . render . pprGenFns) =<< mapM generateFn (moduleGenerates pikaModule)
 
       let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
       hPutStrLn handle $ ppr' $ genTestMain convertedLayouts convertedTests

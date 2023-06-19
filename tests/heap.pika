@@ -1,12 +1,18 @@
+%generate findMin
 %generate testHeap
+%generate merge
+%generate mergePairs_helper
+%generate mergePairs
+%generate deleteMin
+%generate insert
 
 HeapLayout : layout[-x](Heap);
 HeapLayout Empty := emp;
-HeapLayout (Node a bs) :=
+HeapLayout (Node a as) :=
   exists +nxt.
   x :-> a **
   (x+1) :-> nxt **
-  ForestLayout bs [nxt];
+  ForestLayout as [nxt];
 
 ForestLayout : layout[-x](Forest);
 ForestLayout Nil := emp;
@@ -17,9 +23,45 @@ ForestLayout (Cons h t) :=
   HeapLayout h [p] **
   ForestLayout t [nxt];
 
+findMin : HeapLayout -> Int;
+findMin (Node a as) := a;
+
+merge : HeapLayout -> HeapLayout -> HeapLayout;
+merge (Node a as) Empty := Node a as [HeapLayout];
+merge Empty (Node a as) := Node a as [HeapLayout];
+merge (Node a as) (Node b bs)
+  | (a < b) :=
+      Node a (Cons (Node b bs [HeapLayout]) as [ForestLayout]) [HeapLayout];
+merge (Node a as) (Node b bs)
+  | not (a < b) :=
+      Node b (Cons (Node a as [HeapLayout]) bs [ForestLayout]) [HeapLayout];
+
+insert : Int -> HeapLayout -> HeapLayout;
+insert i Empty := merge (Node i (Nil [ForestLayout]) [HeapLayout]) (Empty [HeapLayout]);
+insert i (Node a as) := merge (Node i (Nil [ForestLayout]) [HeapLayout]) (Node a as [HeapLayout]);
+
+mergePairs_helper : HeapLayout -> ForestLayout -> HeapLayout;
+mergePairs_helper Empty Nil := Empty [HeapLayout];
+mergePairs_helper (Node a as) Nil := Node a as [HeapLayout];
+
+mergePairs_helper Empty (Cons h2 hs) :=
+  merge (merge (Empty [HeapLayout]) h2) (mergePairs hs);
+
+mergePairs_helper (Node a as) (Cons h2 hs) :=
+  merge (merge (Node a as [HeapLayout]) h2) (mergePairs hs);
+
+
+mergePairs : ForestLayout -> HeapLayout;
+mergePairs Nil := Empty [HeapLayout];
+mergePairs (Cons h1 hs) :=
+  mergePairs_helper h1 hs;
+  
+deleteMin : HeapLayout -> HeapLayout;
+deleteMin (Node a as) := mergePairs as;
+
 testHeap : HeapLayout -> HeapLayout;
 testHeap Empty := Empty [HeapLayout];
-testHeap (Node a bs) := Node a bs [HeapLayout];
+testHeap (Node a as) := Node a as [HeapLayout];
 
 %test "testHeap1" HeapLayout:
   testHeap
@@ -31,4 +73,41 @@ testHeap (Node a bs) := Node a bs [HeapLayout];
         (Nil [ForestLayout])
         [ForestLayout])
       [HeapLayout]);
+
+%test "merge1" HeapLayout:
+  merge
+    (Node 20
+      (Nil [ForestLayout])
+      [HeapLayout])
+    (Node 1
+      (Cons
+        (Node 2
+          (Nil [ForestLayout])
+          [HeapLayout])
+        (Nil [ForestLayout])
+        [ForestLayout])
+      [HeapLayout]);
+
+%test "insert1" HeapLayout:
+  insert 5
+    (Node 1
+      (Cons
+        (Node 2
+          (Nil [ForestLayout])
+          [HeapLayout])
+        (Nil [ForestLayout])
+        [ForestLayout])
+      [HeapLayout]);
+
+%test "deleteMin1" HeapLayout:
+  deleteMin
+    (insert 5
+      (Node 1
+        (Cons
+          (Node 2
+            (Nil [ForestLayout])
+            [HeapLayout])
+          (Nil [ForestLayout])
+          [ForestLayout])
+        [HeapLayout]));
 
