@@ -1,5 +1,5 @@
 %generate max
--- %generate maximum
+%generate maximum
 
 Sll : layout[-x](List);
 Sll Nil := emp;
@@ -13,10 +13,17 @@ max : Int -> Int -> Int;
 max x y | x < y := y;
 max x y | not (x < y) := x;
 
+maximum : Sll -> Int;
+maximum Nil := 0;
+maximum (Cons a as) := max a (maximum as);
+
 -- maxLen : Sll -> Sll -> Sll;
 -- maxLen Nil (Cons a as) := Cons a as [Sll];
 -- maxLen (Cons a as) Nil := Cons a as [Sll];
 
 %test "max1" Int: max 1 3;
 %test "max2" Int: max 10 7;
+
+%test "maximum1" Int:
+  maximum (Cons 10 (Cons 20 (Cons 40 (Cons 30 (Nil [Sll]) [Sll]) [Sll]) [Sll]) [Sll]);
 

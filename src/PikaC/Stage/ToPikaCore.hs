@@ -298,7 +298,10 @@ lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z) = do
   args' <- mapM (convertExpr openedArgLayouts) args
   fnDef <- lookupFnDef f
   layouts <- asks _origLayoutEnv
-  let szs = Pika.getResultAllocSizeInts layouts fnDef
+  let szs =
+        case Pika.getResultAllocSizeInts layouts fnDef of
+          [] -> [0] -- Result has a base type (Int or Bool)
+          xs -> xs
   pure $
     PikaCore.WithIn
       (PikaCore.App (PikaCore.FnName f) szs args')

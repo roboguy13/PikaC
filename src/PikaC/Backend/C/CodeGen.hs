@@ -225,7 +225,13 @@ convertBranchBody outVars outSizes actualOutVars = go
             [C.Call f
               (getAppArgs args)
               outs
-            ] ++ body'
+            ]
+            ++
+              case allocs of
+                [Alloc v 0] -> -- Result of call has base type
+                  [C.ToInt $ convertName v]
+                _ -> []
+            ++ body'
         PikaCore.WithIn {} -> error "Nested with-in"
         PikaCore.SslAssertion bnd1 -> do
           (asnVars, heaplets) <- unbind bnd1
@@ -410,13 +416,17 @@ convertLoc (x :+ i) = convertBase x :+ i
 codeGenAllocations :: [Allocation AllocExpr] -> [Command] -> GenC [Command]
 codeGenAllocations [] cmds = pure cmds
 codeGenAllocations (a:as) cmds = do
-  cmd <- codeGenAllocation a =<< codeGenAllocations as cmds
-  pure [cmd]
+  codeGenAllocation a =<< codeGenAllocations as cmds
 
-codeGenAllocation :: Allocation AllocExpr -> [Command] -> GenC Command
-codeGenAllocation (Alloc x sz0) cmds = do
-  let sz = if sz0 == 0 then 1 else sz0 -- TODO: Find a better solution
-  pure $ C.IntoMalloc sz
-    (convertName x)
-    cmds
+codeGenAllocation :: Allocation AllocExpr -> [Command] -> GenC [Command]
+codeGenAllocation (Alloc x sz) cmds = do
+  if sz == 0
+    then pure $ C.Decl (convertName x) : cmds
+    else pure $ [C.IntoMalloc sz
+            (convertName x)
+            cmds]
+  -- let sz = if sz0 == 0 then 1 else sz0 -- TODO: Find a better solution
+  -- pure $ C.IntoMalloc sz
+  --   (convertName x)
+  --   cmds
 
