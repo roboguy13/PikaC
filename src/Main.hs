@@ -64,6 +64,7 @@ data Options =
     , _optSelfTest :: Bool
     , _optGenTests :: Bool
     , _optRunTests :: Bool
+    , _optCompCert :: Bool
     }
   deriving (Show)
 
@@ -71,7 +72,7 @@ makeLenses ''Options
 
 defaultOpts :: Options
 defaultOpts =
-  Options False False False False Unlimited False False False False
+  Options False False False False Unlimited False False False False False
 
 type OptionUpdate = ([String], Options) -> ([String], Options)
 
@@ -111,6 +112,9 @@ optHandlers :: [OptionHandler]
 optHandlers =
   [option "--help" Nothing "Display this message" $ nullaryOpt $
       optHelp .~ True
+
+  ,option "--compcert" Nothing "Use ccomp (CompCert) instead of gcc" $ nullaryOpt $
+      optCompCert .~ True
 
   ,option "--no-c" Nothing "Disable C generation" $ nullaryOpt $
       optNoC .~ True
@@ -226,7 +230,12 @@ genAndRunTests opts pikaModule = do
         $ \(execFile, execHandle) -> do 
         hClose execHandle
 
-        system $ "gcc -w " ++ fileName ++ " -o " ++ execFile
+        let compiler =
+              if _optCompCert opts
+                then "ccomp"
+                else "gcc"
+
+        system $ compiler ++ " -w " ++ fileName ++ " -o " ++ execFile
 
         callProcess execFile []
 
