@@ -170,6 +170,8 @@ convertBranchBody outVars outSizes actualOutVars = go
     go (PikaCore.BoolLit b) =
       -- pure [convertBaseInto (getOneVar outVars) (C.BoolLit b)]
         pure [assignValue (getOneVar outVars) (C.BoolLit b)]
+    go (PikaCore.Mod x y) = goBin C.Mod x y
+    go (PikaCore.Div x y) = goBin C.Div x y
     go (PikaCore.Add x y) = goBin C.Add x y
     go (PikaCore.Mul x y) = goBin C.Mul x y
     go (PikaCore.Sub x y) = goBin C.Sub x y
@@ -347,6 +349,8 @@ convertBaseInto outVar (PikaCore.App (PikaCore.FnName f) _ xs) = do
 convertBaseInto outVar (PikaCore.LayoutV [PikaCore.V x]) = pure [assignValue outVar (C.V (convertName x))]
 convertBaseInto outVar (PikaCore.IntLit i) = pure [assignValue outVar (C.IntLit i)]
 convertBaseInto outVar (PikaCore.BoolLit b) = pure [assignValue outVar (C.BoolLit b)]
+convertBaseInto outVar (PikaCore.Mod x y) = convertBaseBin outVar C.Mod x y
+convertBaseInto outVar (PikaCore.Div x y) = convertBaseBin outVar C.Div x y
 convertBaseInto outVar (PikaCore.Add x y) = convertBaseBin outVar C.Add x y
 convertBaseInto outVar (PikaCore.Mul x y) = convertBaseBin outVar C.Mul x y
 convertBaseInto outVar (PikaCore.Sub x y) = convertBaseBin outVar C.Sub x y
@@ -364,6 +368,8 @@ convertBase :: HasCallStack => AllocExpr -> CExpr
 convertBase (PikaCore.V x) = C.V $ convertName x
 convertBase (PikaCore.IntLit i) = C.IntLit i
 convertBase (PikaCore.BoolLit b) = C.BoolLit b
+convertBase (PikaCore.Mod x y) = C.Mod (convertBase x) (convertBase y)
+convertBase (PikaCore.Div x y) = C.Div (convertBase x) (convertBase y)
 convertBase (PikaCore.Add x y) = C.Add (convertBase x) (convertBase y)
 convertBase (PikaCore.Mul x y) = C.Mul (convertBase x) (convertBase y)
 convertBase (PikaCore.Sub x y) = C.Sub (convertBase x) (convertBase y)

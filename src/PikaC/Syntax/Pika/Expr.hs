@@ -50,6 +50,8 @@ data Expr
   | LayoutLambda AdtName (Bind LayoutName Expr)
   | ApplyLayout Expr TypeName
   | App String [Expr]
+  | Div Expr Expr
+  | Mod Expr Expr
   | Add Expr Expr
   | Mul Expr Expr
   | Sub Expr Expr
@@ -89,6 +91,8 @@ instance Ppr Expr where
   ppr (ApplyLayout e ty) = hsep [ppr e, text "[" <> ppr ty <> text "]"]
   ppr (App f xs) = hsep (ppr f : map pprP xs)
   ppr (Mul x y) = hsep [pprP x, text "*", pprP y]
+  ppr (Mod x y) = hsep [pprP x, text "%", pprP y]
+  ppr (Div x y) = hsep [pprP x, text "/", pprP y]
   ppr (Add x y) = hsep [pprP x, text "+", pprP y]
   ppr (Sub x y) = hsep [pprP x, text "-", pprP y]
   ppr (Equal x y) = hsep [pprP x, text "==", pprP y]
@@ -103,6 +107,8 @@ instance IsNested Expr where
   isNested (LayoutLambda {}) = True
   isNested (ApplyLayout {}) = True
   isNested (App {}) = True
+  isNested (Div {}) = True
+  isNested (Mod {}) = True
   isNested (Add {}) = True
   isNested (Mul {}) = True
   isNested (Sub {}) = True
@@ -119,6 +125,10 @@ instance Plated Expr where
     ApplyLayout <$> plate f e <*> pure a
   plate f (App k xs) =
     App k <$> traverse (plate f) xs
+  plate f (Mod x y) =
+    Mod <$> plate f x <*> plate f y
+  plate f (Div x y) =
+    Div <$> plate f x <*> plate f y
   plate f (Add x y) =
     Add <$> plate f x <*> plate f y
   plate f (Mul x y) =
@@ -224,6 +234,7 @@ reduceLayouts = go
         e' -> ApplyLayout e' arg
     go (App f args) =
       App f (map go args)
+    go (Mod x y) = Mod (go x) (go y)
     go (Add x y) = Add (go x) (go y)
     go (Sub x y) = Sub (go x) (go y)
     go (Not x) = Not (go x)

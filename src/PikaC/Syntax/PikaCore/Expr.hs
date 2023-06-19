@@ -67,6 +67,8 @@ data Expr' (s :: Stage)
   | Add (Expr' s) (Expr' s)
   | Mul (Expr' s) (Expr' s)
   | Sub (Expr' s) (Expr' s)
+  | Mod (Expr' s) (Expr' s)
+  | Div (Expr' s) (Expr' s)
   | Equal (Expr' s) (Expr' s)
   | Lt (Expr' s) (Expr' s)
   | Not (Expr' s)
@@ -177,6 +179,8 @@ bindXV convertNameExpr convertNameAsn vars = go
     go (Add x y) = liftA2 Add (go x) (go y)
     go (Mul x y) = liftA2 Mul (go x) (go y)
     go (Sub x y) = liftA2 Sub (go x) (go y)
+    go (Div x y) = liftA2 Div (go x) (go y)
+    go (Mod x y) = liftA2 Mod (go x) (go y)
     go (Equal x y) = liftA2 Equal (go x) (go y)
     go (Lt x y) = liftA2 Lt (go x) (go y)
     go (Not x) = fmap Not (go x)
@@ -297,6 +301,8 @@ instance Plated Expr where
   plate f (LayoutV x) = pure $ LayoutV x
   plate f (IntLit i) = pure $ IntLit i
   plate f (BoolLit b) = pure $ BoolLit b
+  plate f (Div x y) = Div <$> f x <*> f y
+  plate f (Mod x y) = Mod <$> f x <*> f y
   plate f (Add x y) = Add <$> f x <*> f y
   plate f (Mul x y) = Mul <$> f x <*> f y
   plate f (Sub x y) = Sub <$> f x <*> f y
@@ -371,6 +377,14 @@ pprExpr (V x) = pure $ ppr x
 pprExpr (LayoutV x) = pure $ text "{" <+> hsep (punctuate (text ",") (map ppr x)) <+> text "}"
 pprExpr (IntLit i) = pure $ ppr i
 pprExpr (BoolLit b) = pure $ ppr b
+pprExpr (Mod x y) = do
+  xDoc <- pprExprP x
+  yDoc <- pprExprP y
+  pure $ sep [xDoc, text "%", yDoc]
+pprExpr (Div x y) = do
+  xDoc <- pprExprP x
+  yDoc <- pprExprP y
+  pure $ sep [xDoc, text "/", yDoc]
 pprExpr (Add x y) = do
   xDoc <- pprExprP x
   yDoc <- pprExprP y
@@ -414,6 +428,8 @@ instance IsNested (Expr' s) where
   isNested (BoolLit _) = False
 
   isNested (Add {}) = True
+  isNested (Div {}) = True
+  isNested (Mod {}) = True
   isNested (Mul {}) = True
   isNested (Sub {}) = True
   isNested (Equal {}) = True
@@ -429,6 +445,8 @@ isBasic (V x) = True
 isBasic (LayoutV _) = True
 isBasic (IntLit i) = True
 isBasic (BoolLit b) = True
+isBasic (Div x y) = True
+isBasic (Mod x y) = True
 isBasic (Add x y) = True
 isBasic (Mul x y) = True
 isBasic (Sub x y) = True
@@ -523,6 +541,8 @@ getOutputCount (LayoutV xs) = length xs
 getOutputCount (IntLit {}) = 1
 getOutputCount (BoolLit {}) = 1
 getOutputCount (Add {}) = 1
+getOutputCount (Div {}) = 1
+getOutputCount (Mod {}) = 1
 getOutputCount (Mul {}) = 1
 getOutputCount (Sub {}) = 1
 getOutputCount (Equal {}) = 1
@@ -603,6 +623,8 @@ genSimpleExpr bvs 0 =
 genSimpleExpr bvs size =
   oneof
     [genSimpleExpr bvs 0
+    ,Div <$> halvedGen <*> halvedGen
+    ,Mod <$> halvedGen <*> halvedGen
     ,Add <$> halvedGen <*> halvedGen
     ,Sub <$> halvedGen <*> halvedGen
     ,Mul <$> halvedGen <*> halvedGen
@@ -630,6 +652,8 @@ genValidExpr' bvs 0 =
 genValidExpr' bvs size =
   oneof
     [genValidExpr' bvs 0
+    ,Div <$> halvedGen <*> halvedGen
+    ,Mod <$> halvedGen <*> halvedGen
     ,Add <$> halvedGen <*> halvedGen
     ,Sub <$> halvedGen <*> halvedGen
     ,Mul <$> halvedGen <*> halvedGen

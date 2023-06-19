@@ -1,5 +1,6 @@
 module PikaC.Tests.Pika.Printer
-  (Printer
+  (pprLayoutPrinters
+  ,Printer
   ,getPrinter
   ,layoutPrinter
   ,layoutParamNames
@@ -26,6 +27,12 @@ import qualified PikaC.Backend.C.Syntax as C
 import           Control.Lens
 
 type Printer = FnName
+
+pprLayoutPrinters :: [Layout Expr] -> Doc
+pprLayoutPrinters layouts =
+  let printers = map layoutPrinter layouts
+  in
+  vcat (map C.declFunction printers) $$ vcat (map ppr printers)
 
 layoutPrinter :: Layout Expr -> C.CFunction
 layoutPrinter layout =
@@ -81,7 +88,13 @@ layoutPrinter layout =
             ]
         -- TODO: Handle layouts that apply *other* layouts.
         goBody recVars (LayoutBody (LApply layoutName patVar layoutVars : rest))
-          | layoutName /= _layoutName layout = error "layoutPrinter: Cannot create a layout printer for a layout that applies another layout"
+          | layoutName /= _layoutName layout =
+              C.Call (unFnName (getPrinter (TyVar (string2Name layoutName))))
+                (map (C.V . convertName . getV) layoutVars)
+                []
+              : goBody recVars (LayoutBody rest)
+              
+              --error "layoutPrinter: Cannot create a layout printer for a layout that applies another layout"
           | otherwise =
               C.Call ourFnName
                 (map (C.V . convertName . getV) layoutVars)

@@ -1,0 +1,34 @@
+%generate testHeap
+
+HeapLayout : layout[-x](Heap);
+HeapLayout Empty := emp;
+HeapLayout (Node a bs) :=
+  exists +nxt.
+  x :-> a **
+  (x+1) :-> nxt **
+  ForestLayout bs [nxt];
+
+ForestLayout : layout[-x](Forest);
+ForestLayout Nil := emp;
+ForestLayout (Cons h t) :=
+  exists +p, +nxt.
+  x :-> p **
+  (x+1) :-> nxt **
+  HeapLayout h [p] **
+  ForestLayout t [nxt];
+
+testHeap : HeapLayout -> HeapLayout;
+testHeap Empty := Empty [HeapLayout];
+testHeap (Node a bs) := Node a bs [HeapLayout];
+
+%test "testHeap1" HeapLayout:
+  testHeap
+    (Node 1
+      (Cons
+        (Node 2
+          (Nil [ForestLayout])
+          [HeapLayout])
+        (Nil [ForestLayout])
+        [ForestLayout])
+      [HeapLayout]);
+

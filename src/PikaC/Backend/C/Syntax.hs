@@ -28,6 +28,8 @@ data CExpr
   | Equal CExpr CExpr
   | Lt CExpr CExpr
   | And CExpr CExpr
+  | Mod CExpr CExpr
+  | Div CExpr CExpr
   | Not CExpr
   | Deref CLoc
   | AsInt CExpr
@@ -60,6 +62,11 @@ data CFunction =
     , cfunctionBody :: [Command]
     }
   deriving (Show, Generic)
+
+declFunction :: CFunction -> Doc
+declFunction fn =
+  text "void " <>
+   text (cfunctionName fn) <> text "(" <> hsep (punctuate (text ",") (map ((text "loc" <+>) . ppr) (cfunctionParams fn))) <> text ");"
 
 instance HasVar CExpr where
   mkVar = V
@@ -155,6 +162,8 @@ instance Ppr CExpr where
   ppr (IntLit i) = ppr i
   ppr (BoolLit True) = text "true"
   ppr (BoolLit False) = text "false"
+  ppr (Mod x y) = sep [intCast (pprP x), text "%", intCast (pprP y)]
+  ppr (Div x y) = sep [intCast (pprP x), text "/", intCast (pprP y)]
   ppr (Add x y) = sep [intCast (pprP x), text "+", intCast (pprP y)]
   ppr (Mul x y) = sep [intCast (pprP x), text "*", intCast (pprP y)]
   ppr (Sub x y) = sep [intCast (pprP x), text "-", intCast (pprP y)]
@@ -174,6 +183,8 @@ instance IsNested CExpr where
   isNested (BoolLit _) = False
 
   isNested (AsInt _) = True
+  isNested (Div {}) = True
+  isNested (Mod {}) = True
   isNested (Add {}) = True
   isNested (Mul {}) = True
   isNested (Sub {}) = True

@@ -214,7 +214,7 @@ genAndRunTests opts pikaModule = do
     $ \(fileName, handle) -> do
       hPutStrLn handle =<< readFile "tests/common/common.h"
 
-      mapM_ (hPutStrLn handle . ppr' . layoutPrinter) convertedLayouts
+      hPutStrLn handle . render . pprLayoutPrinters $ convertedLayouts
 
       mapM_ (hPutStrLn handle . ppr' . codeGenFn) =<< mapM generateFn (moduleGenerates pikaModule)
 
@@ -268,7 +268,7 @@ withModule opts pikaModule = do
     -- Generate the C preamble for testing
   when (_optGenTests opts) $ do
     putStrLn =<< readFile "tests/common/common.h"
-    mapM_ (putStrLn . ppr' . layoutPrinter) convertedLayouts
+    putStrLn . render . pprLayoutPrinters $ convertedLayouts
 
   forM_ (moduleGenerates pikaModule) $ \fnName -> do
     generateFn opts pikaModule fnName
