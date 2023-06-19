@@ -54,6 +54,7 @@ data Expr
   | Mul Expr Expr
   | Sub Expr Expr
   | Equal Expr Expr
+  | Lt Expr Expr
   | Not Expr
   | LName LayoutName -- TODO: Remove?
   -- | Not Expr
@@ -91,6 +92,7 @@ instance Ppr Expr where
   ppr (Add x y) = hsep [pprP x, text "+", pprP y]
   ppr (Sub x y) = hsep [pprP x, text "-", pprP y]
   ppr (Equal x y) = hsep [pprP x, text "==", pprP y]
+  ppr (Lt x y) = hsep [pprP x, text "<", pprP y]
   ppr (Not x) = hsep [text "not", parens (pprP x)]
   ppr (LName x) = ppr x
 
@@ -105,6 +107,7 @@ instance IsNested Expr where
   isNested (Mul {}) = True
   isNested (Sub {}) = True
   isNested (Equal {}) = True
+  isNested (Lt {}) = True
   isNested (Not {}) = True
   isNested (LName {}) = False
 
@@ -124,6 +127,8 @@ instance Plated Expr where
     Sub <$> plate f x <*> plate f y
   plate f (Equal x y) =
     Equal <$> plate f x <*> plate f y
+  plate f (Lt x y) =
+    Lt <$> plate f x <*> plate f y
   plate f (Not x) = Not <$> f x
   plate f (LName x) = pure $ LName x
 
@@ -223,6 +228,7 @@ reduceLayouts = go
     go (Sub x y) = Sub (go x) (go y)
     go (Not x) = Not (go x)
     go (Equal x y) = Equal (go x) (go y)
+    go (Lt x y) = Lt (go x) (go y)
     go (LName x) = LName x
 
 --

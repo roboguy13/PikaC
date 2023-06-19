@@ -55,12 +55,12 @@ layoutPrinter layout =
         branchNamesC = map convertName branchNames
 
         allNames = getPatternNames patVars ++ map (modedNameName . getExists) existVars
+        cond = (computeBranchCondition params branchNamesC)
       in
-      [C.IfThenElse
-        (computeBranchCondition params branchNamesC)
+      [C.IfThen
+        cond
         (goBody (filter (isRecVar matchBody) allNames) matchBody)
-        (go rest)
-      ]
+      ] ++ [C.IfThen (C.Not cond) (go rest)]
       where
         goBody :: [ExprName] -> LayoutBody Expr -> [C.Command]
         goBody recVars (LayoutBody []) = []

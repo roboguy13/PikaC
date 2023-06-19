@@ -370,6 +370,7 @@ convertExpr openedArgLayouts = go
     go (Pika.Not x) = PikaCore.Not <$> go x
     go (Pika.Sub x y) = PikaCore.Sub <$> go x <*> go y
     go (Pika.Equal x y) = PikaCore.Equal <$> go x <*> go y
+    go (Pika.Lt x y) = PikaCore.Lt <$> go x <*> go y
     go (Pika.IntLit i) = pure $ PikaCore.IntLit i
     go (Pika.BoolLit b) = pure $ PikaCore.BoolLit b
 

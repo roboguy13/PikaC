@@ -26,6 +26,7 @@ data CExpr
   | Mul CExpr CExpr
   | Sub CExpr CExpr
   | Equal CExpr CExpr
+  | Lt CExpr CExpr
   | And CExpr CExpr
   | Not CExpr
   | Deref CLoc
@@ -35,7 +36,8 @@ data CExpr
 data Command
   = Assign CLoc CExpr
   | SetToNull CName
-  | IfThenElse CExpr [Command] [Command]
+  -- | IfThenElse CExpr [Command] [Command]
+  | IfThen CExpr [Command]
   | Call
       String
       [CExpr] -- Input parameters
@@ -82,13 +84,13 @@ instance Ppr Command where
       go (SetToNull n) =
         pure $ ppr n <+> text "=" <+> text "NULL;"
 
-      go (IfThenElse c t f) = do
+      go (IfThen c t) = do
         tDoc <- mapM go t
-        fDoc <- mapM go f
+        -- fDoc <- mapM go f
         pure $ foldr1 ($$) [hsep [text "if (" <> ppr c <> text ")", text "{"]
             ,nest 1 (vcat tDoc)
-            ,hsep [text "}", text "else", text "{"]
-            ,nest 1 (hsep fDoc)
+            -- ,hsep [text "}", text "else", text "{"]
+            -- ,nest 1 (hsep fDoc)
             ,text "}"
             ]
 
@@ -154,6 +156,7 @@ instance Ppr CExpr where
   ppr (Mul x y) = sep [intCast (pprP x), text "*", intCast (pprP y)]
   ppr (Sub x y) = sep [intCast (pprP x), text "-", intCast (pprP y)]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
+  ppr (Lt x y) = sep [pprP x, text "<", pprP y]
   ppr (Not x) = text "!" <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
   ppr (Deref x) = text "*" <> ppr x
@@ -172,13 +175,14 @@ instance IsNested CExpr where
   isNested (Mul {}) = True
   isNested (Sub {}) = True
   isNested (Equal {}) = True
+  isNested (Lt {}) = True
   isNested (Not {}) = True
   isNested (And {}) = True
   isNested (Deref {}) = False
 
 whenTrue :: CExpr -> [Command] -> [Command]
 whenTrue (BoolLit True) cmds = cmds
-whenTrue cond cmds = [IfThenElse cond cmds []]
+whenTrue cond cmds = [IfThen cond cmds]
 
 instance IsName CExpr CExpr where
   getName (V x) = x

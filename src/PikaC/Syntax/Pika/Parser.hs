@@ -189,6 +189,7 @@ parseExpr = label "expression" $ lexeme $
   try (parseBinOp "*" Mul) <|>
   try (parseBinOp "-" Sub) <|>
   try (parseBinOp "==" Equal) <|>
+  try (parseBinOp "<" Lt) <|>
   try (Not <$> (keyword "not" *> parseExpr')) <|>
   try parseLayoutLambda <|>
   try parseApplyLayout <|>

@@ -71,15 +71,15 @@ codeGenFn fnDef = runGenC $ do
     , C.cfunctionBody =
         map baseDecl outParams -- TODO: Only use base type parameters here
           ++
-        [bodyCmd]
+        bodyCmd
     }
 
 flattenBranchCmds ::
   [(C.CName, C.CName)] ->  -- (actual parameter, deref'd name)
   [C.CName] ->
   [C.CName] -> -- Output parameters
-  [(FnDefBranch, ([C.CName] -> [C.Command]) -> GenC [C.Command])] -> GenC C.Command
-flattenBranchCmds outNameMap _ outNames [] = pure C.Nop
+  [(FnDefBranch, ([C.CName] -> [C.Command]) -> GenC [C.Command])] -> GenC [C.Command]
+flattenBranchCmds outNameMap _ outNames [] = pure [C.Nop]
 flattenBranchCmds outNameMap allNames outNames ((branch, cmdsFn) : rest) = do
   let 
       baseNames = map convertName (PikaCore.inputBaseNames (_fnDefBranchInputAssertions branch))
@@ -87,10 +87,10 @@ flattenBranchCmds outNameMap allNames outNames ((branch, cmdsFn) : rest) = do
           (computeBranchCondition (allNames \\ baseNames) branchNames)
       -- cmdsFvs = toListOf fv (cmdsFn [])
   cmds <- cmdsFn (\cmdsFvs -> mkOutputWrites outNameMap (filter (`elem` cmdsFvs) outNames))
-  restCmd <- flattenBranchCmds outNameMap allNames outNames rest
-  pure $ C.IfThenElse branchCond
-    cmds
-    [restCmd]
+  restCmds <- flattenBranchCmds outNameMap allNames outNames rest
+  pure $ C.IfThen branchCond cmds
+    : restCmds
+    -- : [C.IfThen (C.Not branchCond) restCmds]
   where
     -- baseDecls =
     --   map (C.Decl . convertName) $ PikaCore.inputBaseNames $ _fnDefBranchInputAssertions branch
@@ -341,6 +341,7 @@ convertBaseInto outVar (PikaCore.Mul x y) = convertBaseBin outVar C.Mul x y
 convertBaseInto outVar (PikaCore.Sub x y) = convertBaseBin outVar C.Sub x y
 convertBaseInto outVar (PikaCore.Equal x y) = convertBaseBin outVar C.Equal x y
 convertBaseInto outVar (PikaCore.And x y) = convertBaseBin outVar C.And x y
+convertBaseInto outVar (PikaCore.Lt x y) = convertBaseBin outVar C.Lt x y
 convertBaseInto outVar (PikaCore.Not x) = do
   (name, cmds) <- convertBaseIntoFresh x
   pure $ cmds ++ [assignValue outVar (C.Not (C.V name))]
@@ -357,6 +358,7 @@ convertBase (PikaCore.Mul x y) = C.Mul (convertBase x) (convertBase y)
 convertBase (PikaCore.Sub x y) = C.Sub (convertBase x) (convertBase y)
 convertBase (PikaCore.Equal x y) = C.Equal (convertBase x) (convertBase y)
 convertBase (PikaCore.And x y) = C.And (convertBase x) (convertBase y)
+convertBase (PikaCore.Lt x y) = C.Lt (convertBase x) (convertBase y)
 convertBase (PikaCore.Not x) = C.Not (convertBase x)
 convertBase e = error $ "convertBase: " ++ ppr' e
 
