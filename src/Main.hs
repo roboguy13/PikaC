@@ -29,6 +29,8 @@ import PikaC.Backend.C.Syntax (declFunction)
 import PikaC.Backend.SuSLik.CodeGen
 import PikaC.Backend.SuSLik.Invoke
 
+import qualified PikaC.Backend.SuSLik.SuSLang.Parser as SuSLang
+
 import PikaC.Ppr
 
 import PikaC.Tests.Pika.Test
@@ -274,7 +276,10 @@ withModule opts pikaModule = do
               putStrLn "\n- SuSLang:"
               invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
                 Left err -> error $ "SuSLik error: " ++ err
-                Right susLang -> putStrLn susLang
+                Right susLang -> do
+                  putStrLn susLang
+                  let susLangFn = unlines . drop 2 . lines $ susLang -- Drop the initial 2 lines, which just give the pre- and post-condition
+                  print $ parse' SuSLang.parseFunction susLangFn
 
     fuel = _optSimplifierFuel opts
 

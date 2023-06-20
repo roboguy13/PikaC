@@ -202,7 +202,7 @@ parseExpr = label "expression" $ lexeme $
 parseExpr' :: Parser Expr
 parseExpr' = label "expression" $ lexeme $
   try (symbol "(" *> parseExpr <* symbol ")") <|>
-  try (IntLit . read <$> some digitChar) <|>
+  try (IntLit <$> parseInt) <|>
   try (keyword "False" $> BoolLit False) <|>
   try (keyword "True" $> BoolLit True) <|>
   try (V <$> parseLowercaseExprName)
@@ -302,7 +302,7 @@ parseLoc = label "location" $ lexeme $
       symbol "("
       v <- V <$> parseExprName
       symbol "+"
-      i <- read <$> some digitChar
+      i <- parseInt
       symbol ")"
       pure (v :+ i)
 

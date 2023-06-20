@@ -41,6 +41,9 @@ keyword str = lexeme (string str <* notFollowedBy alphaNumChar)
 parseBracketed :: Parser a -> Parser a -> Parser b -> Parser b
 parseBracketed left right p = left *> p <* right
 
+parseInt :: Parser Int
+parseInt = read <$> some digitChar
+
 parserGuard :: Bool -> Maybe String -> String -> Parser ()
 parserGuard True _ _ = pure ()
 parserGuard False unexpected expected =

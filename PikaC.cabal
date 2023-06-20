@@ -37,6 +37,9 @@ executable PikaC
       PikaC.Backend.Utils
       -- PikaC.Backend.C.DataDeps
       PikaC.Ppr
+      PikaC.Backend.SuSLik.Invoke
+      PikaC.Backend.SuSLik.SuSLang.Parser
+      PikaC.Backend.SuSLik.SuSLang.Syntax
       PikaC.Syntax.ParserUtils
       PikaC.Syntax.Heaplet
       PikaC.Syntax.PikaCore.Expr
@@ -121,6 +124,9 @@ test-suite PikaC-golden-tests
       PikaC.Backend.SuSLik.Syntax
       PikaC.Backend.SuSLik.CodeGen
       PikaC.Backend.SuSLik.Invoke
+      PikaC.Backend.SuSLik.SuSLang.Syntax
+      PikaC.Backend.SuSLik.SuSLang.Parser
+      PikaC.Backend.SuSLik.SuSLang.ToC
       PikaC.Backend.Utils
       -- PikaC.Backend.C.DataDeps
       PikaC.Ppr
