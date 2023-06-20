@@ -161,6 +161,8 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
           BaseArg' {} -> [Alloc (modedNameName (head outParams)) 0]
           LayoutArg layout -> maxAllocsForLayout layout (map modedNameName outParams)
 
+  let layouts = zipWith getArgLayout argTypes $ map (map modedNameName) inParams
+
   piLift . lift . runSimplifyFn @m simplifyFuel simplifyFnDef $
   -- pure $
     PikaCore.FnDef
@@ -170,8 +172,13 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
       , PikaCore._fnDefType = _typeSigTy (Pika.fnDefTypeSig fn)
       , PikaCore._fnDefBranches =
           bind (concat inParams)
-            (bind outParams branches')
+            (bind outParams (layouts, branches'))
       }
+
+getArgLayout :: Type -> [PikaCore.ExprName] -> Maybe PikaCore.ArgLayout
+getArgLayout IntType vs = Nothing
+getArgLayout BoolType vs = Nothing
+getArgLayout (TyVar n) vs = Just $ PikaCore.ArgLayout (name2String n) vs
 
 mkInputs :: [OpenedArg] -> [PikaCore.ExprAssertion] -> [PikaCore.Input]
 mkInputs [] [] = []

@@ -34,9 +34,9 @@ import Unbound.Generics.LocallyNameless
 reuseExistingPtrs :: Logger m => FnDef -> SimplifyM m FnDef
 reuseExistingPtrs = step "reuseExistingPtrs" $ \fnDef -> do
   (inVars, bnd1) <- unbind $ _fnDefBranches fnDef
-  (outVars, branches) <- unbind bnd1
+  (outVars, (layouts, branches)) <- unbind bnd1
 
-  branches' <- bind inVars <$> (bind outVars <$> mapM goBranch branches)
+  branches' <- bind inVars <$> (bind outVars <$> ((layouts,) <$> mapM goBranch branches))
   pure $ fnDef { _fnDefBranches = branches' }
 
 goBranch :: Fresh m => FnDefBranch -> m FnDefBranch

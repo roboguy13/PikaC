@@ -136,9 +136,9 @@ instance Ppr HeapletS where
   ppr (PointsToS p) = ppr p
   ppr (BlockS n sz) = text "[" <> text (show n) <> text "," <> text (show sz) <> text "]"
   ppr (RecApply f args) =
-    text "func " <> text f <> text "(" <> hsep (punctuate (text ",") (map ppr args))  <> text ")"
-  ppr (ApplyS f args) =
     text f <> text "(" <> hsep (punctuate (text ",") (map ppr args))  <> text ")"
+  ppr (ApplyS f args) =
+    text "func " <> text f <> text "(" <> hsep (punctuate (text ",") (map ppr args))  <> text ")"
 
 instance Ppr PredicateBranch where
   ppr branch =

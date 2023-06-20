@@ -38,13 +38,13 @@ import Debug.Trace
 renameResultLayout :: Logger m => FnDef -> SimplifyM m FnDef
 renameResultLayout = step "renameResultLayout" $ \fnDef -> do
   (inputs, bnd1) <- unbind $ _fnDefBranches fnDef
-  (outputs, branches) <- unbind bnd1
+  (outputs, (layouts, branches)) <- unbind bnd1
   branches' <- mapM (onFnDefBranch (go (map modedNameName outputs))) branches
 
   pure $ fnDef
     { _fnDefBranches =
         bind inputs
-          (bind outputs branches')
+          (bind outputs (layouts, branches'))
     }
 
   -- onFnDef (go (map modedNameName outputs))

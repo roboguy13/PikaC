@@ -25,7 +25,7 @@ import qualified PikaC.Stage.ToPikaCore.Simplify as Simplify
 
 import PikaC.Backend.C.CodeGen
 import PikaC.Backend.C.Syntax (declFunction)
-import PikaC.Backend.SuSLik.CodeGen (codeGenIndPred)
+import PikaC.Backend.SuSLik.CodeGen
 
 import PikaC.Ppr
 
@@ -262,6 +262,7 @@ withModule opts pikaModule = do
             when (not (_optNoSuSLik opts)) $ do
               putStrLn "\n- SuSLik:"
               putStrLn $ ppr' $ codeGenIndPred pikaCore
+              putStrLn $ ppr' $ codeGenFnSig pikaCore
     fuel = _optSimplifierFuel opts
 
     getPikaCore :: FnDef -> IO PikaCore.FnDef

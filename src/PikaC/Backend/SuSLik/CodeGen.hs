@@ -1,5 +1,6 @@
 module PikaC.Backend.SuSLik.CodeGen
-  (codeGenIndPred)
+  (codeGenFnSig
+  ,codeGenIndPred)
   where
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
@@ -21,21 +22,65 @@ import Unbound.Generics.LocallyNameless
 import Control.Lens
 import Control.Monad
 
+import Data.Maybe
+
 import Debug.Trace
+
+codeGenFnSig :: PikaCore.FnDef -> SuSLik.FnSig
+codeGenFnSig fnDef = runFreshM $ do
+  let PikaCore.FnName fnName = PikaCore._fnDefName fnDef
+
+  (inParams, bnd1) <- unbind $ PikaCore._fnDefBranches fnDef
+  (outParams, (layouts, branches)) <- unbind bnd1
+
+  let inParams' = map (convertName . modedNameName) inParams
+  let outParams' = map (convertName . modedNameName) outParams
+
+  let params = map (convertName . modedNameName) $ inParams ++ outParams
+  let allocs = mkLayoutApps layouts
+
+  (_, precondOuts) <- mkOutPointsTos outParams'
+  (postCondOutVars, postCondOuts) <- mkOutPointsTos outParams'
+
+  let spec = SuSLik.FnSpec
+              { SuSLik._fnSpecPrecond = allocs ++ precondOuts
+              , SuSLik._fnSpecPostcond =
+                  [RecApply fnName (map mkVar (inParams' ++ postCondOutVars))]
+                  ++ postCondOuts
+              }
+
+  pure $ SuSLik.FnSig
+    { SuSLik._fnSigName = fnName
+    , SuSLik._fnSigConds = (params, spec)
+    }
+
+mkOutPointsTos :: Fresh m => [SuSLik.ExprName] -> m ([SuSLik.ExprName], [HeapletS])
+mkOutPointsTos [] = pure ([], [])
+mkOutPointsTos (x:xs) = do
+  x' <- fresh x
+  let p = bimap (x':) (PointsToS ((mkVar x :+ 0) :-> mkVar x') :)
+  rest <- mkOutPointsTos xs
+  pure (p rest)
+
+mkLayoutApps :: [Maybe PikaCore.ArgLayout] -> [HeapletS]
+mkLayoutApps = map go . catMaybes
+  where
+    go (PikaCore.ArgLayout n vs) =
+      RecApply n (map (mkVar . convertName) vs)  -- Not actually recursive, but this generates the correct kind of predicate application
 
 codeGenIndPred :: PikaCore.FnDef -> SuSLik.InductivePredicate
 codeGenIndPred fnDef = runFreshM $ do
   let PikaCore.FnName fnName = PikaCore._fnDefName fnDef
 
   (inParams, bnd1) <- unbind $ PikaCore._fnDefBranches fnDef
-  (outParams, branches) <- unbind bnd1
+  (outParams, (_layouts, branches)) <- unbind bnd1
 
   let unmodedInParams = map (convertName . modedNameName) inParams
       unmodedOutParams = map (convertName . modedNameName) outParams
 
   let outSizes = PikaCore._fnDefOutputSizes fnDef
 
-  branches <- mapM (genBranch fnName outSizes unmodedInParams unmodedOutParams) branches
+  branches' <- mapM (genBranch fnName outSizes unmodedInParams unmodedOutParams) branches
 
   let (argTypes, resultType) = splitFnType $ PikaCore._fnDefType fnDef
 
@@ -44,7 +89,7 @@ codeGenIndPred fnDef = runFreshM $ do
     , SuSLik._indPredArgTypes = argTypes -- TODO: We need a way to deal with layouts that have multiple parameters
     , SuSLik._indPredResultType = resultType
     , SuSLik._indPredBody =
-        (unmodedInParams ++ unmodedOutParams, branches)
+        (unmodedInParams ++ unmodedOutParams, branches')
     }
 
 genBranch :: Fresh m => String -> [Int] -> [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch

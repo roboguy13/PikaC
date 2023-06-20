@@ -36,6 +36,13 @@ import Unbound.Generics.LocallyNameless.Unsafe -- Just for implementing QuickChe
 import Test.QuickCheck
 import Control.Monad
 
+data ArgLayout =
+  ArgLayout
+  { _argLayoutName :: String
+  , _argLayoutParams :: [ExprName]
+  }
+  deriving (Show, Generic)
+
 data FnDef =
   FnDef
   { _fnDefName :: FnName
@@ -44,7 +51,8 @@ data FnDef =
   , _fnDefBranches ::
       Bind [ModedName Expr]    -- Input parameters
         (Bind [ModedName Expr] -- Output parameters
-           [FnDefBranch])
+           ([Maybe ArgLayout]  -- 'Nothing' means a base type
+           ,[FnDefBranch]))
   -- , _fnDefParams :: [ModedName Expr]
   }
   deriving (Show, Generic)
@@ -71,6 +79,7 @@ makeLenses ''FnDefBranch
 
 instance Alpha FnDefBranch
 instance Alpha FnDef
+instance Alpha ArgLayout
 
 -- fnDefInputNames :: FnDef -> [ExprName]
 -- fnDefInputNames = concatMap fnDefBranchInputNames . _fnDefBranches
@@ -82,6 +91,8 @@ instance Alpha FnDef
 instance Subst Expr FnDefBranch
 
 instance Subst (Moded Expr) FnDefBranch
+
+instance Subst Expr ArgLayout
 
 instance WellScoped (Name Expr) Type
 instance WellScoped (Name Expr) (Name Type)
@@ -108,7 +119,7 @@ instance Ppr FnDef where
       let bnd1@(B vs _) = openBind (_fnDefBranches def)
       vs' <- mapM fresh (concatMap getNames vs)
       let modedVs' = zipWith Moded (map getMode vs) vs'
-      let branches = instantiate bnd1 (map V vs' :: [Expr])
+      let (_, branches) = instantiate bnd1 (map V vs' :: [Expr])
       go modedVs' branches
     where
       go :: [ModedName Expr] -> [FnDefBranch] -> FreshM Doc
@@ -173,6 +184,7 @@ not' x = Not x
 -- Property testing --
 --
 
+instance WellScoped ExprName ArgLayout
 instance WellScoped ExprName FnDef
 
 instance WellScoped ExprName FnDefBranch where
@@ -235,7 +247,7 @@ validateFnDefWith :: (Expr -> Validation) -> FnDef -> Validation
 validateFnDefWith v (FnDef _ _ _ (B inVars (B outVars branches))) =
   let vars = inVars ++ outVars
   in
-  mconcat $ map (validBranch v (map modedNameName outVars) vars) branches
+  mconcat $ map (validBranch v (map modedNameName outVars) vars) $ snd branches
 
 genValidFnDef :: Gen FnDef
 genValidFnDef = do
@@ -260,7 +272,7 @@ genValidFnDef = do
     <*>
       (bind modedInParams
         <$> (bind modedOutParams
-              <$> replicateM k (genValidBranch (map string2Name outParams) params)))
+              <$> (([],) <$> replicateM k (genValidBranch (map string2Name outParams) params)))) -- TODO: Generate ArgLayout values
 
 genValidBranch :: [Name Expr] -> [ModedName Expr] -> Gen FnDefBranch
 genValidBranch outVars = sized . genValidBranch' outVars

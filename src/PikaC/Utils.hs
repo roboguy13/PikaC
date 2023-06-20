@@ -250,6 +250,9 @@ instance WellScoped a Integer where wellScoped _ _ = mempty
 instance WellScoped a Char where wellScoped _ _ = mempty
 instance WellScoped a Bool where wellScoped _ _ = mempty
 
+instance (WellScoped x a, WellScoped x b) => WellScoped x (a, b)
+instance (WellScoped x a) => WellScoped x (Maybe a)
+
 class GWellScoped n f where
   gWellScoped :: [n] -> f a -> Validation
 

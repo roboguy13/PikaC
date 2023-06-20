@@ -53,7 +53,7 @@ codeGenFn fnDef = runGenC $ do
   let PikaCore.FnName fnName = _fnDefName fnDef
 
   (inVars0, bnd1) <- unbind $ _fnDefBranches fnDef
-  (outVars0, branches0) <- unbind bnd1
+  (outVars0, (_layouts, branches0)) <- unbind bnd1
   let inParams = map (convertName . modedNameName) inVars0
       outParams = map (convertName . modedNameName) outVars0
 
