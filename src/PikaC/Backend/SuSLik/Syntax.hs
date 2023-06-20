@@ -103,6 +103,18 @@ data FnSpec
     }
   deriving (Show, Generic)
 
+pprFnSigPrototype :: FnSig -> Doc
+pprFnSigPrototype fnSig =
+    let (params, conds) = _fnSigConds fnSig
+        argTypes = _fnSigArgTypes fnSig ++ [_fnSigResultType fnSig]
+        -- conds = unsafeUnbind bnd
+    in
+    vcat
+      [ (text "void" <+> text (_fnSigName fnSig))
+          <> parens (sep (punctuate (text ",") (zipWith showParam argTypes params)))
+      , nest 2 (ppr conds)
+      ]
+
 instance Alpha ExistVar
 instance Alpha HeapletS
 instance Alpha Expr
@@ -204,14 +216,8 @@ instance Ppr FnSpec where
 
 instance Ppr FnSig where
   ppr fnSig =
-    let (params, conds) = _fnSigConds fnSig
-        argTypes = _fnSigArgTypes fnSig ++ [_fnSigResultType fnSig]
-        -- conds = unsafeUnbind bnd
-    in
     vcat
-      [ (text "void" <+> text (_fnSigName fnSig))
-          <> parens (sep (punctuate (text ",") (zipWith showParam argTypes params)))
-      , nest 2 (ppr conds)
+      [ pprFnSigPrototype fnSig
       , text "{ ?? }"
       ]
     

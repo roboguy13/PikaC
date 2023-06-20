@@ -120,6 +120,7 @@ test-suite PikaC-golden-tests
       PikaC.Backend.C.Syntax
       PikaC.Backend.SuSLik.Syntax
       PikaC.Backend.SuSLik.CodeGen
+      PikaC.Backend.SuSLik.Invoke
       PikaC.Backend.Utils
       -- PikaC.Backend.C.DataDeps
       PikaC.Ppr
