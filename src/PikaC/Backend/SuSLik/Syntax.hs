@@ -28,6 +28,7 @@ data Expr
   | Mul Expr Expr
   | Sub Expr Expr
   | Equal Expr Expr
+  | Lt Expr Expr
   | And Expr Expr
   | Not Expr
   deriving (Show, Generic)
@@ -138,6 +139,7 @@ instance Ppr Expr where
   ppr (Mul x y) = sep [pprP x, text "*", pprP y]
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
+  ppr (Lt x y) = sep [pprP x, text "<", pprP y]
   ppr (Not x) = text "not " <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
 
@@ -220,5 +222,8 @@ instance Ppr FnSig where
       [ pprFnSigPrototype fnSig
       , text "{ ?? }"
       ]
-    
+andS :: Expr -> Expr -> Expr
+andS (BoolLit True) x = x
+andS x (BoolLit True) = x
+andS x y = And x y
 

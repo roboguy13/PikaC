@@ -165,7 +165,9 @@ genBranch fnName outSizes allNames outNames branch = do
     -- trace ("branchAllocs = " ++ show branchAllocs) $
     SuSLik.PredicateBranch
     { SuSLik._predBranchPure = foldr mkAnd (boolLit True) zeroes
-    , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
+    , SuSLik._predBranchCond =
+        SuSLik.andS (computeBranchCondition allNames branchNames)
+                    (convertBase (PikaCore._fnDefBranchCondition branch))
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
           map convertAlloc (filter (isUsedAlloc asnFVs) (outAllocs ++ branchAllocs)) ++
@@ -283,6 +285,7 @@ convertBase (PikaCore.Sub x y) = SuSLik.Sub (convertBase x) (convertBase y)
 convertBase (PikaCore.Equal x y) = SuSLik.Equal (convertBase x) (convertBase y)
 convertBase (PikaCore.And x y) = SuSLik.And (convertBase x) (convertBase y)
 convertBase (PikaCore.Not x) = SuSLik.Not (convertBase x)
+convertBase (PikaCore.Lt x y) = SuSLik.Lt (convertBase x) (convertBase y)
 convertBase e = error $ "convertBase: " ++ ppr' e
 
 splitAssertions :: Fresh m =>

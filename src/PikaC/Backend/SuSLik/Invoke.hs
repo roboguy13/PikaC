@@ -13,6 +13,9 @@ import PikaC.Syntax.ParserUtils
 suslikStdinOpt :: [String]
 suslikStdinOpt = ["--stdin", "true"]
 
+defaultSuslikOpts :: [String]
+defaultSuslikOpts = suslikStdinOpt ++ ["-b","true"]
+
 suslikCmd :: String
 suslikCmd = "./suslik.sh"
 
@@ -20,7 +23,7 @@ type SuSLikError = String
 
 invokeSuSLik :: [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError SuSLang.Function)
 invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
-  let susOpts = suslikStdinOpt ++ susOpts0
+  let susOpts = defaultSuslikOpts ++ susOpts0
 
       indPredCode = vcat (map ppr indPreds)
       helperCode = vcat (map pprFnSigPrototype helperSigs)
