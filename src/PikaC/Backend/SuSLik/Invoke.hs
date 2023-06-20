@@ -6,6 +6,9 @@ import System.Exit
 
 import PikaC.Ppr
 import PikaC.Backend.SuSLik.Syntax
+import PikaC.Backend.SuSLik.SuSLang.Parser
+import PikaC.Backend.SuSLik.SuSLang.Syntax as SuSLang
+import PikaC.Syntax.ParserUtils
 
 suslikStdinOpt :: [String]
 suslikStdinOpt = ["--stdin", "true"]
@@ -15,7 +18,7 @@ suslikCmd = "./suslik.sh"
 
 type SuSLikError = String
 
-invokeSuSLik :: [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError String)
+invokeSuSLik :: [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError SuSLang.Function)
 invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
   let susOpts = suslikStdinOpt ++ susOpts0
 
@@ -28,6 +31,10 @@ invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
   (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) suslikCode
 
   case exitCode of
-    ExitSuccess -> pure $ Right suslikOut
+    ExitSuccess ->
+      pure $ Right
+        $ parse' parseFunction
+          -- Drop the initial 2 lines, which just give the pre- and post-condition
+        $ unlines $ drop 2 $ lines $ suslikOut
     ExitFailure n -> pure $ Left stderrOut
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module PikaC.Tests.Pika.Run
   where
 
@@ -13,6 +15,12 @@ import PikaC.Stage.ToPikaCore.Monad
 
 import PikaC.Backend.C.CodeGen
 import PikaC.Backend.C.Syntax
+
+import PikaC.Backend.SuSLik.SuSLang.ToC (functionToC)
+import PikaC.Backend.SuSLik.Invoke
+import PikaC.Backend.SuSLik.CodeGen as SuSLik
+import qualified PikaC.Backend.SuSLik.SuSLang.Parser as SuSLang
+import PikaC.Syntax.ParserUtils
 
 import PikaC.Tests.Pika.Printer
 import PikaC.Tests.Pika.Test
@@ -35,8 +43,12 @@ pprGenFns fns =
   in
   vcat (map declFunction genFns) $$ vcat (map ppr genFns)
 
-genAndRun :: SimplifyFuel -> String -> PikaModule -> IO String
-genAndRun fuel compiler pikaModule = do
+-- | Answers the question: Straight to C or through SuSLik to SuSLang and then to C?
+data WhichLang = C | SuSLang
+  deriving (Show)
+
+genAndRun :: WhichLang -> SimplifyFuel -> String -> PikaModule -> IO String
+genAndRun which fuel compiler pikaModule = do
       -- Generate C file
   bracket (openTempFile "temp" "tests.c")
       (\(fileName, handle) -> do
@@ -47,7 +59,12 @@ genAndRun fuel compiler pikaModule = do
 
       hPutStrLn handle . render . pprLayoutPrinters $ convertedLayouts
 
-      (hPutStrLn handle . render . pprGenFns) =<< mapM generateFn (moduleGenerates pikaModule)
+      case which of
+        C -> (hPutStrLn handle . render . pprGenFns) =<< mapM generateFn (moduleGenerates pikaModule)
+        SuSLang -> do
+          mapM_ (hPutStrLn handle . ppr') =<<
+            mapM (suslangConvert . moduleLookupFn pikaModule)
+                 (moduleGenerates pikaModule)
 
       let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
       hPutStrLn handle $ ppr' $ genTestMain convertedLayouts convertedTests
@@ -76,6 +93,18 @@ genAndRun fuel compiler pikaModule = do
             convertExprAndSimplify [])
 
     convertedLayouts = map (runIdentity . runPikaConvert layouts [] fnDefs . convertLayout) layouts
+
+    -- Go via SuSLik to SuSLang then C
+    suslangConvert :: FnDef -> IO CFunction
+    suslangConvert fnDef = do
+      pikaCore <- getPikaCore fnDef
+      let layoutPreds = map codeGenLayout convertedLayouts
+          fnIndPred = codeGenIndPred pikaCore
+          fnSig = codeGenFnSig pikaCore
+      invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
+        Left err -> error $ "SuSLik error: " ++ err
+        Right susLang ->
+          pure $ functionToC susLang
 
     getPikaCore :: FnDef -> IO PikaCore.FnDef
     getPikaCore fnDef

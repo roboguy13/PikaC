@@ -74,6 +74,7 @@ data Options =
     , _optRunTests :: Bool
     , _optRunPikaTests :: Bool
     , _optCompCert :: Bool
+    , _optRunSuSLangTests :: Bool
     }
   deriving (Show)
 
@@ -81,7 +82,7 @@ makeLenses ''Options
 
 defaultOpts :: Options
 defaultOpts =
-  Options False False False False Unlimited False False False False False False
+  Options False False False False Unlimited False False False False False False False
 
 type OptionUpdate = ([String], Options) -> ([String], Options)
 
@@ -136,6 +137,9 @@ optHandlers =
 
   ,option "--gen-tests" Nothing "Generate C to run tests in the Pika file. Implies --only-c" $ nullaryOpt $
       ((optGenTests .~ True) . (optOnlyC .~ True))
+
+  ,option "--run-suslang-tests" Nothing "Use SuSLik to generate SuSLang then convert to C for tests. Implies --run-tests" $ nullaryOpt $
+      ((optRunTests .~ True) . (optRunSuSLangTests .~ True))
 
   ,option "--run-tests" Nothing "Generate and run tests from Pika code. Does not show generated code" $ nullaryOpt $
       optRunTests .~ True
@@ -220,7 +224,8 @@ genAndRunTests opts pikaModule = do
   let compiler = if _optCompCert opts
                  then "ccomp"
                  else "gcc"
-  putStrLn =<< genAndRun (_optSimplifierFuel opts) compiler pikaModule
+  let which = if _optRunSuSLangTests opts then SuSLang else C
+  putStrLn =<< genAndRun which (_optSimplifierFuel opts) compiler pikaModule
 
 withModule :: Options -> PikaModule -> IO ()
 withModule opts pikaModule = do
@@ -277,11 +282,9 @@ withModule opts pikaModule = do
               putStrLn "\n- SuSLang:"
               invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
                 Left err -> error $ "SuSLik error: " ++ err
-                Right susLang -> do
-                  putStrLn susLang
-                  let susLangFn = unlines . drop 2 . lines $ susLang -- Drop the initial 2 lines, which just give the pre- and post-condition
-                  print $ parse' SuSLang.parseFunction susLangFn
-                  putStrLn $ ppr' $ functionToC $ parse' SuSLang.parseFunction susLangFn
+                Right susLangFn -> do
+                  -- putStrLn susLang
+                  putStrLn $ ppr' $ functionToC susLangFn
 
     fuel = _optSimplifierFuel opts
 
