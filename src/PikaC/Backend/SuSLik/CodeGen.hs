@@ -156,6 +156,8 @@ genBranch fnName outSizes allNames outNames branch = do
 
   let branchAllocs = map (overAllocName convertName) $ findAllocations (map (string2Name . name2String) allNames) $ concat $ getInputAsns $ PikaCore._fnDefBranchInputAssertions branch
   let outAllocs = zipWith Alloc outNames outSizes
+      branchAsn = map convertPointsTo (concat (getInputAsns inAsns)) ++ heaplets
+      asnFVs = toListOf fv branchAsn :: [Name SuSLik.Expr]
 
   pure $
     -- trace ("branchNames = " ++ show branchNames) $
@@ -166,13 +168,16 @@ genBranch fnName outSizes allNames outNames branch = do
     , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
-          map convertAlloc (outAllocs ++ branchAllocs) ++
-          map convertPointsTo (concat (getInputAsns inAsns)) ++ heaplets
+          map convertAlloc (filter (isUsedAlloc asnFVs) (outAllocs ++ branchAllocs)) ++
+          branchAsn
     }
   where
     inAsns = PikaCore._fnDefBranchInputAssertions branch
     branchNames =
       concatMap (map convertName . inputNames) inAsns
+
+isUsedAlloc :: [Name SuSLik.Expr] -> Allocation SuSLik.Expr -> Bool
+isUsedAlloc usedNames (Alloc n _) = n `elem` usedNames
 
 convertAlloc :: Allocation SuSLik.Expr -> SuSLik.HeapletS
 convertAlloc (Alloc n sz) = BlockS n sz
