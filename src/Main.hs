@@ -215,8 +215,7 @@ genAndRunTests opts pikaModule = do
   let compiler = if _optCompCert opts
                  then "ccomp"
                  else "gcc"
-  genAndRun (_optSimplifierFuel opts) compiler pikaModule
-  pure ()
+  putStrLn =<< genAndRun (_optSimplifierFuel opts) compiler pikaModule
 
 withModule :: Options -> PikaModule -> IO ()
 withModule opts pikaModule = do
