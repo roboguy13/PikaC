@@ -138,7 +138,7 @@ instance Ppr Expr where
   ppr (Mul x y) = sep [pprP x, text "*", pprP y]
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
-  ppr (Not x) = text "!" <> pprP x
+  ppr (Not x) = text "not " <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
 
 instance IsNested Expr where

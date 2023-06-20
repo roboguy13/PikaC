@@ -25,7 +25,9 @@ import qualified PikaC.Stage.ToPikaCore.Simplify as Simplify
 
 import PikaC.Backend.C.CodeGen
 import PikaC.Backend.C.Syntax (declFunction)
+
 import PikaC.Backend.SuSLik.CodeGen
+import PikaC.Backend.SuSLik.Invoke
 
 import PikaC.Ppr
 
@@ -260,10 +262,20 @@ withModule opts pikaModule = do
               -- print $ codeGenFn pikaCore
 
             when (not (_optNoSuSLik opts)) $ do
+              let layoutPreds = map codeGenLayout convertedLayouts
+                  fnIndPred = codeGenIndPred pikaCore
+                  fnSig = codeGenFnSig pikaCore
+
               putStrLn "\n- SuSLik:"
-              mapM_ (putStrLn . ppr' . codeGenLayout) convertedLayouts
-              putStrLn $ ppr' $ codeGenIndPred pikaCore
-              putStrLn $ ppr' $ codeGenFnSig pikaCore
+              mapM_ (putStrLn . ppr') layoutPreds
+              putStrLn $ ppr' fnIndPred
+              putStrLn $ ppr' fnSig
+
+              putStrLn "\n- SuSLang:"
+              invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
+                Left err -> error $ "SuSLik error: " ++ err
+                Right susLang -> putStrLn susLang
+
     fuel = _optSimplifierFuel opts
 
     getPikaCore :: FnDef -> IO PikaCore.FnDef

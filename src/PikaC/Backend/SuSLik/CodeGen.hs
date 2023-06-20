@@ -131,11 +131,13 @@ codeGenIndPred fnDef = runFreshM $ do
   let unmodedInParams = map (convertName . modedNameName) inParams
       unmodedOutParams = map (convertName . modedNameName) outParams
 
+  let (argTypes, resultType) = splitFnType $ PikaCore._fnDefType fnDef
+      nonBaseParams = map snd $ filter (not . isBaseType . fst) $ zip argTypes unmodedInParams
+
   let outSizes = PikaCore._fnDefOutputSizes fnDef
 
-  branches' <- mapM (genBranch fnName outSizes unmodedInParams unmodedOutParams) branches
+  branches' <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
 
-  let (argTypes, resultType) = splitFnType $ PikaCore._fnDefType fnDef
 
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
@@ -155,7 +157,11 @@ genBranch fnName outSizes allNames outNames branch = do
   let branchAllocs = map (overAllocName convertName) $ findAllocations (map (string2Name . name2String) allNames) $ concat $ getInputAsns $ PikaCore._fnDefBranchInputAssertions branch
   let outAllocs = zipWith Alloc outNames outSizes
 
-  pure $ SuSLik.PredicateBranch
+  pure $
+    -- trace ("branchNames = " ++ show branchNames) $
+    -- trace ("allNames = " ++ show allNames) $
+    -- trace ("branchAllocs = " ++ show branchAllocs) $
+    SuSLik.PredicateBranch
     { SuSLik._predBranchPure = foldr mkAnd (boolLit True) zeroes
     , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
     , SuSLik._predBranchAssertion =
