@@ -1,5 +1,6 @@
 module PikaC.Backend.SuSLik.CodeGen
   (codeGenFnSig
+  ,codeGenLayout
   ,codeGenIndPred)
   where
 
@@ -9,6 +10,7 @@ import PikaC.Syntax.PikaCore.FnDef (inputNames, getInputAsns)
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Type
 import PikaC.Syntax.Pika.Layout
+import PikaC.Syntax.Pika.Pattern
 
 import PikaC.Ppr
 import PikaC.Utils
@@ -53,6 +55,51 @@ codeGenFnSig fnDef = runFreshM $ do
     { SuSLik._fnSigName = fnName
     , SuSLik._fnSigConds = (params, spec)
     }
+
+codeGenLayout :: Layout PikaCore.Expr -> SuSLik.InductivePredicate
+codeGenLayout layout = runFreshM $ do
+  (params, branches) <- unbind $ _layoutBranches layout
+  let params' = map (convertName . modedNameName) params
+  branches' <- mapM (codeGenLayoutBranch params') branches
+
+  pure $ SuSLik.InductivePredicate
+    { SuSLik._indPredName = _layoutName layout
+    , SuSLik._indPredArgTypes = map (const (TyVar (string2Name "unused"))) params
+    , SuSLik._indPredResultType = TyVar (string2Name "unused2") --resultType
+    , SuSLik._indPredBody = (params', branches')
+        -- (unmodedInParams ++ unmodedOutParams, branches')
+    }
+
+codeGenLayoutBranch :: Fresh m => [SuSLik.ExprName] -> LayoutBranch PikaCore.Expr -> m SuSLik.PredicateBranch
+codeGenLayoutBranch allNames (LayoutBranch (PatternMatch bnd)) = do
+  (pat, bnd1) <- unbind bnd
+  (existVars, body@(LayoutBody asn)) <- unbind bnd1
+  -- (zeroes, asn) <-
+    -- getZeroes outNames =<<
+    -- toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
+  let heaplets = asn
+      branchNames =
+        map convertName $ toListOf fv asn
+
+  let branchAllocs = map (overAllocName convertName) $ findAllocations (map (string2Name . name2String) allNames) $ getPointsTos body
+  -- let outAllocs = zipWith Alloc outNames outSizes
+  pure $ SuSLik.PredicateBranch
+    { SuSLik._predBranchPure = boolLit True
+    , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
+    , SuSLik._predBranchAssertion =
+        -- bind asnVars $
+          map convertAlloc branchAllocs ++
+          convertLayoutBody body
+          -- map convertPointsTo (concat (getInputAsns inAsns))
+    }
+  where
+    -- inAsns = PikaCore._fnDefBranchInputAssertions branch
+
+convertLayoutBody :: LayoutBody PikaCore.Expr -> [HeapletS]
+convertLayoutBody = map go . _unLayoutBody
+  where
+    go (LPointsTo p) = convertPointsTo p
+    go (LApply n _ vs) = RecApply n (map (mkVar . convertName . PikaCore.getV) vs)
 
 mkOutPointsTos :: Fresh m => [SuSLik.ExprName] -> m ([SuSLik.ExprName], [HeapletS])
 mkOutPointsTos [] = pure ([], [])

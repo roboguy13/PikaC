@@ -261,6 +261,7 @@ withModule opts pikaModule = do
 
             when (not (_optNoSuSLik opts)) $ do
               putStrLn "\n- SuSLik:"
+              mapM_ (putStrLn . ppr' . codeGenLayout) convertedLayouts
               putStrLn $ ppr' $ codeGenIndPred pikaCore
               putStrLn $ ppr' $ codeGenFnSig pikaCore
     fuel = _optSimplifierFuel opts
