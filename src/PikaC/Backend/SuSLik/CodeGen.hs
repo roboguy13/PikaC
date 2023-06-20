@@ -33,7 +33,9 @@ codeGenIndPred fnDef = runFreshM $ do
   let unmodedInParams = map (convertName . modedNameName) inParams
       unmodedOutParams = map (convertName . modedNameName) outParams
 
-  branches <- mapM (genBranch fnName unmodedInParams unmodedOutParams) branches
+  let outSizes = PikaCore._fnDefOutputSizes fnDef
+
+  branches <- mapM (genBranch fnName outSizes unmodedInParams unmodedOutParams) branches
 
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
@@ -43,18 +45,22 @@ codeGenIndPred fnDef = runFreshM $ do
           branches
     }
 
-genBranch :: Fresh m => String -> [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
-genBranch fnName allNames outNames branch = do
+genBranch :: Fresh m => String -> [Int] -> [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
+genBranch fnName outSizes allNames outNames branch = do
   (zeroes, asn) <-
     getZeroes outNames =<<
     toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
   (asnVars, heaplets) <- unbind asn
+
+  let branchAllocs = map (overAllocName convertName) $ PikaCore._fnDefBranchInAllocs branch
+  let outAllocs = zipWith Alloc outNames outSizes
 
   pure $ SuSLik.PredicateBranch
     { SuSLik._predBranchPure = foldr mkAnd (boolLit True) zeroes
     , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
     , SuSLik._predBranchAssertion =
         bind asnVars $
+          map convertAlloc (outAllocs ++ branchAllocs) ++
           map convertPointsTo (concat (getInputAsns inAsns)) ++ heaplets
     }
   where
@@ -62,6 +68,8 @@ genBranch fnName allNames outNames branch = do
     branchNames =
       concatMap (map convertName . inputNames) inAsns
 
+convertAlloc :: Allocation SuSLik.Expr -> SuSLik.HeapletS
+convertAlloc (Alloc n sz) = BlockS n sz
 
 toAssertion :: Fresh m => String -> [SuSLik.ExprName] -> PikaCore.Expr -> m SuSLik.Assertion
 toAssertion = collectAssertions

@@ -61,6 +61,7 @@ data HeapletS
   = PointsToS (PointsTo Expr)
   | ApplyS String [Expr]
   | RecApply String [Expr]
+  | BlockS (Name Expr) Int
   deriving (Show, Generic)
 
 newtype ExistVar = ExistVar { getExistVar :: ExprName }
@@ -128,6 +129,7 @@ instance IsNested Expr where
 
 instance Ppr HeapletS where
   ppr (PointsToS p) = ppr p
+  ppr (BlockS n sz) = text "[" <> text (show n) <> text "," <> text (show sz) <> text "]"
   ppr (RecApply f args) =
     text "func " <> text f <> text "(" <> hsep (punctuate (text ",") (map ppr args))  <> text ")"
   ppr (ApplyS f args) =
