@@ -62,6 +62,7 @@ data InductivePredicate
 
 data HeapletS
   = PointsToS (PointsTo Expr)
+  | ReadOnlyPointsToS (PointsTo Expr)
   | ApplyS String [Expr]
   | RecApply String [Expr]
   | BlockS (Name Expr) Int
@@ -136,6 +137,8 @@ instance IsNested Expr where
 
 instance Ppr HeapletS where
   ppr (PointsToS p) = ppr p
+  ppr (ReadOnlyPointsToS (lhs :-> rhs)) =
+    ppr lhs <+> text ":=>" <+> ppr rhs
   ppr (BlockS n sz) = text "[" <> text (show n) <> text "," <> text (show sz) <> text "]"
   ppr (RecApply f args) =
     text f <> text "(" <> hsep (punctuate (text ",") (map ppr args))  <> text ")"

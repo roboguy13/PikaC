@@ -101,7 +101,10 @@ codeGenLayoutBranch allNames (LayoutBranch (PatternMatch bnd)) = do
 convertLayoutBody :: LayoutBody PikaCore.Expr -> [HeapletS]
 convertLayoutBody = map go . _unLayoutBody
   where
-    go (LPointsTo p) = convertPointsTo p
+    go (LPointsTo p) =
+      let PointsToS q = convertPointsTo p
+      in
+      ReadOnlyPointsToS q
     go (LApply n _ vs) = RecApply n (map (mkVar . convertName . PikaCore.getV) vs)
 
 mkOutPointsTos :: Fresh m => [SuSLik.ExprName] -> m ([SuSLik.ExprName], [HeapletS])
