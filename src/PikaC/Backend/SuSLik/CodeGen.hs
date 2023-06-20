@@ -37,12 +37,14 @@ codeGenIndPred fnDef = runFreshM $ do
 
   branches <- mapM (genBranch fnName outSizes unmodedInParams unmodedOutParams) branches
 
+  let (argTypes, resultType) = splitFnType $ PikaCore._fnDefType fnDef
+
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
-    , SuSLik._indPredArgTypes = fst $ splitFnType $ PikaCore._fnDefType fnDef
+    , SuSLik._indPredArgTypes = argTypes -- TODO: We need a way to deal with layouts that have multiple parameters
+    , SuSLik._indPredResultType = resultType
     , SuSLik._indPredBody =
-        bind (unmodedInParams ++ unmodedOutParams)
-          branches
+        (unmodedInParams ++ unmodedOutParams, branches)
     }
 
 genBranch :: Fresh m => String -> [Int] -> [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
@@ -50,7 +52,7 @@ genBranch fnName outSizes allNames outNames branch = do
   (zeroes, asn) <-
     getZeroes outNames =<<
     toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
-  (asnVars, heaplets) <- unbind asn
+  let heaplets = asn
 
   let branchAllocs = map (overAllocName convertName) $ PikaCore._fnDefBranchInAllocs branch
   let outAllocs = zipWith Alloc outNames outSizes
@@ -59,7 +61,7 @@ genBranch fnName outSizes allNames outNames branch = do
     { SuSLik._predBranchPure = foldr mkAnd (boolLit True) zeroes
     , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
     , SuSLik._predBranchAssertion =
-        bind asnVars $
+        -- bind asnVars $
           map convertAlloc (outAllocs ++ branchAllocs) ++
           map convertPointsTo (concat (getInputAsns inAsns)) ++ heaplets
     }
@@ -76,52 +78,53 @@ toAssertion = collectAssertions
 
 getZeroes :: Fresh m => [SuSLik.ExprName] -> SuSLik.Assertion -> m ([SuSLik.Expr], SuSLik.Assertion)
 getZeroes outVars bnd = do
-  (asnVars, hs) <- unbind bnd
+  let hs = bnd
+  -- hs <- unbind bnd
   case hs of
-    [] -> pure ([], bind asnVars [])
+    [] -> pure ([], [])
     (PointsToS ((SuSLik.V x :+ 0) :-> SuSLik.IntLit 0) : rest)
       | x `elem` outVars -> do
-          (restExprs, restAsn) <- getZeroes outVars (bind asnVars rest)
+          (restExprs, restAsn) <- getZeroes outVars rest
           pure (mkEqual (mkVar x) (intLit 0) : restExprs
                ,restAsn
                )
     (h : rest) -> do
-          (restExprs, restAsn) <- getZeroes outVars (bind asnVars rest)
-          (restVars, restHs) <- unbind restAsn
-          pure (restExprs, bind restVars $ h : restHs)
+          (restExprs, restAsn) <- getZeroes outVars rest
+          let restHs = restAsn
+          pure (restExprs, h : restHs)
 
 collectAssertions :: Fresh m =>
   String ->
   [SuSLik.ExprName] -> PikaCore.Expr ->
-  m (Bind [SuSLik.ExistVar]
+  m (--Bind [SuSLik.ExistVar]
         [HeapletS])
 collectAssertions fnName outVars e
   | PikaCore.isBasic e =
       case outVars of
         [v] ->
-          pure $ bind [] [PointsToS ((SuSLik.V v :+ 0) :-> convertBase e)]
+          pure [PointsToS ((SuSLik.V v :+ 0) :-> convertBase e)]
         _ -> error "Expected exactly one output parameter when translating a top-level basic expression"
 collectAssertions fnName outVars (PikaCore.WithIn e bnd) = do
   (vars, body) <- unbind bnd
   let unmodedVars = map modedNameName vars
-  (eVars, eAsns0) <- unbind =<< collectAssertions fnName (map convertModedName vars) e
+  eAsns0 <- collectAssertions fnName (map convertModedName vars) e
 
-  (bodyVars, bodyAsns) <- unbind =<< collectAssertions fnName outVars body
+  bodyAsns <- collectAssertions fnName outVars body
 
   case eAsns0 of
     [] ->
       pure $
-        bind bodyVars
-          $ substs (zip (map convertName unmodedVars) (repeat (SuSLik.IntLit 0))) bodyAsns
+        -- bind bodyVars $
+        substs (zip (map convertName unmodedVars) (repeat (SuSLik.IntLit 0))) bodyAsns
     _ ->
       pure $
-        bind (eVars ++ bodyVars)
+        -- bind (eVars ++ bodyVars)
           (eAsns0 ++ bodyAsns)
 collectAssertions fnName outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?
   pure $
-    bind []
+    -- bind []
       [ApplyS f (map convertBase args ++ map SuSLik.V outVars)
       ]
 collectAssertions fnName outVars (PikaCore.SslAssertion bnd) = do
@@ -129,7 +132,7 @@ collectAssertions fnName outVars (PikaCore.SslAssertion bnd) = do
   let unmodedVars = map (convertName . modedNameName) vars
   let asn' = map convertPointsTo asn
   let asn'' = rename (zip unmodedVars outVars) asn'
-  pure $ bind [] asn'' -- TODO: Bind existentials
+  pure $ asn'' -- TODO: Bind existentials
 collectAssertions fnName _ e = error $ "collectAssertions: " ++ ppr' e
 
 convertPointsTo :: PointsTo PikaCore.Expr -> HeapletS
@@ -144,15 +147,17 @@ joinAsnBind bnd1 = do
   (vars2, body) <- unbind bnd2
   vars2' <- mapM (fresh . SuSLik.getExistVar) vars2
   let body' = rename (zip (map SuSLik.getExistVar vars2) vars2') body
-  pure $ bind (vars1 ++ map SuSLik.ExistVar vars2') body'
+  pure $ -- bind (vars1 ++ map SuSLik.ExistVar vars2')
+    body'
 
 sequenceAssertions :: Fresh m =>
-  [SuSLik.Assertion] -> m (Bind [SuSLik.ExistVar] [HeapletS])
-sequenceAssertions [] = pure $ bind [] []
+  [SuSLik.Assertion] -> m [HeapletS]
+sequenceAssertions [] = pure []
 sequenceAssertions (x:xs) = do
-  (vars, hs) <- unbind x
-  (vars', hs') <- unbind =<< sequenceAssertions xs
-  pure $ bind (vars ++ vars') (hs ++ hs')
+  let hs = x
+  hs' <- sequenceAssertions xs
+  pure -- $ bind (vars ++ vars')
+    (hs ++ hs')
 
 -- extendAssertionBind :: [ExprN
 
@@ -171,17 +176,20 @@ convertBase (PikaCore.Not x) = SuSLik.Not (convertBase x)
 convertBase e = error $ "convertBase: " ++ ppr' e
 
 splitAssertions :: Fresh m =>
-  [SuSLik.Assertion] -> m ([SuSLik.ExistVar], [HeapletS])
-splitAssertions [] = pure ([], [])
+  [SuSLik.Assertion] -> m ([HeapletS])
+splitAssertions [] = pure []
 splitAssertions (bnd:asns) = do
-  (existVars, asn) <- unbind bnd
-  (restVars, restHeaplets) <- splitAssertions asns
-  pure (existVars ++ restVars, asn ++ restHeaplets)
+  let asn = bnd
+  -- (restVars, restHeaplets) <- splitAssertions asns
+  restHeaplets <- splitAssertions asns
+  pure
+    ( --existVars ++ restVars,
+    asn ++ restHeaplets)
 
 catAssertions :: Fresh m => [SuSLik.Assertion] -> m SuSLik.Assertion
 catAssertions xs = do
-  (vars, heaplets) <- splitAssertions xs
-  pure $ bind vars heaplets
+  heaplets <- splitAssertions xs
+  pure heaplets
 
 convertName :: PikaCore.ExprName -> SuSLik.ExprName
 convertName = string2Name . show

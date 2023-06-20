@@ -16,6 +16,8 @@ import GHC.Generics
 
 import Data.Validity
 
+import Debug.Trace
+
 type ExprName = Name Expr
 
 data Expr
@@ -51,9 +53,10 @@ data InductivePredicate
   = InductivePredicate
     { _indPredName :: String
     , _indPredArgTypes :: [Type]
+    , _indPredResultType :: Type
     , _indPredBody ::
-        Bind [ExprName]
-          [PredicateBranch]
+        -- Bind [ExprName]
+          ([ExprName], [PredicateBranch])
     }
   deriving (Show, Generic)
 
@@ -67,8 +70,8 @@ data HeapletS
 newtype ExistVar = ExistVar { getExistVar :: ExprName }
   deriving (Show, Generic)
 
-type Assertion =
-  Bind [ExistVar] [HeapletS]
+type Assertion = [HeapletS]
+  -- Bind [ExistVar] [HeapletS]
 
 data PredicateBranch
   = PredicateBranch
@@ -82,9 +85,11 @@ data FnSig
   = FnSig
     { _fnSigName :: String
     , _fnSigConds ::
-        Bind [ExprName] -- Function parameters
-          (Bind [ExistVar]
-            FnSpec)
+        ([ExprName] -- Function parameters
+        ,FnSpec)
+        -- Bind [ExprName] -- Function parameters
+        --   (Bind [ExistVar]
+        --     FnSpec)
     }
   deriving (Show, Generic)
 
@@ -142,7 +147,7 @@ instance Ppr PredicateBranch where
             BoolLit True -> rest
             p -> ppr p <+> text ";" <+> rest
 
-        (_, asn) = unsafeUnbind $ _predBranchAssertion branch
+        asn = _predBranchAssertion branch
         heapletsText =
           case asn of
             [] -> text "emp"
@@ -167,9 +172,9 @@ toSuSLikType t = error $  "toSuSLikType: " ++ show t
 
 instance Ppr InductivePredicate where
   ppr indPred =
-    let (params, branches) = unsafeUnbind (_indPredBody indPred)
-        argTypes = _indPredArgTypes indPred
-        showParam ty param = toSuSLikType ty <+> ppr param
+    let (params, branches) = _indPredBody indPred
+        argTypes = _indPredArgTypes indPred ++ [_indPredResultType indPred]
+        showParam ty param = toSuSLikType ty <+> text (show param)
     in
     vcat $
       [(text "predicate" <+> text (_indPredName indPred))
@@ -183,7 +188,7 @@ instance Ppr InductivePredicate where
 
 instance Ppr FnSpec where
   ppr fnSpec =
-    let (_, postCond) = unsafeUnbind $ _fnSpecPostcond fnSpec
+    let postCond = _fnSpecPostcond fnSpec
     in
     vcat
       [ braces (sep (punctuate (text " **") (map ppr (_fnSpecPrecond fnSpec))))
@@ -192,8 +197,8 @@ instance Ppr FnSpec where
 
 instance Ppr FnSig where
   ppr fnSig =
-    let (params, bnd) = unsafeUnbind $ _fnSigConds fnSig
-        (_, conds) = unsafeUnbind bnd
+    let (params, conds) = _fnSigConds fnSig
+        -- conds = unsafeUnbind bnd
     in
     vcat
       [ (text "void" <+> text (_fnSigName fnSig))
