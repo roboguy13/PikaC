@@ -1,0 +1,18 @@
+%generate filterLt7
+
+Sll : layout[-x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  exists +nxt.
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+filterLt7 : Sll -> Sll;
+filterLt7 Nil := Nil [Sll];
+filterLt7 (Cons a as) | a < 7 := filterLt7 as;
+filterLt7 (Cons a as) | not (a < 7) := Cons a (filterLt7 as) [Sll];
+
+%test "filter1" Sll:
+  filterLt7 (Cons 1 (Cons 2 (Cons 10 (Cons 20 (Nil [Sll]) [Sll]) [Sll]) [Sll]) [Sll]);
+

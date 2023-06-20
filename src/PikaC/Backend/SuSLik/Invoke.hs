@@ -14,7 +14,7 @@ suslikStdinOpt :: [String]
 suslikStdinOpt = ["--stdin", "true"]
 
 defaultSuslikOpts :: [String]
-defaultSuslikOpts = suslikStdinOpt ++ ["-b","true"]
+defaultSuslikOpts = suslikStdinOpt ++ ["-b","true", "-c", "2"]
 
 suslikCmd :: String
 suslikCmd = "./suslik.sh"

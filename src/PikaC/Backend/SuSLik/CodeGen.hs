@@ -182,6 +182,7 @@ isUsedAlloc :: [Name SuSLik.Expr] -> Allocation SuSLik.Expr -> Bool
 isUsedAlloc usedNames (Alloc n _) = n `elem` usedNames
 
 convertAlloc :: Allocation SuSLik.Expr -> SuSLik.HeapletS
+convertAlloc (Alloc n 0) = BlockS n 1
 convertAlloc (Alloc n sz) = BlockS n sz
 
 toAssertion :: Fresh m => String -> [SuSLik.ExprName] -> PikaCore.Expr -> m SuSLik.Assertion

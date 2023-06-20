@@ -107,7 +107,7 @@ data FnSpec
 pprFnSigPrototype :: FnSig -> Doc
 pprFnSigPrototype fnSig =
     let (params, conds) = _fnSigConds fnSig
-        argTypes = _fnSigArgTypes fnSig ++ [_fnSigResultType fnSig]
+        argTypes = _fnSigArgTypes fnSig ++ [TyVar (string2Name "unused")] -- [_fnSigResultType fnSig]
         -- conds = unsafeUnbind bnd
     in
     vcat
@@ -195,7 +195,7 @@ showParam ty param = toSuSLikType ty <+> text (show param)
 instance Ppr InductivePredicate where
   ppr indPred =
     let (params, branches) = _indPredBody indPred
-        argTypes = _indPredArgTypes indPred ++ [_indPredResultType indPred]
+        argTypes = _indPredArgTypes indPred ++ [TyVar (string2Name "unused")] --[_indPredResultType indPred]
     in
     vcat $
       [(text "predicate" <+> text (_indPredName indPred))
