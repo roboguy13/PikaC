@@ -167,6 +167,7 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
       { PikaCore._fnDefName = PikaCore.FnName $ Pika.fnDefName fn
       , PikaCore._fnDefOutputSizes =
           map (lookupAllocation outAllocs . modedNameName) outParams
+      , PikaCore._fnDefType = _typeSigTy (Pika.fnDefTypeSig fn)
       , PikaCore._fnDefBranches =
           bind (concat inParams)
             (bind outParams branches')

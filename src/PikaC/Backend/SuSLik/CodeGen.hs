@@ -6,6 +6,7 @@ import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 import PikaC.Syntax.PikaCore.FnDef (inputNames, getInputAsns)
 import PikaC.Syntax.Heaplet
+import PikaC.Syntax.Type
 import PikaC.Syntax.Pika.Layout
 
 import PikaC.Ppr
@@ -36,6 +37,7 @@ codeGenIndPred fnDef = runFreshM $ do
 
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
+    , SuSLik._indPredArgTypes = fst $ splitFnType $ PikaCore._fnDefType fnDef
     , SuSLik._indPredBody =
         bind (unmodedInParams ++ unmodedOutParams)
           branches

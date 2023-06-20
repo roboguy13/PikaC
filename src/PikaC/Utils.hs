@@ -246,6 +246,7 @@ instance (Alpha a, Typeable a) => WellScoped (Name a) (Name a) where
 instance WellScoped a b => WellScoped a [b]
 
 instance WellScoped a Int where wellScoped _ _ = mempty
+instance WellScoped a Integer where wellScoped _ _ = mempty
 instance WellScoped a Char where wellScoped _ _ = mempty
 instance WellScoped a Bool where wellScoped _ _ = mempty
 

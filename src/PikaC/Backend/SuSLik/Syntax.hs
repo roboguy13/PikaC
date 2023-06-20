@@ -7,6 +7,7 @@ import PikaC.Ppr
 import PikaC.Utils
 
 import PikaC.Syntax.Heaplet
+import PikaC.Syntax.Type
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Unsafe
@@ -49,6 +50,7 @@ instance IsBase Expr where
 data InductivePredicate
   = InductivePredicate
     { _indPredName :: String
+    , _indPredArgTypes :: [Type]
     , _indPredBody ::
         Bind [ExprName]
           [PredicateBranch]
@@ -155,13 +157,21 @@ instance Ppr PredicateBranch where
           <+> text "}"
         )
 
+toSuSLikType :: Type -> Doc
+toSuSLikType IntType = text "int"
+toSuSLikType BoolType = text "bool"
+toSuSLikType (TyVar _) = text "loc"
+toSuSLikType t = error $  "toSuSLikType: " ++ show t
+
 instance Ppr InductivePredicate where
   ppr indPred =
     let (params, branches) = unsafeUnbind (_indPredBody indPred)
+        argTypes = _indPredArgTypes indPred
+        showParam ty param = toSuSLikType ty <+> ppr param
     in
     vcat $
       [(text "predicate" <+> text (_indPredName indPred))
-        <> text "(" <> hsep (punctuate (text ",") (map ((text "loc" <+>) . ppr) params)) <> text ")"
+        <> text "(" <> hsep (punctuate (text ",") (zipWith showParam argTypes params)) <> text ")"
       ,text "{"
       ]
       ++

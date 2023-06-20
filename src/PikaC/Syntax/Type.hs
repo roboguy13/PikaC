@@ -3,11 +3,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Syntax.Type
   where
 
 import PikaC.Ppr
+import PikaC.Utils
 import Text.Show.Deriving
 
 -- import Bound
@@ -137,6 +139,8 @@ instance NFData LayoutConstraint
 -- Property tests --
 --
 
+-- instance WellScoped (Name a) Type
+-- instance WellScoped (Name a) (Name Type)
 
 data AdtArg = BaseArg | RecArg
   deriving (Show, Eq, Generic)

@@ -12,6 +12,7 @@ module PikaC.Syntax.PikaCore.FnDef
 import PikaC.Syntax.PikaCore.Expr
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Heaplet
+import PikaC.Syntax.Type
 import PikaC.Ppr
 import PikaC.Utils
 
@@ -39,6 +40,7 @@ data FnDef =
   FnDef
   { _fnDefName :: FnName
   , _fnDefOutputSizes :: [Int] -- Allocation sizes for output parameters
+  , _fnDefType :: Type
   , _fnDefBranches ::
       Bind [ModedName Expr]    -- Input parameters
         (Bind [ModedName Expr] -- Output parameters
@@ -80,6 +82,9 @@ instance Alpha FnDef
 instance Subst Expr FnDefBranch
 
 instance Subst (Moded Expr) FnDefBranch
+
+instance WellScoped (Name Expr) Type
+instance WellScoped (Name Expr) (Name Type)
 
 inputNames :: Input -> [ExprName]
 inputNames (InputAsn asn) = map (getV . locBase . pointsToLhs) asn
@@ -227,7 +232,7 @@ validBranch v outVars modedBvs branch =
     bvs = map modedNameName modedBvs `union` inAsnVars
 
 validateFnDefWith :: (Expr -> Validation) -> FnDef -> Validation
-validateFnDefWith v (FnDef _ _ (B inVars (B outVars branches))) =
+validateFnDefWith v (FnDef _ _ _ (B inVars (B outVars branches))) =
   let vars = inVars ++ outVars
   in
   mconcat $ map (validBranch v (map modedNameName outVars) vars) branches
@@ -251,6 +256,7 @@ genValidFnDef = do
 
   FnDef "testFn"
     <$> replicateM (length modedOutParams) (choose (1, 4)) -- TODO: Does this make sense?
+    <*> undefined -- TODO: Generate type
     <*>
       (bind modedInParams
         <$> (bind modedOutParams
