@@ -50,9 +50,12 @@ codeGenFnSig fnDef = runFreshM $ do
                   [RecApply fnName (map mkVar (inParams' ++ postCondOutVars))]
                   ++ postCondOuts
               }
+  let (argTypes, resultType) = splitFnType $ PikaCore._fnDefType fnDef
 
   pure $ SuSLik.FnSig
     { SuSLik._fnSigName = fnName
+    , SuSLik._fnSigArgTypes = argTypes
+    , SuSLik._fnSigResultType = resultType
     , SuSLik._fnSigConds = (params, spec)
     }
 
