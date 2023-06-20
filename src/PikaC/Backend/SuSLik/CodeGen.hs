@@ -54,7 +54,7 @@ genBranch fnName outSizes allNames outNames branch = do
     toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
   let heaplets = asn
 
-  let branchAllocs = map (overAllocName convertName) $ PikaCore._fnDefBranchInAllocs branch
+  let branchAllocs = map (overAllocName convertName) $ findAllocations (map (string2Name . name2String) allNames) $ concat $ getInputAsns $ PikaCore._fnDefBranchInputAssertions branch
   let outAllocs = zipWith Alloc outNames outSizes
 
   pure $ SuSLik.PredicateBranch
