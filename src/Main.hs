@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Main
   where
@@ -29,6 +30,7 @@ import PikaC.Backend.SuSLik.CodeGen (codeGenIndPred)
 import PikaC.Ppr
 
 import PikaC.Tests.Pika.Test
+import PikaC.Tests.Pika.Run
 import PikaC.Tests.Pika.Printer
 
 import qualified PikaC.Tests.Module as TestsModule
@@ -65,6 +67,7 @@ data Options =
     , _optSelfTest :: Bool
     , _optGenTests :: Bool
     , _optRunTests :: Bool
+    , _optRunPikaTests :: Bool
     , _optCompCert :: Bool
     }
   deriving (Show)
@@ -73,7 +76,7 @@ makeLenses ''Options
 
 defaultOpts :: Options
 defaultOpts =
-  Options False False False False Unlimited False False False False False
+  Options False False False False Unlimited False False False False False False
 
 type OptionUpdate = ([String], Options) -> ([String], Options)
 
@@ -131,6 +134,9 @@ optHandlers =
 
   ,option "--run-tests" Nothing "Generate and run tests from Pika code. Does not show generated code" $ nullaryOpt $
       optRunTests .~ True
+
+  ,option "--run-pika-tests" Nothing "Run .pika tests from the test directory by generatingg C code and running it" $ nullaryOpt $
+      optRunPikaTests .~ True
 
   ,option "--simplifier-fuel" (Just "<n>") "Run <n> simplifier steps" $ withOptParameter $ \n ->
       optSimplifierFuel .~ Fuel (read n)
@@ -200,76 +206,17 @@ main = do
             exitFailure
           Right () -> pure ()
 
-        if _optRunTests opts
-          then genAndRunTests opts pikaModule
-          else withModule opts pikaModule
+        if | _optRunTests opts -> genAndRunTests opts pikaModule
+           | otherwise -> withModule opts pikaModule
       _ -> error "Expected file name"
-
--- | Add forward declarations
-pprGenFns :: [PikaCore.FnDef] -> Doc
-pprGenFns fns =
-  let genFns = map codeGenFn fns
-  in
-  vcat (map declFunction genFns) $$ vcat (map ppr genFns)
 
 genAndRunTests :: Options -> PikaModule -> IO ()
 genAndRunTests opts pikaModule = do
-      -- Generate C file
-  bracket (openTempFile "temp" "tests.c")
-      (\(fileName, handle) -> do
-        hClose handle
-        removeFile fileName)
-    $ \(fileName, handle) -> do
-      hPutStrLn handle =<< readFile "tests/common/common.h"
-
-      hPutStrLn handle . render . pprLayoutPrinters $ convertedLayouts
-
-      (hPutStrLn handle . render . pprGenFns) =<< mapM generateFn (moduleGenerates pikaModule)
-
-      let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
-      hPutStrLn handle $ ppr' $ genTestMain convertedLayouts convertedTests
-
-      hClose handle
-
-      bracket (openBinaryTempFile "temp" "tests")
-          (\(execFile, execHandle) -> do
-            hClose execHandle
-            removeFile execFile)
-        $ \(execFile, execHandle) -> do 
-        hClose execHandle
-
-        let compiler =
-              if _optCompCert opts
-                then "ccomp"
-                else "gcc"
-
-        system $ compiler ++ " -w " ++ fileName ++ " -o " ++ execFile
-
-        callProcess execFile []
-
-        pure ()
-  where
-    fuel = _optSimplifierFuel opts
-    fnDefs = moduleFnDefs pikaModule
-    layouts = moduleLayouts pikaModule
-
-    mkConvertedTests :: [Test Expr] -> PikaConvert Quiet [Test PikaCore.Expr]
-    mkConvertedTests =
-        ((traversed . testExpr)
-          %%~
-            convertExprAndSimplify [])
-
-    convertedLayouts = map (runIdentity . runPikaConvert layouts [] fnDefs . convertLayout) layouts
-    getPikaCore :: FnDef -> IO PikaCore.FnDef
-    getPikaCore fnDef
-      | _optSimplifierLog opts =
-          runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
-      | otherwise =
-          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
-
-    generateFn = getPikaCore . moduleLookupFn pikaModule
-
-
+  let compiler = if _optCompCert opts
+                 then "ccomp"
+                 else "gcc"
+  genAndRun (_optSimplifierFuel opts) compiler pikaModule
+  pure ()
 
 withModule :: Options -> PikaModule -> IO ()
 withModule opts pikaModule = do

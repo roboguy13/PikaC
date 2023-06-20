@@ -1,0 +1,12 @@
+*** Running test testHeap1
+(1 ((2 ())()))
+
+*** Running test merge1
+(1 ((20 ())((2 ())())))
+
+*** Running test insert1
+(1 ((5 ())((2 ())())))
+
+*** Running test deleteMin1
+(2 ((5 ())()))
+

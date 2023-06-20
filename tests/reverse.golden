@@ -1,0 +1,6 @@
+*** Running test revcat
+(2 (1 (10 (20 ()))))
+
+*** Running test reverse
+(4 (3 (2 (1 ()))))
+

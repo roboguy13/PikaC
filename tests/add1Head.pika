@@ -1,28 +1,31 @@
 %generate add1Head
-%generate add1HeadDll
+-- %generate add1HeadDll
 
-Sll : layout[x](List);
+Sll : layout[-x](List);
 Sll Nil := emp;
 Sll (Cons head tail) :=
   x :-> head **
   (x+1) :-> nxt **
   Sll tail [nxt];
 
-Dll : layout[x z](List);
-Dll Nil := emp;
-Dll (Cons head tail) :=
-  x :-> head **
-  (x+1) :-> w **
-  (x+2) :-> z **
-  Dll tail [w] [x];
+-- Dll : layout[x z](List);
+-- Dll Nil := emp;
+-- Dll (Cons head tail) :=
+--   x :-> head **
+--   (x+1) :-> w **
+--   (x+2) :-> z **
+--   Dll tail [w] [x];
 
 add1Head : Sll -> Sll;
 add1Head Nil := Nil [Sll];
 add1Head (Cons h t) :=
   Cons (h + 1) t [Sll];
 
-add1HeadDll : Dll -> Dll;
-add1HeadDll Nil := Nil [Dll];
-add1HeadDll (Cons h t) :=
-  Cons (h + 1) t [Dll];
+-- add1HeadDll : Dll -> Dll;
+-- add1HeadDll Nil := Nil [Dll];
+-- add1HeadDll (Cons h t) :=
+--   Cons (h + 1) t [Dll];
+
+%test "add1Head1" Sll:
+  add1Head (Cons 1 (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
 

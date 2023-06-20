@@ -32,7 +32,7 @@ codeGenIndPred fnDef = runFreshM $ do
   let unmodedInParams = map (convertName . modedNameName) inParams
       unmodedOutParams = map (convertName . modedNameName) outParams
 
-  branches <- mapM (genBranch unmodedInParams unmodedOutParams) branches
+  branches <- mapM (genBranch fnName unmodedInParams unmodedOutParams) branches
 
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
@@ -41,11 +41,11 @@ codeGenIndPred fnDef = runFreshM $ do
           branches
     }
 
-genBranch :: Fresh m => [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
-genBranch allNames outNames branch = do
+genBranch :: Fresh m => String -> [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
+genBranch fnName allNames outNames branch = do
   (zeroes, asn) <-
     getZeroes outNames =<<
-    toAssertion outNames (PikaCore._fnDefBranchBody branch)
+    toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
   (asnVars, heaplets) <- unbind asn
 
   pure $ SuSLik.PredicateBranch
@@ -61,7 +61,7 @@ genBranch allNames outNames branch = do
       concatMap (map convertName . inputNames) inAsns
 
 
-toAssertion :: Fresh m => [SuSLik.ExprName] -> PikaCore.Expr -> m SuSLik.Assertion
+toAssertion :: Fresh m => String -> [SuSLik.ExprName] -> PikaCore.Expr -> m SuSLik.Assertion
 toAssertion = collectAssertions
 
 getZeroes :: Fresh m => [SuSLik.ExprName] -> SuSLik.Assertion -> m ([SuSLik.Expr], SuSLik.Assertion)
@@ -81,21 +81,22 @@ getZeroes outVars bnd = do
           pure (restExprs, bind restVars $ h : restHs)
 
 collectAssertions :: Fresh m =>
+  String ->
   [SuSLik.ExprName] -> PikaCore.Expr ->
   m (Bind [SuSLik.ExistVar]
         [HeapletS])
-collectAssertions outVars e
+collectAssertions fnName outVars e
   | PikaCore.isBasic e =
       case outVars of
         [v] ->
           pure $ bind [] [PointsToS ((SuSLik.V v :+ 0) :-> convertBase e)]
         _ -> error "Expected exactly one output parameter when translating a top-level basic expression"
-collectAssertions outVars (PikaCore.WithIn e bnd) = do
+collectAssertions fnName outVars (PikaCore.WithIn e bnd) = do
   (vars, body) <- unbind bnd
   let unmodedVars = map modedNameName vars
-  (eVars, eAsns0) <- unbind =<< collectAssertions (map convertModedName vars) e
+  (eVars, eAsns0) <- unbind =<< collectAssertions fnName (map convertModedName vars) e
 
-  (bodyVars, bodyAsns) <- unbind =<< collectAssertions outVars body
+  (bodyVars, bodyAsns) <- unbind =<< collectAssertions fnName outVars body
 
   case eAsns0 of
     [] ->
@@ -106,20 +107,20 @@ collectAssertions outVars (PikaCore.WithIn e bnd) = do
       pure $
         bind (eVars ++ bodyVars)
           (eAsns0 ++ bodyAsns)
-collectAssertions outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
+collectAssertions fnName outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?
   pure $
     bind []
       [ApplyS f (map convertBase args ++ map SuSLik.V outVars)
       ]
-collectAssertions outVars (PikaCore.SslAssertion bnd) = do
+collectAssertions fnName outVars (PikaCore.SslAssertion bnd) = do
   (vars, asn) <- unbind bnd
   let unmodedVars = map (convertName . modedNameName) vars
   let asn' = map convertPointsTo asn
   let asn'' = rename (zip unmodedVars outVars) asn'
   pure $ bind [] asn'' -- TODO: Bind existentials
-collectAssertions _ e = error $ "collectAssertions: " ++ ppr' e
+collectAssertions fnName _ e = error $ "collectAssertions: " ++ ppr' e
 
 convertPointsTo :: PointsTo PikaCore.Expr -> HeapletS
 convertPointsTo (x :-> y) =
