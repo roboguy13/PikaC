@@ -215,9 +215,10 @@ collectAssertions fnName outVars (PikaCore.WithIn e bnd) = do
 collectAssertions fnName outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?
-  pure $
-    -- bind []
-      [ApplyS f (map convertBase args ++ map SuSLik.V outVars)
+  let app = if f == fnName then RecApply else ApplyS
+  in
+  pure -- $ bind []
+      [app f (map convertBase args ++ map SuSLik.V outVars)
       ]
 collectAssertions fnName outVars (PikaCore.SslAssertion bnd) = do
   (vars, asn) <- unbind bnd
