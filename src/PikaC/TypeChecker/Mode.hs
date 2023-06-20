@@ -29,6 +29,7 @@ import Data.Typeable
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import Control.Lens
 
@@ -62,9 +63,10 @@ execModeCheck :: LayoutEnv a -> ModeEnv a -> ModeCheck a r -> Either ModeError r
 execModeCheck layoutEnv localEnv (ModeCheck m) =
   runReaderT m (ModeCheckEnv layoutEnv localEnv)
 
-modeCheck :: (IsName a a, Subst a (LayoutBranch a), ModeCheckC a, Subst a (LayoutBody a), Subst a (ModedName a), Typeable a, Alpha a, HasVar a) => LayoutEnv a -> Layout a -> Either ModeError ()
+modeCheck :: forall a. (IsName a a, Subst a (LayoutBranch a), ModeCheckC a, Subst a (LayoutBody a), Subst a (ModedName a), Typeable a, Alpha a, HasVar a) => LayoutEnv a -> Layout a -> Either ModeError ()
 modeCheck layoutEnv layout = runFreshM $ do
-  let openedBranches = openBind (_layoutBranches layout)
+  let (_, bnd) = unsafeUnbind (_layoutBranches layout)
+      openedBranches = openBind bnd
       xs = map (getPatternMatch . _layoutMatch) openedBranches
 
       openIt (B pat body) = openBind (B (getPatternNames pat) body)
@@ -73,8 +75,9 @@ modeCheck layoutEnv layout = runFreshM $ do
 
       openExists = map openBind openedXs
 
-  let localEnv0 = getBv $ _layoutBranches layout
-  let localEnv = localEnv0 <> map getExists (concatMap (getBv) openedXs)
+  let localEnv0 = getBv bnd -- $ _layoutBranches layout
+  let localEnv :: [ModedName a]
+      localEnv = localEnv0 <> map getExists (concatMap (getBv) openedXs)
 
   -- openedBranches <- mapM (fmap snd . openPatternMatch . _layoutMatch) branches
   -- openExists <- mapM (fmap snd . unbind) openedBranches
@@ -85,7 +88,7 @@ modeCheck layoutEnv layout = runFreshM $ do
   pure . execModeCheck layoutEnv localEnv $
     mapM_ modeCheckHeaplet heaplets
 
-modeCheckHeaplet :: forall a. (IsName a a, ModeCheckC a) => LayoutHeaplet a -> ModeCheck a ()
+modeCheckHeaplet :: forall a. (Alpha a, Typeable a, IsName a a, ModeCheckC a) => LayoutHeaplet a -> ModeCheck a ()
 modeCheckHeaplet h@(LPointsTo ((n :+ _) :-> _)) = do
   getModeM (getName n) >>= \case
     Out -> pure ()

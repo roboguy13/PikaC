@@ -77,13 +77,29 @@ import Control.DeepSeq
 -- evalOperand (Operand (B x)) = x
 -- evalOperand (Operand (F y)) = V y
 
+data GhostType = SetGhost | IntGhost
+  deriving (Show, Generic)
+
+data Ghost a = Ghost GhostType (Name a)
+  deriving (Show, Generic)
+
+mapGhostName :: (Name a -> Name b) -> Ghost a -> Ghost b
+mapGhostName f (Ghost t x) = Ghost t (f x)
+
+instance Alpha GhostType
+instance (Typeable a, Alpha a) => Alpha (Ghost a)
+
+instance NFData GhostType
+instance NFData a => NFData (Ghost a)
+
 data Layout a =
   Layout
     { _layoutName :: String
     , _layoutAdt :: AdtName
     , _layoutBranches ::
-        Bind [ModedName a] -- Layout parameters
-          [LayoutBranch a]
+        Bind [Ghost a] -- Ghost parameters
+          (Bind [ModedName a] -- Layout parameters
+            [LayoutBranch a])
     }
     deriving (Show, Generic)
 
@@ -253,7 +269,8 @@ instance Subst (Exists a) a => Subst (Exists a) (Loc a)
 instance forall a. (Subst (Exists a) a, Subst (Pattern a) a, Subst (Name a) a, IsNested a, HasVar a, Subst a (LayoutBody a), Subst a (LayoutBranch a), Subst a (ModedName a), Typeable a, Alpha a, Ppr a) =>
     Ppr (Layout a) where
   ppr layout =
-    let bnd@(B params branches) = _layoutBranches layout
+    let (ghostParams, bnd) = unsafeUnbind $ _layoutBranches layout
+        (params, branches) = unsafeUnbind bnd
         name = _layoutName layout
 
         -- branchLines = map (go name) $ instantiate bnd (map (mkVar . modedNameName) params)
@@ -286,14 +303,15 @@ instance forall a. (Subst (Exists a) a, Subst (Pattern a) a, Subst (Name a) a, I
         (text name <+> ppr pat <+> text ":="
                 $$ nest 2 (exists $$ ppr body))
 
-getLayoutParams :: Layout a -> [ModedName a]
+getLayoutParams :: (Alpha a, Typeable a) => Layout a -> [ModedName a]
 getLayoutParams layout =
-  let B vs _ = _layoutBranches layout
+  let (_, bnd) = unsafeUnbind $ _layoutBranches layout
+      (vs, _) = unsafeUnbind bnd
   in
   vs
 
-unbindLayout :: (Fresh m, Typeable a, Alpha a) => Layout a -> m ([ModedName a], [LayoutBranch a])
-unbindLayout = unbind . _layoutBranches
+-- unbindLayout :: (Fresh m, Typeable a, Alpha a) => Layout a -> m ([ModedName a], [LayoutBranch a])
+-- unbindLayout = unbind . _layoutBranches
 
 instance (Subst (Moded' s a) (Exists a), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (LayoutBranch a)
 instance Subst (Moded' s a) a => Subst (Moded' s a) (Pattern a)
@@ -336,10 +354,10 @@ lookupLayout (x:xs) name
 
 openLayout :: (Fresh m, Alpha a, Typeable a, Subst a (LayoutBranch a), HasVar a) => Layout a -> m ([ModedName a], OpenedLayout a)
 openLayout layout = do
-  let branches = _layoutBranches layout
+  (_ghostParams, bnd) <- unbind $ _layoutBranches layout
       -- modes = map getMode vs
   -- (vs', opened) <- freshOpen branches
-  unbind branches
+  unbind bnd
 
 instance IsName (Moded (Name a)) a where
   getName = modedNameName
@@ -353,14 +371,14 @@ modedNameName (Moded' _ _ n) = n
 lookupLayoutBranch :: forall a. HasApp a => Layout a -> String -> Maybe (Bind [ModedName a] (LayoutBranch a))
 lookupLayoutBranch layout constructor = go $ _layoutBranches layout
   where
-    go :: Bind [ModedName a] [LayoutBranch a] -> Maybe (Bind [ModedName a] (LayoutBranch a))
-    go (B _ []) = Nothing
-    go (B vs (x:xs)) =
+    go :: Bind [Ghost a] (Bind [ModedName a] [LayoutBranch a]) -> Maybe (Bind [ModedName a] (LayoutBranch a))
+    go (B _ (B _ [])) = Nothing
+    go (B g (B vs (x:xs))) =
       case layoutBranchPattern x of
         PatternVar _ -> Just (B vs x)
         Pattern c _
           | c == constructor -> Just (B vs x)
-          | otherwise -> go (B vs xs)
+          | otherwise -> go (B g (B vs xs))
 
 lookupLayoutBranch' :: (HasCallStack, HasApp a) => Layout a -> String -> Bind [ModedName a] (LayoutBranch a)
 lookupLayoutBranch' layout c =
@@ -531,7 +549,8 @@ getLApplies b@(LayoutBody xs0) = go xs0
 
 maxAllocsForLayout :: forall a. (HasVar a, IsName a a, Subst a (Layout a), Subst a (LayoutBranch a), Typeable a, Alpha a) => Layout a -> [Name a] -> [Allocation a]
 maxAllocsForLayout layout params =
-    let branches = instantiate (_layoutBranches layout) (map mkVar params)
+    let (_, bnd) = unsafeUnbind (_layoutBranches layout)
+        branches = instantiate bnd (map mkVar params)
     in
       concatMap go branches
   where
@@ -589,6 +608,18 @@ instance WellScoped a AdtName where
   wellScoped _ _ = mempty
 
 instance (Typeable a, Alpha a, WellScoped (Name a) b) =>
+  WellScoped (ModedName a) (Bind [Ghost a] b) where
+    wellScoped inScopeVars bnd =
+      let (vs, body) = unsafeUnbind bnd
+          inScopeVars' :: [Name a]
+          inScopeVars' = map modedNameName inScopeVars
+          getGhost (Ghost _ x) = x
+      in
+      wellScoped @(Name a)
+        (inScopeVars' ++ map getGhost vs)
+        body
+
+instance (Typeable a, Alpha a, WellScoped (Name a) b) =>
   WellScoped (ModedName a) (Bind [ModedName a] b) where
     wellScoped inScopeVars bnd =
       let (vs, body) = unsafeUnbind bnd
@@ -600,6 +631,15 @@ instance (Typeable a, Alpha a, WellScoped (Name a) b) =>
         body
 
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (LayoutBranch a)
+-- instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Ghost a) (LayoutBranch a)
+
+instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (Bind [Ghost a] b) where
+  wellScoped inScopeVars bnd =
+    let (vars, body) = unsafeUnbind bnd
+        getGhost (Ghost _ x) = x
+    in
+    wellScoped (inScopeVars ++ map getGhost vars) body
+
 
 instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) => WellScoped (Name a) (Bind [Exists a] b) where
   wellScoped inScopeVars bnd =
@@ -618,7 +658,8 @@ instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (La
 
 instance (IsName a a, Alpha a, Typeable a, Show a, WellScoped (Name a) a) => Validity (Layout a) where
   validate layout =
-    let (_, branches) = unsafeUnbind $ _layoutBranches layout
+    let (_, bnd) = unsafeUnbind $ _layoutBranches layout
+        (_, branches) = unsafeUnbind bnd
     in
     wellScoped @(ModedName a) [] layout <>
     mconcat (map validate branches)
@@ -652,10 +693,11 @@ allPatVarsAreUsed (LayoutBranch (PatternMatch bnd)) =
 instance (IsName a a, Typeable a, Alpha a, IsBase a, Arbitrary a, WellScoped (Name a) a) => Arbitrary (Layout a) where
   arbitrary = error "Arbitrary Layout"
   shrink layout = filter isValid $ do
-    let (vars, branches) = unsafeUnbind $ _layoutBranches layout
+    let (ghosts, bnd) = unsafeUnbind $ _layoutBranches layout
+        (vars, branches) = unsafeUnbind bnd
     branches' <- filter isValid . sequenceA $ map shrink branches
     pure $ layout
-      { _layoutBranches = bind vars branches'
+      { _layoutBranches = bind ghosts $ bind vars branches'
       }
 
 instance (IsName a a, Alpha a, Typeable a, IsBase a, Arbitrary a) => Arbitrary (LayoutBranch a) where
@@ -697,6 +739,7 @@ genLayout lName adts size = do
     { _layoutName = lName
     , _layoutAdt = adtName
     , _layoutBranches =
+        bind [] $
         bind (map (Moded Out) params)
           branches
     }

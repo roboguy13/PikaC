@@ -61,7 +61,8 @@ codeGenFnSig fnDef = runFreshM $ do
 
 codeGenLayout :: Layout PikaCore.Expr -> SuSLik.InductivePredicate
 codeGenLayout layout = runFreshM $ do
-  (params, branches) <- unbind $ _layoutBranches layout
+  (_, bnd) <- unbind $ _layoutBranches layout
+  (params, branches) <- unbind bnd
   let params' = map (convertName . modedNameName) params
   branches' <- mapM (codeGenLayoutBranch params') branches
 

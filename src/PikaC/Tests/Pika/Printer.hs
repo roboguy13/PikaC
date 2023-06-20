@@ -36,7 +36,8 @@ pprLayoutPrinters layouts =
 
 layoutPrinter :: Layout Expr -> C.CFunction
 layoutPrinter layout =
-  let (_, branches) = unsafeUnbind $ _layoutBranches layout
+  let (_, bnd) = unsafeUnbind $ _layoutBranches layout
+      (_, branches) = unsafeUnbind bnd
       fnBody = go branches
   in
   C.CFunction
@@ -104,7 +105,8 @@ layoutPrinter layout =
 
 layoutParamNames :: Layout Expr -> [C.CName]
 layoutParamNames layout =
-  let (vs, _) = unsafeUnbind $ _layoutBranches layout
+  let (_, bnd) = unsafeUnbind $ _layoutBranches layout
+      (vs, _) = unsafeUnbind bnd
   in
   map (convertName . modedNameName) vs
 

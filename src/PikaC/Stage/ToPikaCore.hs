@@ -440,13 +440,14 @@ instance Subst [ModedName Pika.Expr] AdtName
 
 convertLayout :: (Monad m, HasCallStack) => Layout Pika.Expr -> PikaConvert m (Layout PikaCore.Expr)
 convertLayout layout0 = do
-  branches <- onBind (mapM internModedExprName) (mapM convertLayoutBranch) $ _layoutBranches layout0
+  (ghosts, bnd) <- unbind $ _layoutBranches layout0
+  branches <- onBind (mapM internModedExprName) (mapM convertLayoutBranch) bnd
   -- params <- mapM internModedExprName $ _layoutSigParams $ _layoutSig layout0
 
   pure $
     Layout
     { _layoutName = _layoutName layout0
-    , _layoutBranches = branches
+    , _layoutBranches = bind (map (mapGhostName (string2Name . name2String)) ghosts) branches
     , _layoutAdt = _layoutAdt layout0
     }
 

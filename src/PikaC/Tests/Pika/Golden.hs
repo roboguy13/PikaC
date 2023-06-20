@@ -51,5 +51,5 @@ runTest fileName = do
   fileData <- readFile fileName
   let pikaModule = parse'' fileName parsePikaModule fileData
 
-  fromString <$> genAndRun Unlimited cCompiler pikaModule
+  fromString <$> genAndRun C Unlimited cCompiler pikaModule
 

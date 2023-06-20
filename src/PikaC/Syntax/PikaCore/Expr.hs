@@ -347,6 +347,8 @@ getPointsToExpr e = e ^!! (cosmos . _SslAssertion . to unbind' . acts . _2 . tra
 
 instance Subst (Exists Expr) Expr
 instance Subst Expr (Layout Expr)
+instance Subst Expr (Ghost Expr)
+instance Subst Expr GhostType
 instance Subst Expr AdtName
 instance Subst (Exists Expr) (Allocation Expr)
 instance Subst (Moded (Name Expr)) (Allocation Expr)

@@ -239,13 +239,28 @@ parseLayout :: Parser (Layout Expr)
 parseLayout = label "layout definition" $ lexeme $ do
   layoutName <- parseLayoutName
   keyword ":"
-  (params, adt) <- parseLayoutSig
+  (ghosts, params, adt) <- parseLayoutSig
   keyword ";"
   branches <- some (parseLayoutBranch layoutName)
-  pure $ Layout layoutName adt (bind params branches)
+  pure $ Layout layoutName adt (bind ghosts (bind params branches))
 
-parseLayoutSig :: Parser ([ModedName Expr], AdtName)
+parseGhostDecl :: Parser (Ghost Expr)
+parseGhostDecl = do
+  symbol "@"
+  symbol "("
+  g <- parseLowercaseExprName
+  symbol ":"
+  t <- parseGhostType
+  symbol ")"
+  pure $ Ghost t g
+
+parseGhostType :: Parser GhostType
+parseGhostType =
+  (keyword "set" $> SetGhost) <|> (keyword "int" $> IntGhost)
+
+parseLayoutSig :: Parser ([Ghost Expr], [ModedName Expr], AdtName)
 parseLayoutSig = lexeme $ do
+  ghosts <- many parseGhostDecl
   keyword "layout"
   symbol "["
   params <- parseModedLayoutVar `sepBy1` symbol ","
@@ -253,7 +268,7 @@ parseLayoutSig = lexeme $ do
   symbol "("
   adt <- parseAdtName
   symbol ")"
-  pure (params, adt)
+  pure (ghosts, params, adt)
 
 
 parseLayoutBranch :: String -> Parser (LayoutBranch Expr)

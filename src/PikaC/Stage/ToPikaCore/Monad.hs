@@ -23,6 +23,7 @@ import PikaC.Stage.ToPikaCore.Utils (freshModed)
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import Data.List
 
@@ -31,6 +32,8 @@ import Control.Monad.State
 
 import Control.Lens
 import Control.Lens.TH
+
+import Data.Typeable
 
 import GHC.Stack
 
@@ -165,9 +168,10 @@ internModedExprName :: MonadPikaIntern m => ModedName Pika.Expr -> m (ModedName 
 internModedExprName (Moded mode v) =
   Moded mode <$> internExprName v
 
-freshLayoutParams :: Fresh m => Layout a -> m [ModedName a]
+freshLayoutParams :: (Alpha a, Typeable a, Fresh m) => Layout a -> m [ModedName a]
 freshLayoutParams layout =
-  let B vs _ = _layoutBranches layout
+  let (_, bnd) = unsafeUnbind $ _layoutBranches layout
+      B vs _ = bnd
   in
   mapM freshModed vs
 
