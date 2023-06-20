@@ -40,6 +40,7 @@ executable PikaC
       PikaC.Backend.SuSLik.Invoke
       PikaC.Backend.SuSLik.SuSLang.Parser
       PikaC.Backend.SuSLik.SuSLang.Syntax
+      PikaC.Backend.SuSLik.SuSLang.ToC
       PikaC.Syntax.ParserUtils
       PikaC.Syntax.Heaplet
       PikaC.Syntax.PikaCore.Expr

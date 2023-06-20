@@ -39,7 +39,7 @@ data Command
   = Assign CLoc CExpr
   | SimpleAssign CName CName
   | SetToNull CName
-  -- | IfThenElse CExpr [Command] [Command]
+  | IfThenElse CExpr [Command] [Command]
   | IfThen CExpr [Command]
   | Call
       String
@@ -101,6 +101,16 @@ instance Ppr Command where
             ,nest 1 (vcat tDoc)
             -- ,hsep [text "}", text "else", text "{"]
             -- ,nest 1 (hsep fDoc)
+            ,text "}"
+            ]
+
+      go (IfThenElse c t f) = do
+        tDoc <- mapM go t
+        fDoc <- mapM go f
+        pure $ foldr1 ($$) [hsep [text "if (" <> ppr c <> text ")", text "{"]
+            ,nest 1 (vcat tDoc)
+            ,hsep [text "}", text "else", text "{"]
+            ,nest 1 (hsep fDoc)
             ,text "}"
             ]
 

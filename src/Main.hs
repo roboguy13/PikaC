@@ -30,6 +30,7 @@ import PikaC.Backend.SuSLik.CodeGen
 import PikaC.Backend.SuSLik.Invoke
 
 import qualified PikaC.Backend.SuSLik.SuSLang.Parser as SuSLang
+import PikaC.Backend.SuSLik.SuSLang.ToC (functionToC)
 
 import PikaC.Ppr
 
@@ -280,6 +281,7 @@ withModule opts pikaModule = do
                   putStrLn susLang
                   let susLangFn = unlines . drop 2 . lines $ susLang -- Drop the initial 2 lines, which just give the pre- and post-condition
                   print $ parse' SuSLang.parseFunction susLangFn
+                  putStrLn $ ppr' $ functionToC $ parse' SuSLang.parseFunction susLangFn
 
     fuel = _optSimplifierFuel opts
 
