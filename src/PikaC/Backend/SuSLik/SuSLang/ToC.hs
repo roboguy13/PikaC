@@ -70,5 +70,5 @@ convertLoc :: Loc SuSLang.Expr -> Loc CExpr
 convertLoc (x :+ i) = exprToC x :+ i
 
 convertName :: Name SuSLang.Expr -> Name CExpr
-convertName = string2Name . show
+convertName = string2Name . name2String
 
