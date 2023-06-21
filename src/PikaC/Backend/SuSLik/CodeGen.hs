@@ -1,5 +1,7 @@
 module PikaC.Backend.SuSLik.CodeGen
-  (codeGenFnSig
+  (codeGenSynth
+  ,codeGenSynthSig
+  ,codeGenFnSig
   ,codeGenLayout
   ,codeGenIndPred)
   where
@@ -11,6 +13,7 @@ import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Type
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
+import PikaC.Syntax.Pika.FnDef
 
 import PikaC.Ppr
 import PikaC.Utils
@@ -24,9 +27,51 @@ import Unbound.Generics.LocallyNameless
 import Control.Lens
 import Control.Monad
 
+import Data.List
+
 import Data.Maybe
 
 import Debug.Trace
+
+codeGenSynth :: [Layout PikaCore.Expr] -> Synth -> ([SuSLik.InductivePredicate], SuSLik.FnSig)
+codeGenSynth layouts synth =
+  let sig = codeGenSynthSig layouts synth
+  in
+  (map (codeGenLayout True) layouts, sig)
+
+codeGenSynthSig :: [Layout PikaCore.Expr] -> Synth -> SuSLik.FnSig
+codeGenSynthSig layouts (Synth fn (GhostApp (TyVar argType) argGhostArgs) (GhostApp (TyVar resultType) resultGhostArgs)) = runFreshM $ do
+
+  let argLayout = lookupLayout layouts (name2String argType)
+      resultLayout = lookupLayout layouts (name2String resultType)
+
+  (_, argBnd) <- unbind $ _layoutBranches argLayout
+  (argParams, _) <- unbind argBnd
+
+  (_, resultBnd) <- unbind $ _layoutBranches resultLayout
+  (resultParams, _) <- unbind resultBnd
+
+  let resultParams' = map (convertName . modedNameName) resultParams
+
+  (_, precondOuts) <- mkOutPointsTos resultParams'
+  (postCondOutVars, postCondOuts) <- mkOutPointsTos resultParams'
+
+  let params = map (convertName . modedNameName) $ argParams ++ resultParams
+
+      allocs = mkLayoutApps [Just $ PikaCore.ArgLayout (name2String argType) $ map modedNameName argParams ++ map string2Name argGhostArgs]
+      outAllocs = allocs ++ mkLayoutApps [Just $ PikaCore.ArgLayout (name2String resultType) $ map (string2Name . show) postCondOutVars ++ map string2Name resultGhostArgs]
+
+      spec = SuSLik.FnSpec
+               { SuSLik._fnSpecPrecond = allocs ++ precondOuts
+               , SuSLik._fnSpecPostcond = postCondOuts ++ outAllocs
+               }
+
+  pure $ SuSLik.FnSig
+    { SuSLik._fnSigName = fn
+    , SuSLik._fnSigArgTypes = replicate (length argParams + length resultParams) (TyVar (string2Name "unused"))
+    , SuSLik._fnSigResultType = TyVar $ string2Name "unused"
+    , SuSLik._fnSigConds = (params, spec)
+    }
 
 codeGenFnSig :: PikaCore.FnDef -> SuSLik.FnSig
 codeGenFnSig fnDef = runFreshM $ do
@@ -59,23 +104,32 @@ codeGenFnSig fnDef = runFreshM $ do
     , SuSLik._fnSigConds = (params, spec)
     }
 
-codeGenLayout :: Layout PikaCore.Expr -> SuSLik.InductivePredicate
-codeGenLayout layout = runFreshM $ do
-  (_, bnd) <- unbind $ _layoutBranches layout
+codeGenLayout :: Bool -> Layout PikaCore.Expr -> SuSLik.InductivePredicate
+codeGenLayout useGhosts layout = runFreshM $ do
+  (ghosts, bnd) <- unbind $ _layoutBranches layout
   (params, branches) <- unbind bnd
   let params' = map (convertName . modedNameName) params
-  branches' <- mapM (codeGenLayoutBranch params') branches
+  branches' <- mapM (codeGenLayoutBranch useGhosts params') branches
+
+  let params'' =
+        if useGhosts
+          then params' ++ map (convertName . getGhostName) ghosts
+          else params'
 
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = _layoutName layout
     , SuSLik._indPredArgTypes = map (const (TyVar (string2Name "unused"))) params
     , SuSLik._indPredResultType = TyVar (string2Name "unused2") --resultType
-    , SuSLik._indPredBody = (params', branches')
+    , SuSLik._indPredGhostTypes =
+        if useGhosts
+          then map getGhostType ghosts
+          else []
+    , SuSLik._indPredBody = (params'', branches')
         -- (unmodedInParams ++ unmodedOutParams, branches')
     }
 
-codeGenLayoutBranch :: Fresh m => [SuSLik.ExprName] -> LayoutBranch PikaCore.Expr -> m SuSLik.PredicateBranch
-codeGenLayoutBranch allNames (LayoutBranch (PatternMatch bnd)) = do
+codeGenLayoutBranch :: Fresh m => Bool -> [SuSLik.ExprName] -> LayoutBranch PikaCore.Expr -> m SuSLik.PredicateBranch
+codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
   (pat, bnd1) <- unbind bnd
   (existVars, (GhostCondition gCond body@(LayoutBody asn))) <- unbind bnd1
   -- (zeroes, asn) <-
@@ -84,29 +138,40 @@ codeGenLayoutBranch allNames (LayoutBranch (PatternMatch bnd)) = do
   let heaplets = asn
       branchNames =
         map convertName $ toListOf fv asn
+      -- allNames' = 
 
-  let branchAllocs = map (overAllocName convertName) $ findAllocations (map (string2Name . name2String) allNames) $ getPointsTos body
+  let branchAllocs = map (overAllocName convertName) $ findAllocations (map convertName' allNames) $ getPointsTos body
   -- let outAllocs = zipWith Alloc outNames outSizes
-  pure $ SuSLik.PredicateBranch
-    { SuSLik._predBranchPure = fromMaybe (boolLit True) $ fmap convertBase gCond
+  pure
+    $ SuSLik.PredicateBranch
+    { SuSLik._predBranchPure =
+        if useGhosts
+          then fromMaybe (boolLit True) $ fmap convertBase gCond
+          else boolLit True
     , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
           map convertAlloc branchAllocs ++
-          convertLayoutBody body
+          convertLayoutBody useGhosts body
           -- map convertPointsTo (concat (getInputAsns inAsns))
     }
   where
     -- inAsns = PikaCore._fnDefBranchInputAssertions branch
 
-convertLayoutBody :: LayoutBody PikaCore.Expr -> [HeapletS]
-convertLayoutBody = map go . _unLayoutBody
+convertLayoutBody :: Bool -> LayoutBody PikaCore.Expr -> [HeapletS]
+convertLayoutBody useGhosts = map go . _unLayoutBody
   where
     go (LPointsTo p) =
       let PointsToS q = convertPointsTo p
       in
       ReadOnlyPointsToS q
-    go (LApply n ghosts _ vs) = RecApply n (map (mkVar . convertName . PikaCore.getV) (vs ++ ghosts))
+      -- PointsToS q
+    go (LApply n ghosts _ vs) =
+      let args = if useGhosts
+                 then vs ++ ghosts
+                 else vs
+      in
+      RecApply n (map (mkVar . convertName . PikaCore.getV) args)
 
 mkOutPointsTos :: Fresh m => [SuSLik.ExprName] -> m ([SuSLik.ExprName], [HeapletS])
 mkOutPointsTos [] = pure ([], [])
@@ -144,6 +209,7 @@ codeGenIndPred fnDef = runFreshM $ do
     { SuSLik._indPredName = fnName
     , SuSLik._indPredArgTypes = argTypes -- TODO: We need a way to deal with layouts that have multiple parameters
     , SuSLik._indPredResultType = resultType
+    , SuSLik._indPredGhostTypes = []
     , SuSLik._indPredBody =
         (unmodedInParams ++ unmodedOutParams, branches')
     }
@@ -309,8 +375,12 @@ catAssertions xs = do
   heaplets <- splitAssertions xs
   pure heaplets
 
+convertName' :: Name a -> Name b
+convertName' n = --string2Name . name2String
+  makeName (name2String n) (name2Integer n)
+
 convertName :: PikaCore.ExprName -> SuSLik.ExprName
-convertName = string2Name . show
+convertName = convertName'
 
 convertModedName :: ModedName PikaCore.Expr -> SuSLik.ExprName
 convertModedName (Moded _ n) = convertName n

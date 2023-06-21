@@ -229,6 +229,9 @@ genAndRunTests opts pikaModule = do
 
 withModule :: Options -> PikaModule -> IO ()
 withModule opts pikaModule = do
+  -- print $ moduleSynths pikaModule
+  -- mapM_ (putStrLn . ppr' . codeGenSynth convertedLayouts) $ moduleSynths pikaModule
+
     -- Generate the C preamble for testing
   when (_optGenTests opts) $ do
     putStrLn =<< readFile "tests/common/common.h"
@@ -270,7 +273,7 @@ withModule opts pikaModule = do
               -- print $ codeGenFn pikaCore
 
             when (not (_optNoSuSLik opts)) $ do
-              let layoutPreds = map codeGenLayout convertedLayouts
+              let layoutPreds = map (codeGenLayout False) convertedLayouts
                   fnIndPred = codeGenIndPred pikaCore
                   fnSig = codeGenFnSig pikaCore
 

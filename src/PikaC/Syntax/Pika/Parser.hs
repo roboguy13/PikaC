@@ -107,7 +107,7 @@ parsePikaModule = do
   fnDefs <- mconcat . map singleFnDef <$> some parseFnDef
   tests <- mconcat . map singleTest <$> many parseTest
 
-  pure (generates <> layouts <> fnDefs <> tests)
+  pure (generates <> layouts <> fnDefs <> tests <> synths)
 
   -- fmap mconcat $ some $
   --   try (singleGenerate <$> parseGenerate) <|>
@@ -474,6 +474,7 @@ genModule' size = do
     { moduleLayouts = layouts
     , moduleFnDefs = fns
     , moduleGenerates = map fnDefName fns
+    , moduleSynths = []
     , moduleTests = []
     }
   where

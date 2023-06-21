@@ -58,6 +58,9 @@ genAndRun which fuel compiler pikaModule = do
       hPutStrLn handle =<< readFile "tests/common/common.h"
 
       hPutStrLn handle . render . pprLayoutPrinters $ convertedLayouts
+      mapM_ (hPutStrLn handle . ppr') =<< mapM convertSynths (moduleSynths pikaModule)
+
+      -- invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
 
       case which of
         C -> (hPutStrLn handle . render . pprGenFns) =<< mapM generateFn (moduleGenerates pikaModule)
@@ -98,7 +101,7 @@ genAndRun which fuel compiler pikaModule = do
     suslangConvert :: FnDef -> IO CFunction
     suslangConvert fnDef = do
       pikaCore <- getPikaCore fnDef
-      let layoutPreds = map codeGenLayout convertedLayouts
+      let layoutPreds = map (codeGenLayout False) convertedLayouts
           fnIndPred = codeGenIndPred pikaCore
           fnSig = codeGenFnSig pikaCore
       invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
@@ -114,4 +117,17 @@ genAndRun which fuel compiler pikaModule = do
           pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
 
     generateFn = getPikaCore . moduleLookupFn pikaModule
+
+    convertSynths :: Synth -> IO CFunction
+    convertSynths synth = do
+      let (layoutPreds, fnSig) = SuSLik.codeGenSynth convertedLayouts synth
+
+      mapM_ (putStrLn . ppr') layoutPreds
+      putStrLn $ ppr' fnSig
+
+      invokeSuSLik [] layoutPreds [] fnSig >>= \case
+        Left err -> error $ "SuSLik error: " ++ err
+        Right susLang ->
+          pure $ functionToC susLang
+
 

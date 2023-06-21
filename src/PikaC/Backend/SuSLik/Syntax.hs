@@ -8,6 +8,7 @@ import PikaC.Utils
 
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Type
+import PikaC.Syntax.Pika.Layout (GhostType (..))
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Unsafe
@@ -59,6 +60,7 @@ data InductivePredicate
   = InductivePredicate
     { _indPredName :: String
     , _indPredArgTypes :: [Type]
+    , _indPredGhostTypes :: [GhostType]
     , _indPredResultType :: Type
     , _indPredBody ::
         -- Bind [ExprName]
@@ -117,7 +119,7 @@ pprFnSigPrototype fnSig =
     in
     vcat
       [ (text "void" <+> text (_fnSigName fnSig))
-          <> parens (sep (punctuate (text ",") (zipWith showParam argTypes params)))
+          <> parens (sep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes) params)))
       , nest 2 (ppr conds)
       ]
 
@@ -155,6 +157,10 @@ instance IsNested Expr where
   isNested (V _) = False
   isNested (IntLit _) = False
   isNested (BoolLit _) = False
+  isNested EmptySet = False
+  isNested (Equal {}) = True
+  isNested (SetUnion {}) = False
+  isNested (SingletonSet {}) = False
   isNested _ = True
 
 instance Ppr HeapletS where
@@ -197,17 +203,22 @@ toSuSLikType BoolType = text "bool"
 toSuSLikType (TyVar _) = text "loc"
 toSuSLikType t = error $  "toSuSLikType: " ++ show t
 
-showParam :: Type -> ExprName -> Doc
-showParam ty param = toSuSLikType ty <+> text (show param)
+ghostToSuSLikType :: GhostType -> Doc
+ghostToSuSLikType IntGhost = text "int"
+ghostToSuSLikType SetGhost = text "set"
+
+showParam :: Doc -> ExprName -> Doc
+showParam ty param = ty <+> text (show param)
 
 instance Ppr InductivePredicate where
   ppr indPred =
     let (params, branches) = _indPredBody indPred
-        argTypes = _indPredArgTypes indPred ++ [TyVar (string2Name "unused")] --[_indPredResultType indPred]
+        argTypes = _indPredArgTypes indPred -- ++ [TyVar (string2Name "unused")] --[_indPredResultType indPred]
+        ghostTypes = _indPredGhostTypes indPred
     in
     vcat $
       [(text "predicate" <+> text (_indPredName indPred))
-        <> text "(" <> hsep (punctuate (text ",") (zipWith showParam argTypes params)) <> text ")"
+        <> text "(" <> hsep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes ++ map ghostToSuSLikType ghostTypes) params)) <> text ")"
       ,text "{"
       ]
       ++

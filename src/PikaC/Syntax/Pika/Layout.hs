@@ -83,6 +83,12 @@ data GhostType = SetGhost | IntGhost
 data Ghost a = Ghost GhostType (Name a)
   deriving (Show, Generic)
 
+getGhostType :: Ghost a -> GhostType
+getGhostType (Ghost t _) = t
+
+getGhostName :: Ghost a -> Name a
+getGhostName (Ghost _ x) = x
+
 mapGhostName :: (Name a -> Name b) -> Ghost a -> Ghost b
 mapGhostName f (Ghost t x) = Ghost t (f x)
 
