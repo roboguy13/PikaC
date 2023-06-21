@@ -61,6 +61,12 @@ data Expr
   | Equal Expr Expr
   | Lt Expr Expr
   | Not Expr
+
+  -- For the ghost language:
+  | EmptySet
+  | SingletonSet Expr
+  | SetUnion Expr Expr
+
   | LName LayoutName -- TODO: Remove?
   -- | Not Expr
   deriving (Show, Generic)
@@ -101,6 +107,9 @@ instance Ppr Expr where
   ppr (Equal x y) = hsep [pprP x, text "==", pprP y]
   ppr (Lt x y) = hsep [pprP x, text "<", pprP y]
   ppr (Not x) = hsep [text "not", parens (pprP x)]
+  ppr EmptySet = text "{}"
+  ppr (SingletonSet x) = braces (ppr x)
+  ppr (SetUnion x y) = pprP x <+> text "++" <+> pprP y
   ppr (LName x) = ppr x
 
 instance IsNested Expr where
@@ -119,6 +128,9 @@ instance IsNested Expr where
   isNested (Equal {}) = True
   isNested (Lt {}) = True
   isNested (Not {}) = True
+  isNested EmptySet = False
+  isNested (SingletonSet {}) = False
+  isNested (SetUnion {}) = True
   isNested (LName {}) = False
 
 instance Plated Expr where
@@ -146,6 +158,9 @@ instance Plated Expr where
   plate f (Lt x y) =
     Lt <$> plate f x <*> plate f y
   plate f (Not x) = Not <$> f x
+  plate f (SingletonSet x) = SingletonSet <$> f x
+  plate f EmptySet = pure EmptySet
+  plate f (SetUnion x y) = SetUnion <$> plate f x <*> plate f y
   plate f (LName x) = pure $ LName x
 
 -- example :: Expr
@@ -261,6 +276,9 @@ reduceLayouts = go
     go (Add x y) = Add (go x) (go y)
     go (Sub x y) = Sub (go x) (go y)
     go (Not x) = Not (go x)
+    go (SingletonSet x) = Not (go x)
+    go EmptySet = EmptySet
+    go (SetUnion x y) = SetUnion (go x) (go y)
     go (Equal x y) = Equal (go x) (go y)
     go (Lt x y) = Lt (go x) (go y)
     go (LName x) = LName x

@@ -31,6 +31,11 @@ data Expr
   | Lt Expr Expr
   | And Expr Expr
   | Not Expr
+
+  -- For the ghost language:
+  | EmptySet
+  | SingletonSet Expr
+  | SetUnion Expr Expr
   deriving (Show, Generic)
 
 instance HasVar Expr where mkVar = V
@@ -142,6 +147,9 @@ instance Ppr Expr where
   ppr (Lt x y) = sep [pprP x, text "<", pprP y]
   ppr (Not x) = text "not " <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
+  ppr EmptySet = text "{}"
+  ppr (SingletonSet x) = text "{" <> ppr x <> text "}"
+  ppr (SetUnion x y) = pprP x <+> text "++" <+> pprP y
 
 instance IsNested Expr where
   isNested (V _) = False

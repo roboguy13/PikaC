@@ -4,7 +4,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE PatternSynonyms #-}
 
-{-# OPTIONS_GHC -Wincomplete-patterns #-}
+{-# OPTIONS_GHC -Wincomplete-patterns -fprint-potential-instances #-}
 
 module PikaC.Stage.ToPikaCore
   (toPikaCore
@@ -386,6 +386,9 @@ convertExpr openedArgLayouts = go
     go (Pika.Equal x y) = PikaCore.Equal <$> go x <*> go y
     go (Pika.Lt x y) = PikaCore.Lt <$> go x <*> go y
     go (Pika.IntLit i) = pure $ PikaCore.IntLit i
+    go Pika.EmptySet = pure PikaCore.EmptySet
+    go (Pika.SingletonSet x) = PikaCore.SingletonSet <$> go x
+    go (Pika.SetUnion x y) = PikaCore.SetUnion <$> go x <*> go y
     go (Pika.BoolLit b) = pure $ PikaCore.BoolLit b
 
 lookupVar :: HasCallStack => [OpenedArgBody] -> Name PikaCore.Expr -> [Name PikaCore.Expr]

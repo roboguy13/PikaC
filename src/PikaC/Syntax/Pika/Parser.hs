@@ -286,9 +286,34 @@ parseLayoutBranch layoutName = lexeme $ try $ do
 
 parseCondLayoutBody :: Parser (GhostCondition Expr (LayoutBody Expr))
 parseCondLayoutBody = label "ghost conditioned layout body" $ lexeme $ do
-  cond <- optional (try (parseExpr <* symbol ";;"))
+  cond <- optional (try (parseGhostExpr <* symbol ";;"))
   body <- parseLayoutBody
   pure (GhostCondition cond body)
+
+parseGhostExpr' :: Parser Expr
+parseGhostExpr' = lexeme $
+  try parseExpr <|>
+  try (lexeme (symbol "{" *> symbol "}" *> pure EmptySet)) <|>
+  try (lexeme (fmap SingletonSet (symbol "{" *> parseGhostExpr <* symbol "}"))) <|>
+  try (symbol "(" *> parseGhostExpr <* symbol ")")
+
+parseGhostExpr :: Parser Expr
+parseGhostExpr = label "ghost expression" $ lexeme $
+  try parseSetUnion <|>
+  try parseEq <|>
+  try parseGhostExpr'
+  where
+    parseEq = lexeme $ do
+      x <- parseGhostExpr'
+      symbol "=="
+      y <- parseGhostExpr
+      pure $ Equal x y
+
+    parseSetUnion = lexeme $ do
+      x <- parseGhostExpr'
+      symbol "++"
+      y <- parseGhostExpr
+      pure $ SetUnion x y
 
 parseExists :: Parser [Exists Expr]
 parseExists = label "existential quantifier" $ lexeme $ do

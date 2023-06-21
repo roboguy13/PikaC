@@ -90,8 +90,6 @@ instance Alpha ArgLayout
 
 instance Subst Expr FnDefBranch
 
-instance Subst (Moded Expr) FnDefBranch
-
 instance Subst Expr ArgLayout
 
 instance WellScoped (Name Expr) Type

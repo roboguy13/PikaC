@@ -7,6 +7,8 @@ SetLayout : @(s : set) layout[-x](Set);
 SetLayout Empty := emp;
 SetLayout (Node left v right) :=
   exists +p, +q.
+  s == ({v} ++ s1)
+    ;;
   x :-> p **
   (x+1) :-> v **
   (x+2) :-> q **

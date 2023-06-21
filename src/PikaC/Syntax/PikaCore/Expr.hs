@@ -95,6 +95,11 @@ data Expr' (s :: Stage)
       FnName
       [Int] -- | Allocation size for results
       [Expr' s]
+
+  -- For the ghost language:
+  | EmptySet
+  | SingletonSet (Expr' s)
+  | SetUnion (Expr' s) (Expr' s)
   deriving (Generic)
 
 type family XV (s :: Stage)
@@ -185,6 +190,9 @@ bindXV convertNameExpr convertNameAsn vars = go
     go (Lt x y) = liftA2 Lt (go x) (go y)
     go (Not x) = fmap Not (go x)
     go (And x y) = liftA2 And (go x) (go y)
+    go (SingletonSet x) = SingletonSet <$> go x
+    go EmptySet = pure EmptySet
+    go (SetUnion x y) = SetUnion <$> go x <*> go y
     go (App f sz args) =
       App f sz <$> (mapM go args)
     go (WithIn e bnd) = do
@@ -232,7 +240,7 @@ instance Subst (Name Expr) a => Subst ExprName (Loc a) where
 
 instance Subst ExprName Expr
 
-instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Expr' s) (XModed s)) => IsName (Expr' s) (Expr' s) where
+instance (Subst (Expr' s) (Expr' PC), Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Expr' s) (XModed s)) => IsName (Expr' s) (Expr' s) where
   getName (V x) = x
   getName e = error $ "IsName PikaCore.Expr PikaCore.Expr requires var, got " ++ ppr' e
 
@@ -252,26 +260,32 @@ instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Expr' s) (XModed s)
   --   pure $ SubstCoerce x (fmap SimpleExpr . f)
   -- isCoerceVar _ = Nothing
 
-instance (Alpha (XV s), Subst (Moded' s (Expr' s)) (XModed s), Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s))), Alpha (XV s), Alpha (XModed s), Typeable s) => Subst (Moded' s (Expr' s)) (Expr' s)
+instance (Subst (Moded' s (Expr' s)) (Expr' PC), Alpha (XV s), Subst (Moded' s (Expr' s)) (XModed s), Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s))), Alpha (XV s), Alpha (XModed s), Typeable s) => Subst (Moded' s (Expr' s)) (Expr' s)
 instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s))), Subst (Moded' s (Expr' s)) (XModed s)) => Subst (Moded' s (Expr' s)) (Moded' s (Name (Expr' s)))
 -- instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Expr' s)) Mode
-instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (LayoutBody (Expr' s))
-instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (LayoutHeaplet (Expr' s))
-instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (PointsTo (Expr' s))
+instance (Subst (Moded' s (Expr' s)) (Expr' PC), Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (LayoutBody (Expr' s))
+instance (Subst (Moded' s (Expr' s)) (Expr' PC), Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (LayoutHeaplet (Expr' s))
+instance (Subst (Moded' s (Expr' s)) (Expr' PC), Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (PointsTo (Expr' s))
 -- instance (Alpha (XV s), Subst ((Moded' s) (Expr' s)) (XModed s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Expr' s)) (PointsTo (Expr' s))
 -- instance (Alpha (XV s), Subst (Moded' s (Expr' s)) (XModed s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Expr' s)) (Loc (Expr' s))
-instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>
+instance (Subst (Moded' s (Expr' s)) (Expr' PC), Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>
       Subst (Moded' s (Name (Expr' s))) (Loc (Expr' s))
-instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>
+instance (Subst (Moded' s (Expr' s)) (Expr' PC), Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>
   Subst (Moded' s (Name (Expr' s))) (Expr' s)
+instance Subst (Moded' s (Expr' s)) (Expr' PC) => Subst (Moded' s (Name (Expr' s))) (Expr' PC)
+instance Subst (Moded' s (Expr' s)) (Expr' PC) => Subst (Moded' s (Name (Expr' s))) (Moded' PC (Name (Expr' PC)))
+instance Subst (Moded' s (Expr' s)) (Expr' PC) => Subst (Moded' s (Name (Expr' s))) (PointsTo (Expr' PC))
+instance Subst (Moded' s (Expr' s)) (Expr' PC) => Subst (Moded' s (Name (Expr' s))) (Loc (Expr' PC))
 -- instance Subst (Moded' s (Name (Expr' s))) Expr
-instance Subst (Moded' s (Name (Expr' s))) (Moded' PC (Name (Expr' s)))
+
+-- instance Subst (Moded' s (Name (Expr' s))) (Moded' PC (Name (Expr' s)))
+
 -- instance Subst (Moded' s (Name (Expr' s))) Mode
-instance Subst (Moded' s (Name (Expr' s))) (Exists (Expr' s))
+instance (Subst (Moded' s (Name (Expr' s))) (Moded' PC (Name (Expr' s))), Subst (Expr' s) (Expr' PC)) => Subst (Moded' s (Name (Expr' s))) (Exists (Expr' s))
 
 instance Subst (Expr' PC) (PatternMatch (Expr' PC) (Bind [Exists (Expr' PC)] (GhostCondition (Expr' PC) (LayoutBody (Expr' PC)))))
 
-instance (Alpha (XModed s), Alpha (XV s), Subst (Expr' s) (Moded' s (Name (Expr' s))), Typeable s) => Subst (Expr' s) (Expr' s) where
+instance (Subst (Expr' s) (Expr' PC), Alpha (XModed s), Alpha (XV s), Subst (Expr' s) (Moded' s (Name (Expr' s))), Typeable s) => Subst (Expr' s) (Expr' s) where
   isvar (V x) = Just $ SubstName x
   isvar _ = Nothing
 
@@ -312,6 +326,9 @@ instance Plated Expr where
   plate f (Lt x y) = Lt <$> f x <*> f y
   plate f (Not x) = Not <$> f x
   plate f (And x y) = And <$> f x <*> f y
+  plate f (SingletonSet x) = SingletonSet <$> f x
+  plate f EmptySet = pure EmptySet
+  plate f (SetUnion x y) = SetUnion <$> plate f x <*> plate f y
   plate f (WithIn x bnd) =
     let (y, z) = unsafeUnbind bnd
     in
@@ -357,10 +374,10 @@ instance Subst (Moded (Name Expr)) (Allocation Expr)
 instance Subst (Moded Expr) (Allocation Expr)
 instance Subst (Name Expr) (Allocation Expr)
 
-instance (Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) => Ppr (Expr' s) where
+instance (Subst (Expr' s) (Expr' PC), Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) => Ppr (Expr' s) where
   ppr = runFreshM . pprExpr
 
-pprExpr :: forall s. (Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) =>
+pprExpr :: forall s. (Subst (Expr' s) (Expr' PC), Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) =>
   Expr' s -> FreshM Doc
 pprExpr (WithIn e bnd) = do
   -- (vars, body0) <- unbind bnd
@@ -419,8 +436,16 @@ pprExpr (And x y) = do
 pprExpr (App f sz x) = do
   xDoc <- mapM pprExprP x
   pure $ ppr f <+> (text "[" <> text (show sz) <> text "]") <+> hsep xDoc
+pprExpr EmptySet = pure $ text "{}"
+pprExpr (SingletonSet x) = do
+  xDoc <- pprExprP x
+  pure $ text "{" <> xDoc <> text "}"
+pprExpr (SetUnion x y) = do
+  xDoc <- pprExprP x
+  yDoc <- pprExprP y
+  pure $ sep [xDoc, text "++", yDoc]
 
-pprExprP :: (Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) => Expr' s -> FreshM Doc
+pprExprP :: (Subst (Expr' s) (Expr' PC), Subst (Expr' s) (XModed s), Typeable s, Show (XV s), Alpha (XModed s), Alpha (XV s)) => Expr' s -> FreshM Doc
 pprExprP e
   | isNested e = parens <$> pprExpr e
   | otherwise = pprExpr e
@@ -441,6 +466,9 @@ instance IsNested (Expr' s) where
   isNested (Not {}) = True
   isNested (And {}) = True
   isNested (App {}) = True
+  isNested EmptySet = False
+  isNested (SingletonSet {}) = False
+  isNested (SetUnion {}) = True
   isNested (WithIn {}) = True
   isNested (SslAssertion {}) = True
 
@@ -458,6 +486,9 @@ isBasic (Equal x y) = True
 isBasic (Lt x y) = True
 isBasic (Not x) = True
 isBasic (And x y) = True
+isBasic EmptySet = True
+isBasic (SingletonSet {}) = True
+isBasic (SetUnion {}) = True
 isBasic _ = False
 
 getV :: (HasCallStack, Ppr (Expr' s)) => Expr' s -> Name (Expr' s)
@@ -466,6 +497,10 @@ getV e = error $ "getV: " ++ ppr' e
 
 modedExpr :: ModedName Expr -> Moded Expr
 modedExpr (Moded m v) = Moded m (V v)
+
+instance Subst (Expr' AllocAnnotated) (Expr' PC)
+instance Subst (Expr' AllocAnnotated) (Moded' PC (Name (Expr' PC)))
+
 
 -- Property testing --
 

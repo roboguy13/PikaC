@@ -333,7 +333,7 @@ getLayoutParams layout =
 -- unbindLayout :: (Fresh m, Typeable a, Alpha a) => Layout a -> m ([ModedName a], [LayoutBranch a])
 -- unbindLayout = unbind . _layoutBranches
 
-instance (Subst (Moded' s a) (Exists a), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (LayoutBranch a)
+instance (Subst (Moded' s a) (Moded' PC (Name a)), Subst (Moded' s a) (Exists a), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (LayoutBranch a)
 instance Subst (Moded' s a) a => Subst (Moded' s a) (Pattern a)
 instance Subst (Moded' s a) a => Subst (Moded' s a) (LayoutBody a)
 instance Subst (Moded' s a) a => Subst (Moded' s a) (LayoutHeaplet a)
@@ -619,12 +619,12 @@ type LayoutName = TypeName
 --     go (LayoutBranch (PatternMatch (B (Pattern cName patVars) (B existVars body)))) = undefined
 
 instance (Subst a (LayoutBody a), Subst a a) => Subst a (GhostCondition a (LayoutBody a))
-instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (Bind [Exists a] (GhostCondition a (LayoutBody a))))
+instance (Subst (Moded' s a) (Moded' PC (Name a)), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (Bind [Exists a] (GhostCondition a (LayoutBody a))))
 instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (GhostCondition a (LayoutBody a))
 
-instance Subst (Moded' s a) (Exists a)
+instance (Subst (Moded' s a) (Moded' PC (Name a))) => Subst (Moded' s a) (Exists a)
 -- instance Subst a (Name a) => Subst (Moded' s a) (Moded' s2 (Name a))
-instance Subst (Moded' s a) (Moded' PC (Name a))
+-- instance Subst (Moded' s a) (Moded' PC (Name a))
 instance Subst (Moded' s a) Mode
 -- instance Subst (Moded' s a) (Exists a)
 
