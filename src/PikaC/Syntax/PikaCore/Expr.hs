@@ -709,11 +709,11 @@ genValidExpr' bvs size =
     ,Lt <$> halvedGen <*> halvedGen
     ,Not <$> genValidExpr' bvs (size - 1)
     ,And <$> halvedGen <*> halvedGen
-    ,let n' = newName bvs
+    ,(let n' = newName bvs
      in
      WithIn <$> halvedGen
       <*> (bind [Moded Out n']
-            <$> halvedGenWith (n' : bvs))
+            <$> halvedGenWith (n' : bvs))) -- `suchThat` isValid
 
     ,SslAssertion
       <$> (bind [] <$> genValidAssertion bvs (genSimpleExpr bvs) (size - 1))
@@ -725,7 +725,8 @@ genValidExpr' bvs size =
         then do
           x <- halvedGen
           y <- halvedGen
-          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [sz] <*> pure [x, y]
+          sz2 <- choose (1, 3)
+          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [sz, sz2] <*> pure [x, y]
         else do
           x <- genValidExpr' bvs (size - 1)
           App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [sz] <*> pure [x]

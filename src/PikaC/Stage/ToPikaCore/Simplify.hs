@@ -127,9 +127,12 @@ propPreserves_valid = propPreserves_validation validate validate
   --     Left msg -> counterexample ("Counterexample result:\n" ++ msg) False
   --     Right _ -> property True
 
+defaultTestCount :: Int
+defaultTestCount = 5000
+
 prop_genValidFnDef_sane :: Property
 prop_genValidFnDef_sane =
-  withMaxSuccess 1000 $ propPreserves_valid pure
+  withMaxSuccess defaultTestCount $ propPreserves_valid pure
 
 -- prop_valid_reuseExistingPtrs :: Property
 -- prop_valid_reuseExistingPtrs =
@@ -137,47 +140,47 @@ prop_genValidFnDef_sane =
 
 prop_valid_replaceClosedAssertions :: Property
 prop_valid_replaceClosedAssertions =
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef replaceClosedAssertions)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef replaceClosedAssertions)
 
 prop_valid_simplifyNestedCalls :: Property
 prop_valid_simplifyNestedCalls =
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef simplifyNestedCalls)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef simplifyNestedCalls)
 
 prop_valid_callOfWith :: Property
 prop_valid_callOfWith = 
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef callOfWith)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef callOfWith)
 
 prop_valid_withOfWith :: Property
 prop_valid_withOfWith =
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef withOfWith)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef withOfWith)
 
 prop_valid_substWithLayoutVar :: Property
 prop_valid_substWithLayoutVar =
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef substWithLayoutVar)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef substWithLayoutVar)
 
 prop_valid_withSubst :: Property
 prop_valid_withSubst =
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef withSubst)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef withSubst)
 
 prop_valid_layoutToWith :: Property
 prop_valid_layoutToWith =
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef layoutToWith)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef layoutToWith)
 
 prop_valid_renameResultLayout :: Property
 prop_valid_renameResultLayout =
-  withMaxSuccess 1000 $ propPreserves_valid renameResultLayout
+  withMaxSuccess defaultTestCount $ propPreserves_valid renameResultLayout
 
 prop_valid_assertionOfCall :: Property
 prop_valid_assertionOfCall =
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef assertionOfCall)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef assertionOfCall)
 
 prop_valid_assertionOfAssertion :: Property
 prop_valid_assertionOfAssertion =
-  withMaxSuccess 1000 $ propPreserves_valid (onFnDef assertionOfAssertion)
+  withMaxSuccess defaultTestCount $ propPreserves_valid (onFnDef assertionOfAssertion)
 
 prop_valid_simplifyFnDef :: Property
 prop_valid_simplifyFnDef =
-  withMaxSuccess 1000 $ propPreserves_valid simplifyFnDef
+  withMaxSuccess defaultTestCount $ propPreserves_valid simplifyFnDef
 
 prop_preserves_basicArgs_simplifyFnDef :: Property
 prop_preserves_basicArgs_simplifyFnDef =

@@ -1,0 +1,13 @@
+%generate g4
+
+VfctG_layout : layout[-vfbk](Z);
+VfctG_layout (EB cvuh df mtq) :=
+  (vfbk + 3) :-> mtq ** (vfbk + 19) :-> cvuh ** (vfbk + 15) :-> df ** (vfbk + 13) :-> df ** (vfbk + 4) :-> df ** (vfbk + 1) :-> df ** (vfbk + 20) :-> cvuh ** (vfbk + 10) :-> mtq ** (vfbk + 7) :-> mtq ** (vfbk + 2) :-> mtq ** VfctG_layout cvuh [df] ** VfctG_layout df [df] ** VfctG_layout mtq [df];
+VfctG_layout (HV wpx) :=
+  (vfbk + 14) :-> wpx ** (vfbk + 18) :-> wpx ** (vfbk + 17) :-> wpx ** (vfbk + 15) :-> wpx ** VfctG_layout wpx [wpx];
+-- Synths:
+-- Fn defs:
+g4 : VfctG_layout -> VfctG_layout;
+g4 (EB v0 v1 v2) :=
+    g4 (HV (g4 (EB v2 v2 v0 [VfctG_layout])) [VfctG_layout]);
+g4 (HV v0) := v0;

@@ -890,10 +890,11 @@ genExistHeaplets layoutName (patVar:patVars) params existVars size = do
 
 
   xs <- shuffle $ here ++ take (arity - length here) params
+  ys <- shuffle here
 
   (existVars', heaplets) <- genExistHeaplets layoutName patVars params rest (size-1)
 
-  pure $ (here ++ existVars', LApply layoutName [] (mkVar patVar) (map mkVar xs) : heaplets)
+  pure $ (here ++ existVars', LApply layoutName [] (mkVar patVar) (map mkVar ys) : heaplets)
 
 genLayoutRequiredPointsTo :: (IsName a a, HasVar a) =>
   String ->

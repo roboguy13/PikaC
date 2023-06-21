@@ -16,6 +16,8 @@ import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import PikaC.Syntax.Type.Parser hiding (parseGhostArg)
 import PikaC.Syntax.Type
 
+import PikaC.TypeChecker.Mode
+
 import PikaC.Utils
 import PikaC.Ppr hiding (char)
 
@@ -25,6 +27,11 @@ import Text.Megaparsec.Char
 import Control.Applicative hiding (some, many)
 import Data.Functor
 import Data.Maybe
+
+import Data.Either
+import Data.Semigroup
+import Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.List.NonEmpty as NonEmpty
 
 import Unbound.Generics.LocallyNameless (string2Name, bind)
 
@@ -457,7 +464,9 @@ genModule' size = do
                               &&
                             noDups (map fst (concatMap snd xs))) -- Constructor names are unique
   lNames <- replicateM layoutCount genLayoutName `suchThat` noDups
-  layouts <- mapM (\lName -> genLayout @Expr lName adtSigs dividedSize) lNames
+  layouts <-
+    mapM (\lName -> genLayout @Expr lName adtSigs dividedSize) lNames
+      `suchThat` (\(y : ys) -> isRight (sconcat (NonEmpty.map (modeCheck (y : ys)) (y :| ys))))
 
   let layoutSigs =
         map (convertSig adtSigs) layouts
