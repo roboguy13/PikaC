@@ -10,3 +10,6 @@
 *** Running test setToSll1
 (20 (5 (2 (3 ()))))
 
+*** Running test length1
+(4 ())
+

@@ -1,5 +1,6 @@
 %generate member
 %generate insert
+%generate length
 
 -- Sets as BSTs
 
@@ -41,6 +42,10 @@ insert n (Node l a r) | n < a := Node (insert n l) a r [SetLayout];
 insert n (Node l a r) | a < n := Node l a (insert n r) [SetLayout];
 insert n (Node l a r) | ((not (n < a)) && (not (a < n))) := Node l a r [SetLayout];
 
+length : Sll -> Sll;
+length Nil := 0;
+length (Cons h t) := 1 + (length t);
+
 %test "insert1" SetLayout:
   insert 3
     (insert 2
@@ -71,4 +76,13 @@ insert n (Node l a r) | ((not (n < a)) && (not (a < n))) := Node l a r [SetLayou
         (insert 5
           (insert 20
             (Empty [SetLayout])))));
+
+%test "length1" Sll:
+  length
+    (setToSll
+      (insert 3
+        (insert 2
+          (insert 5
+            (insert 20
+              (Empty [SetLayout]))))));
 
