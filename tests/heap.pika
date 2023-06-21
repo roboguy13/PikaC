@@ -6,22 +6,30 @@
 %generate deleteMin
 %generate insert
 
-HeapLayout : layout[-x](Heap);
-HeapLayout Empty := emp;
+HeapLayout : @(s : set) layout[-x](Heap);
+HeapLayout Empty := s == {} ;; emp;
 HeapLayout (Node a as) :=
   exists +nxt.
+  s == ({a} ++ s1)
+    ;;
   x :-> a **
   (x+1) :-> nxt **
-  ForestLayout as [nxt];
+  ForestLayout as @s1 [nxt];
 
-ForestLayout : layout[-x](Forest);
-ForestLayout Nil := emp;
+ForestLayout : @(s : set) layout[-x](Forest);
+ForestLayout Nil := s == {} ;; emp;
 ForestLayout (Cons h t) :=
   exists +p, +nxt.
+  s == (s1 ++ s2)
+    ;;
   x :-> p **
   (x+1) :-> nxt **
-  HeapLayout h [p] **
-  ForestLayout t [nxt];
+  HeapLayout h @s1 [p] **
+  ForestLayout t @s2 [nxt];
+
+  -- Unfortunately, SuSLik synthesizes something that violates the heap property here
+synth forestToHeap : ForestLayout @s -> HeapLayout @s;
+
 
 findMin : HeapLayout -> Int;
 findMin (Node a as) := a;
@@ -57,6 +65,7 @@ mergePairs (Cons h1 hs) :=
   mergePairs_helper h1 hs;
   
 deleteMin : HeapLayout -> HeapLayout;
+-- deleteMin (Node a as) := forestToHeap as;
 deleteMin (Node a as) := mergePairs as;
 
 testHeap : HeapLayout -> HeapLayout;
