@@ -35,6 +35,9 @@ import Control.Monad
 import Test.QuickCheck
 import Data.Validity
 
+import qualified Data.List.NonEmpty as NonEmpty
+import Data.List.NonEmpty (NonEmpty (..))
+
 import GHC.Stack
 
 import Control.DeepSeq
@@ -158,8 +161,18 @@ toMaxAllocs allocs0 = map go $ fastNub $ map allocName allocs0
   where
     go n = maximumBy (comparing allocSize) $ filter ((== n) . allocName) allocs0
 
-findAllocations :: forall a. (Alpha a, IsName a a) => [Name a] -> [PointsTo a] -> [Allocation a]
-findAllocations names xs = map toAlloc locMaximums
+getAllAllocs :: (Typeable a, Alpha a) => [Allocation a] -> Name a -> (Name a, [Int])
+getAllAllocs allocs x =
+  (x, map allocSize (filter (aeq x . allocName) allocs))
+
+-- | "Merge" any allocations with the same name, by taking the maximum size
+mergeMaxAllocs :: (Typeable a, Alpha a) => [Allocation a] -> [Allocation a]
+mergeMaxAllocs allocs = map go $ map (getAllAllocs allocs) (map allocName allocs)
+  where
+    go (name, szs) = Alloc name (maximum szs)
+
+findAllocations :: forall a. (Alpha a, Typeable a, IsName a a) => [Name a] -> [PointsTo a] -> [Allocation a]
+findAllocations names xs = mergeMaxAllocs $ map toAlloc locMaximums
   where
       -- Grouped by base name. Only include locations that have base names
       -- included in the 'names' argument

@@ -1,13 +1,30 @@
-%generate g4
+%generate h1
 
-VfctG_layout : layout[-vfbk](Z);
-VfctG_layout (EB cvuh df mtq) :=
-  (vfbk + 3) :-> mtq ** (vfbk + 19) :-> cvuh ** (vfbk + 15) :-> df ** (vfbk + 13) :-> df ** (vfbk + 4) :-> df ** (vfbk + 1) :-> df ** (vfbk + 20) :-> cvuh ** (vfbk + 10) :-> mtq ** (vfbk + 7) :-> mtq ** (vfbk + 2) :-> mtq ** VfctG_layout cvuh [df] ** VfctG_layout df [df] ** VfctG_layout mtq [df];
-VfctG_layout (HV wpx) :=
-  (vfbk + 14) :-> wpx ** (vfbk + 18) :-> wpx ** (vfbk + 17) :-> wpx ** (vfbk + 15) :-> wpx ** VfctG_layout wpx [wpx];
+-- Layouts:
+HL_layout : layout[-zv](G);
+HL_layout (BP mrra) :=
+  exists +t.
+  (zv + 18) :-> mrra ** (zv + 2) :-> mrra ** (zv + 3) :-> mrra ** (zv + 10) :-> mrra ** (zv + 16) :-> mrra ** (zv + 14) :-> mrra ** HL_layout mrra [t];
+HL_layout (SA efbc pox) :=
+  exists +qn.
+  (zv + 6) :-> pox ** (zv + 1) :-> efbc ** (zv + 11) :-> pox ** HL_layout efbc [qn];
+KKEf_layout : layout[-t](G);
+KKEf_layout (BP o) :=
+  exists +x.
+  (t + 16) :-> o ** (t + 12) :-> o ** (t + 5) :-> o ** (t + 1) :-> o ** (t + 17) :-> o ** KKEf_layout o [x];
+KKEf_layout (SA ohqu aoyl) :=
+  exists +f.
+  (t + 10) :-> aoyl ** (t + 5) :-> ohqu ** (t + 12) :-> ohqu ** (t + 9) :-> aoyl ** KKEf_layout ohqu [f];
 -- Synths:
 -- Fn defs:
-g4 : VfctG_layout -> VfctG_layout;
-g4 (EB v0 v1 v2) :=
-    g4 (HV (g4 (EB v2 v2 v0 [VfctG_layout])) [VfctG_layout]);
-g4 (HV v0) := v0;
+h1 : HL_layout -> HL_layout -> KKEf_layout;
+h1 (BP v0) (BP v1) := h0 (h1 v1 v0) v1;
+h1 (BP v0) (SA v1 v2) := h1 v0 v0;
+h1 (SA v0 v1) (BP v2) := SA v0 (h0 (h1 v2 v1) v2) [KKEf_layout];
+h1 (SA v0 v1) (SA v2 v3) :=
+    SA (v0 - 4) (h0 (h1 v1 v1) v1) [KKEf_layout];
+h0 : KKEf_layout -> HL_layout -> KKEf_layout;
+h0 (BP v0) (BP v1) := v0;
+h0 (BP v0) (SA v1 v2) := v0;
+h0 (SA v0 v1) (BP v2) := v1;
+h0 (SA v0 v1) (SA v2 v3) := v1;

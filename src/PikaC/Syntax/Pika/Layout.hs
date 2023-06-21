@@ -44,6 +44,8 @@ import Data.Typeable
 
 import Data.Bifunctor
 
+import Data.Semigroup
+
 import Control.Lens hiding (elements)
 import Control.Lens.TH
 
@@ -885,7 +887,8 @@ genExistHeaplets layoutName [] params existVars size = pure ([], mempty)
 genExistHeaplets layoutName _ params [] size = pure ([], mempty)
 genExistHeaplets layoutName (patVar:patVars) params existVars size = do
 
-  ix <- chooseInt (1, length existVars)
+  -- ix <- chooseInt (1, length existVars)
+  let ix = 1
   let arity = length existVars
   let (here, rest) = splitAt ix existVars
 

@@ -117,8 +117,9 @@ getResultAllocSizeInts layouts typeSig@(TypeSig _ ty) =
   let (_, t) = splitFnType ty
       layoutName = getTyVar t
       layout = lookupLayout layouts (name2String layoutName)
+      allocs = getResultAllocSize layouts typeSig $ map modedNameName $ getLayoutParams layout
   in
-  map allocSize $ getResultAllocSize layouts typeSig $ map modedNameName $ getLayoutParams layout
+  map allocSize allocs
 
 instance Ppr FnDef where
   ppr fn =
