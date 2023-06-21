@@ -882,15 +882,18 @@ genExistHeaplets :: (HasVar a) =>
   Gen ([Name a], [LayoutHeaplet a])
 genExistHeaplets layoutName [] params existVars size | size <= 0 = discardM
 genExistHeaplets layoutName [] params existVars size = pure ([], mempty)
+genExistHeaplets layoutName _ params [] size = pure ([], mempty)
 genExistHeaplets layoutName (patVar:patVars) params existVars size = do
 
-  -- ix <- chooseInt (1, length existVars)
-  let arity = length params
-  let (here, rest) = splitAt (arity-1) existVars -- We use arity-1 so that we always get at least one item from params when we make xs
+  ix <- chooseInt (1, length existVars)
+  let arity = length existVars
+  let (here, rest) = splitAt ix existVars
+
+ -- -- We use arity-1 so that we always get at least one item from params when we make xs
 
 
   xs <- shuffle $ here ++ take (arity - length here) params
-  ys <- shuffle here
+  ys <- shuffle here `suchThat` (not . null)
 
   (existVars', heaplets) <- genExistHeaplets layoutName patVars params rest (size-1)
 
