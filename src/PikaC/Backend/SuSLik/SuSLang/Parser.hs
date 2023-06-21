@@ -54,6 +54,7 @@ parseCommand :: Parser Command
 parseCommand = label "command" $ lexeme $
   try parseLetMalloc <|>
   try parseLet <|>
+  try parseAssume <|>
   try parseIfThenElse <|>
   try parseWrite <|>
   try parseCall <|>
@@ -81,6 +82,19 @@ parseLet = label "let" $ lexeme $ do
   symbol ";"
   rest <- some parseCommand
   pure $ Let e (bind x rest)
+
+-- TODO: Is this the correct way to handle 'assume'?
+parseAssume :: Parser Command
+parseAssume = label "assume-then-else" $ lexeme $ do
+  keyword "assume"
+  symbol "("
+  cond <- parseExpr
+  symbol ")"
+  symbol "{"
+  t <- many parseCommand
+  symbol "}"
+  pure $ Assert cond t
+
 
 parseIfThenElse :: Parser Command
 parseIfThenElse = label "if-then-else" $ lexeme $ do
@@ -194,5 +208,5 @@ parseName = lexeme $ do
   pure n
 
 keywords :: [String]
-keywords = ["if", "let", "malloc", "else", "free", "void"]
+keywords = ["if", "let", "malloc", "else", "free", "void", "assume"]
 

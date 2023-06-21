@@ -49,6 +49,10 @@ commandToC (SuSLang.Write lhs rhs) =
   in
   pure $ C.Assign lhs' rhs'
 
+commandToC (SuSLang.Assert c rest) = do
+  rest' <- mapM commandToC rest
+  pure $ C.Assert (exprToC c) rest'
+
 commandToC (SuSLang.Free (SuSLang.V x)) =
   pure $ C.Free (convertName x)
 

@@ -42,6 +42,7 @@ data Command
   | SetToNull CName
   | IfThenElse CExpr [Command] [Command]
   | IfThen CExpr [Command]
+  | Assert CExpr [Command]
   | Call
       String
       [CExpr] -- Input parameters
@@ -94,6 +95,10 @@ instance Ppr Command where
 
       go (SetToNull n) =
         pure $ ppr n <+> text "=" <+> text "NULL;"
+
+      go (Assert c rest) = do
+        restDoc <- mapM go rest
+        pure (text "assert(" <> ppr c <> text ");" $$ vcat restDoc)
 
       go (IfThen c t) = do
         tDoc <- mapM go t

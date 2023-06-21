@@ -131,3 +131,14 @@ testHeap (Node a as) := Node a as [HeapLayout];
           [ForestLayout])
         [HeapLayout]));
 
+%test "heapToSll" Sll:
+  heapToSll
+    (insert 5
+      (Node 1
+        (Cons
+          (Node 2
+            (Nil [ForestLayout])
+            [HeapLayout])
+          (Nil [ForestLayout])
+          [ForestLayout])
+        [HeapLayout]));

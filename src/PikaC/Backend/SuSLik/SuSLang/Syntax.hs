@@ -37,6 +37,7 @@ data Command
   | IfThenElse Expr [Command] [Command]
   | Call String [Expr]
   | Write (Loc Expr) Expr
+  | Assert Expr [Command]
   | Free Expr
   deriving (Show, Generic)
 
