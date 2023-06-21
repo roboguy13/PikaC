@@ -10,6 +10,9 @@
 *** Running test setToSll1
 (20 (5 (2 (3 ()))))
 
+*** Running test append1
+(1 (2 (10 (20 ()))))
+
 *** Running test length1
 (4 ())
 

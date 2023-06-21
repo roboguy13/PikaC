@@ -10,3 +10,6 @@
 *** Running test deleteMin1
 (2 ((5 ())()))
 
+*** Running test forestBelowMin1
+((5 ())((2 ())()))
+
