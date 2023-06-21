@@ -26,7 +26,10 @@ SetLayout (Node left v right) :=
   SetLayout left @s1 [p] **
   SetLayout right @s2 [q];
 
-synth append : (s == (s1 ++ s2)) ;; Sll @s1 -> Sll @s2 -> Sll @s;
+synth append :
+  (s == (s1 ++ s2))
+    ;;
+  Sll @s1 -> Sll @s2 -> Sll @s;
 
 synth setToSll : SetLayout @s -> Sll @s;
 
