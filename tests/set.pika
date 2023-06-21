@@ -77,6 +77,10 @@ length (Cons h t) := 1 + (length t);
           (insert 20
             (Empty [SetLayout])))));
 
+%test "append1" Sll:
+  append (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll])
+         (Cons 10 (Cons 20 (Nil [Sll]) [Sll]) [Sll]);
+
 %test "length1" Sll:
   length
     (setToSll

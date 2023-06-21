@@ -4,6 +4,8 @@
 %generate mergePairs_helper
 %generate mergePairs
 %generate deleteMin
+%generate forestCopy
+%generate forestBelowMin
 %generate insert
 
 Sll : @(s : set) layout[-x](List);
@@ -40,7 +42,10 @@ ForestLayout (Cons h t) :=
   -- Unfortunately, SuSLik synthesizes something that violates the heap property here
 -- synth forestToHeap : ForestLayout @s -> HeapLayout @s;
 
-synth heapToSll : HeapLayout @s -> Sll @s;
+  -- This seems to require an additional variant which does not hold:
+-- synth heapToSll : HeapLayout @s -> Sll @s;
+
+-- synth forestToSll : ForestLayout @s -> Sll @s;
 
 findMin : HeapLayout -> Int;
 findMin (Node a as) := a;
@@ -78,6 +83,13 @@ mergePairs (Cons h1 hs) :=
 deleteMin : HeapLayout -> HeapLayout;
 -- deleteMin (Node a as) := forestToHeap as;
 deleteMin (Node a as) := mergePairs as;
+
+forestCopy : ForestLayout -> ForestLayout;
+forestCopy Nil := Nil [ForestLayout];
+forestCopy (Cons a as) := Cons a as [ForestLayout];
+
+forestBelowMin : HeapLayout -> ForestLayout;
+forestBelowMin (Node a as) := forestCopy as; -- TODO: Find a way to fix the problem here so that we don't need this workaround
 
 testHeap : HeapLayout -> HeapLayout;
 testHeap Empty := Empty [HeapLayout];
@@ -131,8 +143,20 @@ testHeap (Node a as) := Node a as [HeapLayout];
           [ForestLayout])
         [HeapLayout]));
 
-%test "heapToSll" Sll:
-  heapToSll
+-- %test "heapToSll" Sll:
+--   heapToSll
+--     (insert 5
+--       (Node 1
+--         (Cons
+--           (Node 2
+--             (Nil [ForestLayout])
+--             [HeapLayout])
+--           (Nil [ForestLayout])
+--           [ForestLayout])
+--         [HeapLayout]));
+
+%test "forestBelowMin1" ForestLayout:
+  forestBelowMin
     (insert 5
       (Node 1
         (Cons
@@ -142,3 +166,19 @@ testHeap (Node a as) := Node a as [HeapLayout];
           (Nil [ForestLayout])
           [ForestLayout])
         [HeapLayout]));
+
+-- TODO: Figure out why this crashes:
+
+-- %test "forestBelowMin2" ForestLayout:
+--   forestToSll
+--     (forestBelowMin
+--       (insert 5
+--         (Node 1
+--           (Cons
+--             (Node 2
+--               (Nil [ForestLayout])
+--               [HeapLayout])
+--             (Nil [ForestLayout])
+--             [ForestLayout])
+--           [HeapLayout])));
+
