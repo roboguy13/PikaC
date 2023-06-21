@@ -66,7 +66,7 @@ parseIdentifier = label "identifier"
   parseLowercaseName
 
 keywords :: [String]
-keywords = ["not", "data", "deref", "addr", "in", "with", "layout", "let", "if", "then", "else"]
+keywords = ["not", "data", "deref", "addr", "in", "with", "layout", "let", "if", "then", "else", "synth"]
 
 parseConstructor :: Parser String
 parseConstructor = label "constructor name"

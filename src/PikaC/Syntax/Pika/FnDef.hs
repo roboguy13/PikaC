@@ -54,6 +54,15 @@ newtype FnDefBranch =
     -- }
   deriving (Show, Generic)
 
+-- | 'synth' directive to use SuSLik to synthesize a function
+data Synth =
+  Synth
+    String   -- | Function name
+    -- [String] -- | Universally quantified ghost variables in function signature
+    Type     -- | Argument type
+    Type     -- | Result type
+  deriving (Show, Generic)
+
 unguardMatches :: PatternMatches Expr GuardedExpr -> PatternMatches Expr Expr
 unguardMatches (PatternMatches matches) =
   let (vars, GuardedExpr _ body) = unsafeUnbind matches
@@ -63,8 +72,13 @@ unguardMatches (PatternMatches matches) =
 instance NFData FnDef
 instance NFData GuardedExpr
 instance NFData FnDefBranch
+instance NFData Synth
 
 instance Alpha GuardedExpr
+
+instance Ppr Synth where
+  ppr (Synth fnName argType resultType) =
+    text "synth" <+> text fnName <+> text ":" <+> ppr (FnType argType resultType)
 
 -- | Take the patterns of the first branch. This is to be used when
 -- determining names for arguments of base type. Only the PatternVar's

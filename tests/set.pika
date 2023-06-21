@@ -3,6 +3,16 @@
 
 -- Sets as BSTs
 
+Sll : @(s : set) layout[-x](List);
+Sll Nil := s == {} ;; emp;
+Sll (Cons head tail) :=
+  exists +nxt.
+  s == ({head} ++ s1)
+    ;;
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail @s1 [nxt];
+
 SetLayout : @(s : set) layout[-x](Set);
 SetLayout Empty := s == {} ;; emp;
 SetLayout (Node left v right) :=
@@ -14,6 +24,8 @@ SetLayout (Node left v right) :=
   (x+2) :-> q **
   SetLayout left @s1 [p] **
   SetLayout right @s2 [q];
+
+synth setToSll : SetLayout @s -> Sll @s;
 
 member : Int -> SetLayout -> Bool;
 member n Empty := False;

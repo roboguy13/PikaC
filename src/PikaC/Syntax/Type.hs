@@ -31,6 +31,7 @@ data Type
   | BoolType
   | FnType Type Type
   | TyVar TypeName
+  | GhostApp Type [String]
   deriving (Show, Generic)
 
 isBaseType :: Type -> Bool
@@ -115,6 +116,7 @@ instance Ppr Type where
   ppr BoolType = text "Bool"
   ppr (FnType src tgt) = hsep [pprP src, text "->", ppr tgt]
   ppr (TyVar x) = ppr x
+  ppr (GhostApp ty xs) = pprP ty <+> hsep (map (\x -> text "@" <> text x) xs)
 
 instance Ppr AdtName where ppr (AdtName n) = text n
 
@@ -126,6 +128,7 @@ instance IsNested Type where
   isNested IntType = False
   isNested BoolType = False
   isNested (TyVar x) = False
+  isNested (GhostApp {}) = False
 
 makeLenses ''TypeSig
 

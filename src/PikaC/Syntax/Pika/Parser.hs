@@ -13,7 +13,7 @@ import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Heaplet
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 
-import PikaC.Syntax.Type.Parser
+import PikaC.Syntax.Type.Parser hiding (parseGhostArg)
 import PikaC.Syntax.Type
 
 import PikaC.Utils
@@ -43,6 +43,7 @@ data PikaModule =
   PikaModule
   { moduleLayouts :: [Layout Expr]
   , moduleFnDefs :: [FnDef]
+  , moduleSynths :: [Synth]
   , moduleGenerates :: [String]
   , moduleTests :: [Test Expr]
   }
@@ -51,30 +52,35 @@ data PikaModule =
 instance NFData PikaModule
 
 instance Ppr PikaModule where
-  ppr (PikaModule layouts fns generates tests) =
+  ppr (PikaModule layouts fns synths generates tests) =
     text "-- Layouts:"
     $$ vcat (map ppr layouts)
+    $$ text "-- Synths:"
+    $$ vcat (map ppr synths)
     $$ text "-- Fn defs:"
     $$ vcat (map ppr fns)
     $$ text "-- Tests:"
     $$ vcat (map ppr tests)
 
 isTrivialModule :: PikaModule -> Bool
-isTrivialModule (PikaModule x y z w) =
-  null x || null y || null z || null w
+isTrivialModule (PikaModule x y z w a) =
+  null x || null y || null z || null w || null a
 
 instance Semigroup PikaModule where
-  PikaModule xs1 ys1 zs1 ws1 <> PikaModule xs2 ys2 zs2 ws2 =
-    PikaModule (xs1 <> xs2) (ys1 <> ys2) (zs1 <> zs2) (ws1 <> ws2)
+  PikaModule xs1 ys1 zs1 ws1 as1 <> PikaModule xs2 ys2 zs2 ws2 as2 =
+    PikaModule (xs1 <> xs2) (ys1 <> ys2) (zs1 <> zs2) (ws1 <> ws2) (as1 <> as2)
 
 instance Monoid PikaModule where
-  mempty = PikaModule mempty mempty mempty mempty
+  mempty = PikaModule mempty mempty mempty mempty mempty
 
 singleLayout :: Layout Expr -> PikaModule
 singleLayout x = mempty { moduleLayouts = [x] }
 
 singleFnDef :: FnDef -> PikaModule
 singleFnDef x = mempty { moduleFnDefs = [x] }
+
+singleSynth :: Synth -> PikaModule
+singleSynth x = mempty { moduleSynths = [x] }
 
 singleGenerate :: String -> PikaModule
 singleGenerate x = mempty { moduleGenerates = [x] }
@@ -97,6 +103,7 @@ parsePikaModule :: Parser PikaModule
 parsePikaModule = do
   generates <- mconcat . map singleGenerate <$> some parseGenerate
   layouts <- mconcat . map singleLayout <$> some parseLayout
+  synths <- mconcat . map singleSynth <$> many parseSynth
   fnDefs <- mconcat . map singleFnDef <$> some parseFnDef
   tests <- mconcat . map singleTest <$> many parseTest
 
@@ -148,6 +155,20 @@ parseFnDef = label "function definition" $ lexeme $ do
   symbol ";"
 
   FnDef fnName sig <$> some (parseFnDefBranch fnName)
+
+parseSynth :: Parser Synth
+parseSynth = do
+  keyword "synth"
+  fn <- parseFnName
+  symbol ":"
+  (argType, resultType) <- parseSynthSig
+  symbol ";"
+  pure $ Synth fn argType resultType
+
+parseSynthSig :: Parser (Type, Type)
+parseSynthSig = do
+  FnType x y <- parseFnType
+  pure (x, y)
 
 parseFnDefBranch :: String -> Parser FnDefBranch
 parseFnDefBranch fnName = label "function branch" $ lexeme $ try $ do
@@ -404,15 +425,15 @@ parsePatternVar = label "pattern variable" $ string2Name <$> lexeme parseLowerca
 
 instance Arbitrary PikaModule where
   arbitrary = error "Arbitrary PikaModule"
-  shrink mod0@(PikaModule x y z w) = do
+  shrink mod0@(PikaModule x y z w a) = do
     let x' = map shrink x
         y' = map shrink y
-    mod <- PikaModule <$> sequenceA x' <*> sequenceA y' <*> pure z <*> pure w
+    mod <- PikaModule <$> sequenceA x' <*> sequenceA y' <*> pure z <*> pure w <*> pure a
     pure mod
   -- shrink = filter (not . isTrivialModule) . genericShrink
 
 instance Validity PikaModule where
-  validate (PikaModule x y z w) =
+  validate (PikaModule x y z w _) =
     validate x <> validate y
 
 genModule :: Gen PikaModule

@@ -5,6 +5,7 @@ import PikaC.Syntax.Type
 import PikaC.Syntax.ParserUtils
 
 import Text.Megaparsec
+import Text.Megaparsec.Char
 
 import Control.Applicative hiding (some, many)
 import Data.Functor
@@ -22,8 +23,24 @@ parseType = label "type" $ lexeme $
   try parseFnType <|>
   try parseType'
 
+parseGhostApp :: Parser Type
+parseGhostApp = do
+  t <- parseType''
+  xs <- some parseGhostArg
+  pure $ GhostApp t xs
+
+parseGhostArg :: Parser String
+parseGhostArg = do
+  char '@'
+  parseLowercaseName
+
 parseType' :: Parser Type
-parseType' = label "type" $ lexeme $
+parseType' = 
+  try parseGhostApp <|>
+  parseType''
+
+parseType'' :: Parser Type
+parseType'' = label "type" $ lexeme $
   try (symbol "(" *> parseType <* symbol ")") <|>
   try (keyword "Int" $> IntType) <|>
   try (keyword "Bool" $> BoolType) <|>
