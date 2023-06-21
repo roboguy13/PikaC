@@ -31,6 +31,7 @@ invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
 
       suslikCode = render (indPredCode $$ helperCode $$ sigToSynthCode)
 
+  -- putStrLn suslikCode
   (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) suslikCode
 
   case exitCode of

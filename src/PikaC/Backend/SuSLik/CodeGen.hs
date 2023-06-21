@@ -237,7 +237,7 @@ codeGenIndPred fnDef = runFreshM $ do
 
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
-    , SuSLik._indPredArgTypes = argTypes -- TODO: We need a way to deal with layouts that have multiple parameters
+    , SuSLik._indPredArgTypes = argTypes ++ [TyVar (string2Name "unused")] -- TODO: We need a way to deal with layouts that have multiple parameters
     , SuSLik._indPredResultType = resultType
     , SuSLik._indPredGhostTypes = []
     , SuSLik._indPredBody =
