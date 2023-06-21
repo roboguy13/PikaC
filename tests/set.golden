@@ -1,0 +1,12 @@
+*** Running test insert1
+(20 (5 (2 ()(3 ()()))())())
+
+*** Running test member1
+1
+
+*** Running test member2
+0
+
+*** Running test setToSll1
+(20 (5 (2 (3 ()))))
+
