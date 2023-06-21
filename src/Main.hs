@@ -287,7 +287,7 @@ withModule opts pikaModule = do
                 Left err -> error $ "SuSLik error: " ++ err
                 Right susLangFn -> do
                   -- putStrLn susLang
-                  putStrLn $ ppr' $ functionToC susLangFn
+                  putStrLn $ render $ pprFns $ map functionToC susLangFn
 
     fuel = _optSimplifierFuel opts
 

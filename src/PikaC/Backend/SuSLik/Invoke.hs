@@ -10,18 +10,20 @@ import PikaC.Backend.SuSLik.SuSLang.Parser
 import PikaC.Backend.SuSLik.SuSLang.Syntax as SuSLang
 import PikaC.Syntax.ParserUtils
 
+import Text.Megaparsec (some)
+
 suslikStdinOpt :: [String]
 suslikStdinOpt = ["--stdin", "true"]
 
 defaultSuslikOpts :: [String]
-defaultSuslikOpts = suslikStdinOpt ++ ["-b","true", "-c", "2", "-o","2"]
+defaultSuslikOpts = suslikStdinOpt ++ ["--printSpecs","false","-b","true", "-c", "2", "-o","2"]
 
 suslikCmd :: String
 suslikCmd = "./suslik.sh"
 
 type SuSLikError = String
 
-invokeSuSLik :: [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError SuSLang.Function)
+invokeSuSLik :: [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError [SuSLang.Function])
 invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
   let susOpts = defaultSuslikOpts ++ susOpts0
 
@@ -36,9 +38,7 @@ invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
 
   case exitCode of
     ExitSuccess -> do
-          -- Drop the initial 2 lines, which just give the pre- and post-condition
-      let suslangCode = unlines $ drop 2 $ lines $ suslikOut
-      -- putStrLn suslangCode
-      pure $ Right $ parse' parseFunction suslangCode
+      -- putStrLn suslikOut
+      pure $ Right $ parse' (some parseFunction) suslikOut
     ExitFailure n -> pure $ Left stderrOut
 

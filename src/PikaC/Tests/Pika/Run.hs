@@ -40,11 +40,15 @@ import Control.Exception (bracket)
 import Control.Lens
 
 -- | Add forward declarations
-pprGenFns :: [PikaCore.FnDef] -> Doc
-pprGenFns fns =
-  let genFns = map codeGenFn fns
-  in
-  vcat (map declFunction genFns) $$ vcat (map ppr genFns)
+pprFns :: [CFunction] -> Doc
+pprFns fns =
+  vcat (map declFunction fns) $$ vcat (map ppr fns)
+
+-- pprGenFns :: [PikaCore.FnDef] -> Doc
+-- pprGenFns fns =
+--   let genFns = map codeGenFn fns
+--   in
+--   vcat (map declFunction genFns) $$ vcat (map ppr genFns)
 
 -- | Answers the question: Straight to C or through SuSLik to SuSLang and then to C?
 data WhichLang = C | SuSLang
@@ -63,18 +67,21 @@ genAndRun which fuel compiler pikaModule = do
       let synths = moduleSynths pikaModule
 
       hPutStrLn handle . render . pprLayoutPrinters $ convertedLayouts
-      mapM_ (hPutStrLn handle . ppr') =<< mapM (uncurry convertSynths) (removeOne synths)
+      -- (hPutStrLn handle . render . pprFns . concat) =<< mapM (uncurry convertSynths) (removeOne synths)
+      synthFns <- concat <$> mapM (uncurry convertSynths) (removeOne synths)
 
       let fnSigs = map getSynthTypeSig synths ++ map getFnTypeSig fnDefs
 
       -- invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
 
-      case which of
-        C -> (hPutStrLn handle . render . pprGenFns) =<< mapM (generateFn fnSigs) (moduleGenerates pikaModule)
-        SuSLang -> do
-          mapM_ (hPutStrLn handle . ppr') =<<
-            mapM (suslangConvert fnSigs . moduleLookupFn pikaModule)
-                 (moduleGenerates pikaModule)
+      pikaFns <- case which of
+                  C -> map codeGenFn <$> mapM (generateFn fnSigs) (moduleGenerates pikaModule)
+                  SuSLang -> do
+                      concat <$> mapM (suslangConvert fnSigs . moduleLookupFn pikaModule)
+                           (moduleGenerates pikaModule)
+
+      let allFns = synthFns ++ pikaFns
+      hPutStrLn handle . render $ pprFns allFns
 
       let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnSigs $ mkConvertedTests (moduleTests pikaModule)
       hPutStrLn handle $ ppr' $ genTestMain convertedLayouts convertedTests
@@ -105,7 +112,7 @@ genAndRun which fuel compiler pikaModule = do
     convertedLayouts = map (runIdentity . runPikaConvert layouts [] [] . convertLayout) layouts
 
     -- Go via SuSLik to SuSLang then C
-    suslangConvert :: [(String, TypeSig)] -> FnDef -> IO CFunction
+    suslangConvert :: [(String, TypeSig)] -> FnDef -> IO [CFunction]
     suslangConvert fnSigs fnDef = do
       pikaCore <- getPikaCore fnSigs fnDef
       let layoutPreds = map (codeGenLayout False) convertedLayouts
@@ -114,7 +121,7 @@ genAndRun which fuel compiler pikaModule = do
       invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
         Left err -> error $ "SuSLik error: " ++ err
         Right susLang ->
-          pure $ functionToC susLang
+          pure $ map functionToC susLang
 
     getPikaCore :: [(String, TypeSig)] -> FnDef -> IO PikaCore.FnDef
     getPikaCore fnSigs fnDef
@@ -125,7 +132,7 @@ genAndRun which fuel compiler pikaModule = do
 
     generateFn fnSigs = getPikaCore fnSigs . moduleLookupFn pikaModule
 
-    convertSynths :: Synth -> [Synth] -> IO CFunction
+    convertSynths :: Synth -> [Synth] -> IO [CFunction]
     convertSynths synth otherSynths = do
       let (layoutPreds, fnSig) = SuSLik.codeGenSynth convertedLayouts synth
           otherFnSigs = map (snd . SuSLik.codeGenSynth convertedLayouts) otherSynths
@@ -143,6 +150,6 @@ genAndRun which fuel compiler pikaModule = do
               ,"Got the error: " ++ err
               ]
         Right susLang ->
-          pure $ functionToC susLang
+          pure $ map functionToC susLang
 
 
