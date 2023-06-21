@@ -199,13 +199,13 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
   let argMatches = map (map _layoutMatch) $ getArgLayouts openedArgLayouts
 
   openedArgBranches <- mapM openPatternMatch $ concat argMatches
-  openedLayoutBodies0 <- map snd <$>
+  openedLayoutBodies0 <- map (_ghostCondBody . snd) <$>
     (mapM (freshOpen . snd) openedArgBranches
-      :: PikaConvert m [([Name PikaCore.Expr], LayoutBody PikaCore.Expr)])
+      :: PikaConvert m [([Name PikaCore.Expr], GhostCondition PikaCore.Expr (LayoutBody PikaCore.Expr))])
 
   matches1 <- mapM convertPattern $ patternMatchesPats matches0
 
-  openedLayoutBodies <- zipWithM (overArgLayout . flip applyLayoutPatternM) matches1 openedArgLayouts
+  openedLayoutBodies <- map (first _ghostCondBody) <$> zipWithM (overArgLayout . flip applyLayoutPatternM) matches1 openedArgLayouts
 
   let openedArgs = branchOpenedArgs matches1 openedLayoutBodies
 
@@ -327,7 +327,7 @@ lowerConstructor openedArgLayouts f args layoutName
       layout <- lookupLayoutM layoutName
       applied <- applyLayout' layout f args'
       (params, existsBnd) <- unbind applied
-      (_, LayoutBody body) <- freshOpenExists existsBnd
+      (_, GhostCondition _ (LayoutBody body)) <- freshOpenExists existsBnd
       convertLApplies params body
 
 -- LApply --> WithIn
@@ -424,20 +424,6 @@ onBind varFn bodyFn bnd = do
   bind <$> varFn vars <*> bodyFn body
 
 
--- TODO: Move these instances
-instance Subst [ModedName Pika.Expr] (LayoutBranch Pika.Expr)
-instance Subst [ModedName Pika.Expr] (PatternMatch Pika.Expr (Bind [Exists Pika.Expr] (LayoutBody Pika.Expr)))
-instance Subst [ModedName Pika.Expr] (LayoutBody Pika.Expr)
-instance Subst [ModedName Pika.Expr] (Exists Pika.Expr)
-instance Subst [ModedName Pika.Expr] (Pattern Pika.Expr)
-instance Subst [ModedName Pika.Expr] (LayoutHeaplet Pika.Expr)
-instance Subst [ModedName Pika.Expr] (Moded (Name Pika.Expr))
-instance Subst [ModedName Pika.Expr] (PointsTo Pika.Expr)
-instance Subst [ModedName Pika.Expr] (Loc Pika.Expr)
-instance Subst [ModedName Pika.Expr] Pika.Expr
-instance Subst [ModedName Pika.Expr] Mode
-instance Subst [ModedName Pika.Expr] AdtName
-
 convertLayout :: (Monad m, HasCallStack) => Layout Pika.Expr -> PikaConvert m (Layout PikaCore.Expr)
 convertLayout layout0 = do
   (ghosts, bnd) <- unbind $ _layoutBranches layout0
@@ -456,12 +442,16 @@ convertLayoutBranch (LayoutBranch branch) = do
     LayoutBranch <$> onPatternMatch internExprName goExists branch
   where
     goExists ::
-      Bind [Exists Pika.Expr] (LayoutBody Pika.Expr) ->
-      PikaConvert m (Bind [Exists PikaCore.Expr] (LayoutBody PikaCore.Expr))
-    goExists = onBind (mapM internExists) (fmap LayoutBody . go . _unLayoutBody)
+      Bind [Exists Pika.Expr] (GhostCondition Pika.Expr (LayoutBody Pika.Expr)) ->
+      PikaConvert m (Bind [Exists PikaCore.Expr] (GhostCondition PikaCore.Expr (LayoutBody PikaCore.Expr)))
+    goExists = onBind (mapM internExists)
+                 go
+                    --(fmap undefined . go . _unLayoutBody)
 
-    go :: [LayoutHeaplet Pika.Expr] -> PikaConvert m [LayoutHeaplet PikaCore.Expr]
-    go = traverse go'
+    go :: GhostCondition Pika.Expr (LayoutBody Pika.Expr) -> PikaConvert m (GhostCondition PikaCore.Expr (LayoutBody PikaCore.Expr))
+    go (GhostCondition x (LayoutBody y)) = do
+      x' <- traverse (convertExpr mempty) x
+      GhostCondition x' . LayoutBody <$> traverse go' y
 
     go' :: LayoutHeaplet Pika.Expr -> PikaConvert m (LayoutHeaplet PikaCore.Expr)
     go' (LApply layoutName patVar vs) = do

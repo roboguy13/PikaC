@@ -57,7 +57,8 @@ layoutPrinter layout =
     go (branch@(LayoutBranch (PatternMatch bnd1)) : rest) =
       let
         (patVars, existsBnd) = unsafeUnbind bnd1
-        (existVars, matchBody) = unsafeUnbind existsBnd
+        (existVars, matchBody0) = unsafeUnbind existsBnd
+        matchBody = _ghostCondBody matchBody0
         branchNames =
           map (getV . locBase . pointsToLhs) $ getPointsTos matchBody
         branchNamesC = map convertName branchNames

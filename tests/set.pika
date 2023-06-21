@@ -3,7 +3,7 @@
 
 -- Sets as BSTs
 
-SetLayout : layout[-x](Set);
+SetLayout : @(s : set) layout[-x](Set);
 SetLayout Empty := emp;
 SetLayout (Node left v right) :=
   exists +p, +q.

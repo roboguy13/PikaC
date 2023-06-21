@@ -279,10 +279,16 @@ parseLayoutBranch layoutName = lexeme $ try $ do
   pat <- parsePattern
   symbol ":="
   existVars <- fromMaybe [] <$> optional parseExists
-  body <- parseLayoutBody
+  body <- parseCondLayoutBody
   symbol ";"
 
   pure $ LayoutBranch (PatternMatch (bind pat (bind existVars body)))
+
+parseCondLayoutBody :: Parser (GhostCondition Expr (LayoutBody Expr))
+parseCondLayoutBody = label "ghost conditioned layout body" $ lexeme $ do
+  cond <- optional (try (parseExpr <* symbol ";;"))
+  body <- parseLayoutBody
+  pure (GhostCondition cond body)
 
 parseExists :: Parser [Exists Expr]
 parseExists = label "existential quantifier" $ lexeme $ do

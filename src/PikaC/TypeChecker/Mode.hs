@@ -82,7 +82,7 @@ modeCheck layoutEnv layout = runFreshM $ do
   -- openedBranches <- mapM (fmap snd . openPatternMatch . _layoutMatch) branches
   -- openExists <- mapM (fmap snd . unbind) openedBranches
 
-  let heaplets = concatMap _unLayoutBody openExists
+  let heaplets = concatMap (_unLayoutBody . _ghostCondBody) openExists
   -- let localEnv = getLayoutParams layout
   --     heaplets = view (layoutBranches.traversed.unLayoutBody) layout
   pure . execModeCheck layoutEnv localEnv $

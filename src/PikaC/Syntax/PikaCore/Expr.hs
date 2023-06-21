@@ -254,7 +254,7 @@ instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Expr' s) (XModed s)
 
 instance (Alpha (XV s), Subst (Moded' s (Expr' s)) (XModed s), Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s))), Alpha (XV s), Alpha (XModed s), Typeable s) => Subst (Moded' s (Expr' s)) (Expr' s)
 instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s))), Subst (Moded' s (Expr' s)) (XModed s)) => Subst (Moded' s (Expr' s)) (Moded' s (Name (Expr' s)))
-instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Expr' s)) Mode
+-- instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Expr' s)) Mode
 instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (LayoutBody (Expr' s))
 instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (LayoutHeaplet (Expr' s))
 instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Expr' s))) (Moded' s (Name (Expr' s)))) =>Subst (Moded' s (Name (Expr' s))) (PointsTo (Expr' s))
@@ -266,8 +266,10 @@ instance (Alpha (XV s), Alpha (XModed s), Typeable s, Subst (Moded' s (Name (Exp
   Subst (Moded' s (Name (Expr' s))) (Expr' s)
 -- instance Subst (Moded' s (Name (Expr' s))) Expr
 instance Subst (Moded' s (Name (Expr' s))) (Moded' PC (Name (Expr' s)))
-instance Subst (Moded' s (Name (Expr' s))) Mode
+-- instance Subst (Moded' s (Name (Expr' s))) Mode
 instance Subst (Moded' s (Name (Expr' s))) (Exists (Expr' s))
+
+instance Subst (Expr' PC) (PatternMatch (Expr' PC) (Bind [Exists (Expr' PC)] (GhostCondition (Expr' PC) (LayoutBody (Expr' PC)))))
 
 instance (Alpha (XModed s), Alpha (XV s), Subst (Expr' s) (Moded' s (Name (Expr' s))), Typeable s) => Subst (Expr' s) (Expr' s) where
   isvar (V x) = Just $ SubstName x

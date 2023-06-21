@@ -92,6 +92,19 @@ instance (Typeable a, Alpha a) => Alpha (Ghost a)
 instance NFData GhostType
 instance NFData a => NFData (Ghost a)
 
+data GhostCondition a b =
+  GhostCondition { _ghostCond :: (Maybe a), _ghostCondBody :: b }
+  deriving (Show, Generic)
+
+instance (Typeable a, Alpha a, Typeable b, Alpha b) => Alpha (GhostCondition a b)
+
+instance (NFData a, NFData b) => NFData (GhostCondition a b)
+
+makeLenses ''GhostCondition
+
+-- ghostCondBody :: GhostCondition a b -> b
+-- ghostCondBody (GhostCondition _ y) = y
+
 data Layout a =
   Layout
     { _layoutName :: String
@@ -108,7 +121,7 @@ newtype LayoutBranch a =
     { _layoutMatch ::
         PatternMatch a 
           (Bind [Exists a] -- Existential variables
-            (LayoutBody a))
+            (GhostCondition a (LayoutBody a)))
     }
     deriving (Show, Generic)
 
@@ -266,7 +279,10 @@ instance Subst (Exists a) a => Subst (Exists a) (LayoutHeaplet a)
 instance Subst (Exists a) a => Subst (Exists a) (PointsTo a)
 instance Subst (Exists a) a => Subst (Exists a) (Loc a)
 
-instance forall a. (Subst (Exists a) a, Subst (Pattern a) a, Subst (Name a) a, IsNested a, HasVar a, Subst a (LayoutBody a), Subst a (LayoutBranch a), Subst a (ModedName a), Typeable a, Alpha a, Ppr a) =>
+instance (Typeable a, Alpha a, Subst (Name a) a) => Subst (Name a) (PatternMatch a (Bind [Exists a] (GhostCondition a (LayoutBody a))))
+instance Subst (Name a) a => Subst (Name a) (GhostCondition a (LayoutBody a))
+
+instance forall a. (Subst a a, Subst (Exists a) a, Subst (Pattern a) a, Subst (Name a) a, IsNested a, HasVar a, Subst a (LayoutBody a), Subst a (LayoutBranch a), Subst a (ModedName a), Typeable a, Alpha a, Ppr a) =>
     Ppr (Layout a) where
   ppr layout =
     let (ghostParams, bnd) = unsafeUnbind $ _layoutBranches layout
@@ -288,7 +304,7 @@ instance forall a. (Subst (Exists a) a, Subst (Pattern a) a, Subst (Name a) a, I
         --     body = instantiate bodyBnd existVars
         let (B pat _) = branch
 
-            bnd :: Bind [Exists a] (LayoutBody a)
+            bnd :: Bind [Exists a] (GhostCondition a (LayoutBody a))
             bnd = openBind1 branch
 
             (B existVars _) = bnd
@@ -302,6 +318,10 @@ instance forall a. (Subst (Exists a) a, Subst (Pattern a) a, Subst (Name a) a, I
 
         (text name <+> ppr pat <+> text ":="
                 $$ nest 2 (exists $$ ppr body))
+
+instance (Ppr a, Ppr b) => Ppr (GhostCondition a b) where
+  ppr (GhostCondition Nothing y) = ppr y
+  ppr (GhostCondition (Just x) y) = ppr x <+> text ";;" <+> ppr y
 
 getLayoutParams :: (Alpha a, Typeable a) => Layout a -> [ModedName a]
 getLayoutParams layout =
@@ -414,10 +434,10 @@ openLayoutBranch bnd@(B vs _) = do
 --   (Fresh m, Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a)) =>
 --   LayoutBranch a -> String -> [a] -> m (Bind [ModedName a] (Bind [Exists a] (LayoutBody a)))
 applyLayoutBranch
-  :: (Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+  :: (Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a), Subst a a,
       Subst a (ModedName a)) =>
      LayoutBranch a
-     -> String -> [a] -> Either String (Bind [Exists a] (LayoutBody a))
+     -> String -> [a] -> Either String (Bind [Exists a] (GhostCondition a (LayoutBody a)))
 applyLayoutBranch branch constructor args =
     applyPatternMatch (_layoutMatch branch) constructor args
 
@@ -427,7 +447,7 @@ applyLayoutBranchPattern
       Subst (Name a) (ModedName (Name a))) =>
      LayoutBranch (Name a)
      -> Pattern a
-     -> Either String (Bind [Exists (Name a)] (LayoutBody (Name a)))
+     -> Either String (Bind [Exists (Name a)] (GhostCondition (Name a) (LayoutBody (Name a))))
 applyLayoutBranchPattern branch (PatternVar {}) = Left "applyLayoutBranchPattern: PatternVar"
 applyLayoutBranchPattern branch (Pattern c args) = applyLayoutBranch branch c args
 
@@ -436,7 +456,7 @@ applyLayoutBranchPattern'
       Subst (Name a) (LayoutBody (Name a)),
       Subst (Name a) (ModedName (Name a))) =>
      LayoutBranch (Name a)
-     -> Pattern a -> Bind [Exists (Name a)] (LayoutBody (Name a))
+     -> Pattern a -> Bind [Exists (Name a)] (GhostCondition (Name a) (LayoutBody (Name a)))
 applyLayoutBranchPattern' branch pat =
   case applyLayoutBranchPattern branch pat of
     Left e -> error e
@@ -454,8 +474,8 @@ applyLayoutBranchPattern' branch pat =
 --   pure $ instantiate bnd (map mkVars vs')
 
 -- | Apply layout to a constructor value
-applyLayout :: (Fresh m, Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a)) =>
-  Layout a -> String -> [a] -> m (Maybe (Bind [ModedName a] (Bind [Exists a] (LayoutBody a))))
+applyLayout :: (Fresh m, Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a), Subst a a) =>
+  Layout a -> String -> [a] -> m (Maybe (Bind [ModedName a] (Bind [Exists a] (GhostCondition a (LayoutBody a)))))
 applyLayout layout constructor args =
   sequenceA (unbind <$> lookupLayoutBranch layout constructor) >>= \case
     Nothing -> pure Nothing
@@ -464,8 +484,8 @@ applyLayout layout constructor args =
         Left {} -> pure Nothing
         Right b -> pure . Just $ bind params b
 
-applyLayout' :: (Fresh m, Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a)) =>
-  Layout a -> String -> [a] -> m (Bind [ModedName a] (Bind [Exists a] (LayoutBody a)))
+applyLayout' :: (Fresh m, Subst (Moded a) a, Subst a (ModedName a), Alpha a, Typeable a, HasApp a, HasApp a, Subst a (LayoutBody a), Subst a a) =>
+  Layout a -> String -> [a] -> m (Bind [ModedName a] (Bind [Exists a] (GhostCondition a (LayoutBody a))))
 applyLayout' layout c args =
   applyLayout layout c args >>= \case
     Nothing -> error $ "applyLayout': Cannot find branch for constructor " ++ c ++ " in " ++ show layout
@@ -487,10 +507,10 @@ freshOpenExists bnd@(B vs _) = do
   pure (map Exists moded, instantiate bnd (map mkVar vs'))
 
 applyLayoutPattern
-  :: (Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+  :: (Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a), Subst a a,
       Subst a (ModedName a), HasVar a) =>
      [LayoutBranch a]
-     -> Pattern a -> Either [Char] (Bind [Exists a] (LayoutBody a))
+     -> Pattern a -> Either [Char] (Bind [Exists a] (GhostCondition a (LayoutBody a)))
 applyLayoutPattern layout (PatternVar {}) = Left "applyLayoutPattern: PatternVar"
 applyLayoutPattern layout pat@(Pattern c args) =
   go layout
@@ -499,37 +519,37 @@ applyLayoutPattern layout pat@(Pattern c args) =
     go (x:xs) = applyLayoutBranch x c (map mkVar args) <> go xs
 
 applyLayoutPattern'
-  :: (Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+  :: (Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a), Subst a a,
       Subst a (ModedName a), HasVar a) =>
-     [LayoutBranch a] -> Pattern a -> Bind [Exists a] (LayoutBody a)
+     [LayoutBranch a] -> Pattern a -> Bind [Exists a] (GhostCondition a (LayoutBody a))
 applyLayoutPattern' layout pat =
   case applyLayoutPattern layout pat of
     Left e -> error e
     Right r -> r
 
 applyLayoutBranchPatternM 
-  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a), Subst a a,
       Subst a (ModedName a), HasVar a) =>
-     LayoutBranch a -> Pattern a -> m (LayoutBody a)
+     LayoutBranch a -> Pattern a -> m (GhostCondition a (LayoutBody a))
 applyLayoutBranchPatternM branch pat = do
   let bnd@(B vs _) = applyLayoutPattern' [branch] pat
   vs' <- mapM fresh (concatMap getNames vs)
   pure $ instantiate bnd (map mkVar vs')
 
 applyLayoutPatternM 
-  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a), Subst a a,
       Subst a (ModedName a), HasVar a) =>
-     [LayoutBranch a] -> Pattern a -> m (LayoutBody a)
+     [LayoutBranch a] -> Pattern a -> m (GhostCondition a (LayoutBody a))
 applyLayoutPatternM layout pat = do
   let bnd@(B vs _) = applyLayoutPattern' layout pat
   vs' <- mapM fresh (concatMap getNames vs)
   pure $ instantiate bnd (map mkVar vs')
 
 applyLayoutPatternMaybe
-  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a),
+  :: (Fresh m, Ppr a, Typeable a, Alpha a, HasApp a, Subst a (LayoutBody a), Subst a a,
       Subst a (ModedName a), HasVar a) =>
-     Maybe (OpenedLayout a) -> Pattern a -> m (LayoutBody a)
-applyLayoutPatternMaybe Nothing pat = pure mempty
+     Maybe (OpenedLayout a) -> Pattern a -> m (GhostCondition a (LayoutBody a))
+applyLayoutPatternMaybe Nothing pat = pure (GhostCondition Nothing mempty)
 applyLayoutPatternMaybe (Just layout) pat =
   applyLayoutPatternM layout pat
 
@@ -558,7 +578,7 @@ maxAllocsForLayout layout params =
       let B _ bnd1 = m
           B _ body = bnd1
       in
-      findAllocations params $ getPointsTos body
+      findAllocations params $ getPointsTos $ view ghostCondBody body
 
 layoutLAppliesMaxAllocs :: forall a. (HasVar a, IsName a a, Subst a (Layout a), Subst a (LayoutBranch a), Typeable a, Alpha a) => [Layout a] -> [LayoutBody a] -> [Allocation a]
 layoutLAppliesMaxAllocs layouts = toMaxAllocs . concatMap (go . _unLayoutBody)
@@ -598,6 +618,16 @@ type LayoutName = TypeName
 --   where
 --     go (LayoutBranch (PatternMatch (B (Pattern cName patVars) (B existVars body)))) = undefined
 
+instance (Subst a (LayoutBody a), Subst a a) => Subst a (GhostCondition a (LayoutBody a))
+instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (Bind [Exists a] (GhostCondition a (LayoutBody a))))
+instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (GhostCondition a (LayoutBody a))
+
+instance Subst (Moded' s a) (Exists a)
+-- instance Subst a (Name a) => Subst (Moded' s a) (Moded' s2 (Name a))
+instance Subst (Moded' s a) (Moded' PC (Name a))
+instance Subst (Moded' s a) Mode
+-- instance Subst (Moded' s a) (Exists a)
+
 --
 -- Property tests --
 --
@@ -606,6 +636,9 @@ instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (ModedName a
 
 instance WellScoped a AdtName where
   wellScoped _ _ = mempty
+
+instance WellScoped (Name a) a => WellScoped (Name a) (GhostCondition a (LayoutBody a))
+instance (WellScoped a (LayoutBody a), WellScoped a a) => WellScoped a (GhostCondition a (LayoutBody a))
 
 instance (Typeable a, Alpha a, WellScoped (Name a) b) =>
   WellScoped (ModedName a) (Bind [Ghost a] b) where
@@ -685,7 +718,7 @@ allPatVarsAreUsed :: (IsName a a, Alpha a, Typeable a) => LayoutBranch a -> Vali
 allPatVarsAreUsed (LayoutBranch (PatternMatch bnd)) =
   let (Pattern cName patVars, bnd1) = unsafeUnbind bnd
       (existVars, body) = unsafeUnbind bnd1
-      rhs's = map (getName . pointsToRhs) $ getPointsTos body
+      rhs's = map (getName . pointsToRhs) $ getPointsTos $ view ghostCondBody body
   in
   check (all (`elem` rhs's) patVars)
     "All pattern variables are used in layout branch"
@@ -703,6 +736,10 @@ instance (IsName a a, Typeable a, Alpha a, IsBase a, Arbitrary a, WellScoped (Na
 instance (IsName a a, Alpha a, Typeable a, IsBase a, Arbitrary a) => Arbitrary (LayoutBranch a) where
   arbitrary = error "Arbitrary LayoutBranch"
   shrink =  filter isValid . genericShrink
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (GhostCondition a b) where
+  arbitrary = GhostCondition <$> arbitrary <*> arbitrary
+  shrink (GhostCondition x y) = GhostCondition <$> shrink x <*> shrink y
 
 instance (IsBase a, Arbitrary a) => Arbitrary (LayoutBody a) where
   arbitrary = error "Arbitrary LayoutBody"
@@ -785,7 +822,7 @@ genLayoutBranch layoutName params size (constructor, arity) = do
         $ PatternMatch
             $ bind (Pattern constructor patVars)
               $ bind (map (Exists . Moded In) existsVarsUsed)
-                $ LayoutBody body
+                $ GhostCondition Nothing $ LayoutBody body
 
 -- noDupPointsToLhs :: IsName a a => [LayoutHeaplet a] -> Bool
 -- noDupPointsToLhs = noDups . map (getName . locBase . pointsToLhs) . getPointsTos . LayoutBody

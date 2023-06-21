@@ -6,6 +6,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DataKinds #-}
 
 module PikaC.Syntax.Pika.Expr
   where
@@ -23,6 +24,7 @@ import Data.Void
 
 import GHC.Generics
 
+import PikaC.Stage
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
@@ -198,7 +200,21 @@ instance Subst (Name Expr) AdtName
 
 instance Subst Expr (LayoutBranch Expr)
 instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (LayoutBody Expr)))
+instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (GhostCondition Expr (LayoutBody Expr))))
 instance Subst Expr (Pattern Expr)
+
+instance Subst [ModedName Expr] (PatternMatch Expr (Bind [Exists Expr] (GhostCondition Expr (LayoutBody Expr))))
+instance Subst [ModedName Expr] (GhostCondition Expr (LayoutBody Expr))
+instance Subst [ModedName Expr] (LayoutBody Expr)
+instance Subst [ModedName Expr] (LayoutHeaplet Expr)
+instance Subst [ModedName Expr] (PointsTo Expr)
+instance Subst [ModedName Expr] (Loc Expr)
+instance Subst [ModedName Expr] Expr
+instance Subst [ModedName Expr] AdtName
+instance Subst [ModedName Expr] (Exists Expr)
+instance Subst [ModedName Expr] (Moded' PC (Name Expr))
+instance Subst [ModedName Expr] Mode
+instance Subst [ModedName Expr] (Pattern Expr)
 
 instance Subst (Moded Expr) Expr
 instance Subst (Moded Expr) AdtName

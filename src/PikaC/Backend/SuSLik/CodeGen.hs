@@ -77,7 +77,7 @@ codeGenLayout layout = runFreshM $ do
 codeGenLayoutBranch :: Fresh m => [SuSLik.ExprName] -> LayoutBranch PikaCore.Expr -> m SuSLik.PredicateBranch
 codeGenLayoutBranch allNames (LayoutBranch (PatternMatch bnd)) = do
   (pat, bnd1) <- unbind bnd
-  (existVars, body@(LayoutBody asn)) <- unbind bnd1
+  (existVars, (GhostCondition gCond body@(LayoutBody asn))) <- unbind bnd1
   -- (zeroes, asn) <-
     -- getZeroes outNames =<<
     -- toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
