@@ -54,14 +54,21 @@ newtype FnDefBranch =
     -- }
   deriving (Show, Generic)
 
+getFnTypeSig :: FnDef -> (String, TypeSig)
+getFnTypeSig fnDef = (fnDefName fnDef, fnDefTypeSig fnDef)
+
 -- | 'synth' directive to use SuSLik to synthesize a function
 data Synth =
   Synth
     String   -- | Function name
-    -- [String] -- | Universally quantified ghost variables in function signature
-    Type     -- | Argument type
+    Expr     -- | "Pure part"
+    [Type]   -- | Argument types
     Type     -- | Result type
   deriving (Show, Generic)
+
+getSynthTypeSig :: Synth -> (String, TypeSig)
+getSynthTypeSig (Synth f _ argTypes resultType) =
+  (f, TypeSig [] (foldr FnType resultType argTypes))
 
 unguardMatches :: PatternMatches Expr GuardedExpr -> PatternMatches Expr Expr
 unguardMatches (PatternMatches matches) =
@@ -77,8 +84,8 @@ instance NFData Synth
 instance Alpha GuardedExpr
 
 instance Ppr Synth where
-  ppr (Synth fnName argType resultType) =
-    text "synth" <+> text fnName <+> text ":" <+> ppr (FnType argType resultType)
+  ppr (Synth fnName purePart argTypes resultType) =
+    text "synth" <+> text fnName <+> text ":" <+> ppr purePart <+> text ";;" <+> ppr (foldr FnType resultType argTypes)
 
 -- | Take the patterns of the first branch. This is to be used when
 -- determining names for arguments of base type. Only the PatternVar's
@@ -91,26 +98,27 @@ getFirstPatterns fnDef =
   in
   pats
 
-getResultAllocSize :: [Layout Expr] -> FnDef -> [ExprName] -> [Allocation Expr]
-getResultAllocSize layouts fnDef outParams =
-  let TypeSig _ ty = fnDefTypeSig fnDef
-      (_, resultTy) = splitFnType ty
+getResultAllocSize :: [Layout Expr] -> TypeSig -> [ExprName] -> [Allocation Expr]
+getResultAllocSize layouts (TypeSig _ ty) outParams =
+  let (_, resultTy) = splitFnType ty
+      handleTyVar layoutName = 
+        let
+            layout = lookupLayout layouts (name2String layoutName)
+        in
+        maxAllocsForLayout layout outParams
   in
   case resultTy of
     _ | isBaseType resultTy -> []
-    TyVar layoutName ->
-      let
-          layout = lookupLayout layouts (name2String layoutName)
-      in
-      maxAllocsForLayout layout outParams
+    TyVar layoutName -> handleTyVar layoutName
+    GhostApp (TyVar layoutName) _ -> handleTyVar layoutName
 
-getResultAllocSizeInts :: [Layout Expr] -> FnDef -> [Int]
-getResultAllocSizeInts layouts fnDef =
-  let TypeSig _ ty = fnDefTypeSig fnDef
-      (_, TyVar layoutName) = splitFnType ty
+getResultAllocSizeInts :: [Layout Expr] -> TypeSig -> [Int]
+getResultAllocSizeInts layouts typeSig@(TypeSig _ ty) =
+  let (_, t) = splitFnType ty
+      layoutName = getTyVar t
       layout = lookupLayout layouts (name2String layoutName)
   in
-  map allocSize $ getResultAllocSize layouts fnDef $ map modedNameName $ getLayoutParams layout
+  map allocSize $ getResultAllocSize layouts typeSig $ map modedNameName $ getLayoutParams layout
 
 instance Ppr FnDef where
   ppr fn =

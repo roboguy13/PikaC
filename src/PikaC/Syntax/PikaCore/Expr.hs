@@ -53,6 +53,8 @@ import Data.Char
 import Data.String
 import Data.Typeable
 
+import Control.DeepSeq
+
 type ExprName = Name Expr
 
 -- type LocName = ExprName
@@ -121,6 +123,8 @@ type FnName = FnName' String
 newtype FnName' a = FnName { unFnName :: a }
   deriving (Show, Eq, Ord, Generic)
 
+instance NFData a => NFData (FnName' a)
+
 instance IsString FnName where
   fromString = FnName
 
@@ -152,6 +156,12 @@ instance IsBase Expr where
 type PointsToExpr = PointsTo Expr
 type ExprAssertion = [PointsToExpr]
 type ExprAssertion' s = [PointsTo (Expr' s)]
+
+-- instance Alpha Expr
+-- instance Ppr expr
+instance NFData Expr
+
+instance (Typeable s, Alpha (XV s), Alpha (XModed s)) => Alpha (Expr' s)
 
 makePrisms ''Expr'
 
@@ -224,8 +234,6 @@ instance HasApp Expr where
 -- exampleBind =
 --   bind [string2Name "x"]
 --     (BaseExpr (LocV (string2Name "x")))
-
-instance (Typeable s, Alpha (XV s), Alpha (XModed s)) => Alpha (Expr' s)
 
 instance Subst Expr (LayoutBranch Expr)
 instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (LayoutBody Expr)))

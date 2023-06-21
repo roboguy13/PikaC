@@ -95,6 +95,7 @@ executable PikaC
                       lens,
                       lens-action,
                       megaparsec,
+                      parser-combinators,
                       text,
                       hedgehog,
                       validity,

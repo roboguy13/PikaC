@@ -10,6 +10,7 @@ module PikaC.Stage.ToPikaCore
   (toPikaCore
   ,convertLayout
   ,convertExprAndSimplify
+  ,convertBasicExpr
   )
   where
 
@@ -58,6 +59,9 @@ import Data.Functor
 import Debug.Trace
 
 import Data.Char
+
+convertBasicExpr :: Pika.Expr -> PikaCore.Expr
+convertBasicExpr = runIdentity . runPikaConvert mempty mempty mempty . convertExpr mempty
 
 data OpenedArg'' a b
   = BaseArg'  -- An argument with base type
@@ -130,7 +134,7 @@ convertExprAndSimplify openedLayouts e = do
 --      well-moded.
 --   2. There should be no LayoutLambda's
 --
-toPikaCore :: forall m. Logger m => SimplifyFuel -> [Layout Pika.Expr] -> [Pika.FnDef] -> Pika.FnDef -> m PikaCore.FnDef
+toPikaCore :: forall m. Logger m => SimplifyFuel -> [Layout Pika.Expr] -> [(String, TypeSig)] -> Pika.FnDef -> m PikaCore.FnDef
 toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
   let (argTypes, resultType) = splitFnType (_typeSigTy (Pika.fnDefTypeSig fn))
 
@@ -257,16 +261,18 @@ convertAppHere opened e@(Pika.App f args)
   | otherwise = do
         -- TODO: Handle base types
       resultTy <- lookupFnResultType f
+      let handleTyVar layoutName = do
+            layout <- lookupLayoutM (name2String layoutName)
+            let params0 = getLayoutParams layout
+            params <- mapM (fresh . modedNameName) params0
+            let modedParams = zipWith Moded (map getMode params0) params
+            convertAppHereUsing opened e modedParams
       case resultTy of
         _ | isBaseType resultTy -> do
           param <- fresh (string2Name "p")
           convertAppHereUsing opened e [Moded Out param]
-        TyVar layoutName  -> do
-          layout <- lookupLayoutM (name2String layoutName)
-          let params0 = getLayoutParams layout
-          params <- mapM (fresh . modedNameName) params0
-          let modedParams = zipWith Moded (map getMode params0) params
-          convertAppHereUsing opened e modedParams
+        TyVar layoutName  -> handleTyVar layoutName
+        GhostApp (TyVar layoutName) _ -> handleTyVar layoutName
 convertAppHere opened e = convertExpr opened e
 
 convertApps :: (Monad m, HasCallStack) =>
@@ -304,10 +310,10 @@ lowerApp ::  Monad m =>
   PikaConvert m PikaCore.Expr
 lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z) = do
   args' <- mapM (convertExpr openedArgLayouts) args
-  fnDef <- lookupFnDef f
+  fnSig <- lookupFnSig f
   layouts <- asks _origLayoutEnv
   let szs =
-        case Pika.getResultAllocSizeInts layouts fnDef of
+        case Pika.getResultAllocSizeInts layouts fnSig of
           [] -> [0] -- Result has a base type (Int or Bool)
           xs -> xs
   pure $

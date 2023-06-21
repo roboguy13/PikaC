@@ -15,6 +15,8 @@ import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.FnDef
 
+import qualified PikaC.Stage.ToPikaCore as ToPikaCore
+
 import PikaC.Ppr
 import PikaC.Utils
 import PikaC.Backend.Utils
@@ -39,15 +41,27 @@ codeGenSynth layouts synth =
   in
   (map (codeGenLayout True) layouts, sig)
 
-codeGenSynthSig :: [Layout PikaCore.Expr] -> Synth -> SuSLik.FnSig
-codeGenSynthSig layouts (Synth fn (GhostApp (TyVar argType) argGhostArgs) (GhostApp (TyVar resultType) resultGhostArgs)) = runFreshM $ do
+unGhostApp :: Type -> (String, [String])
+unGhostApp (GhostApp (TyVar v) args) = (name2String v, args)
 
-  let argLayout = lookupLayout layouts (name2String argType)
+codeGenSynthSig :: [Layout PikaCore.Expr] -> Synth -> SuSLik.FnSig
+codeGenSynthSig layouts (Synth fn purePart args (GhostApp (TyVar resultType) resultGhostArgs)) = runFreshM $ do
+
+  let (argLayoutNames, argsGhosts) = unzip $ map unGhostApp args
+
+  let argLayouts = map (lookupLayout layouts) argLayoutNames
       resultLayout = lookupLayout layouts (name2String resultType)
 
-  (_, argBnd) <- unbind $ _layoutBranches argLayout
-  (argParams, _) <- unbind argBnd
+  let getArgParams argLayout = do
+        (_, argBnd) <- unbind $ _layoutBranches argLayout
+        (argParams, _) <- unbind argBnd
+        pure argParams
 
+  argsParams <- mapM getArgParams argLayouts
+
+  -- (_, argBnd) <- unbind $ _layoutBranches argLayout
+  -- (argParams, _) <- unbind argBnd
+  --
   (_, resultBnd) <- unbind $ _layoutBranches resultLayout
   (resultParams, _) <- unbind resultBnd
 
@@ -56,19 +70,33 @@ codeGenSynthSig layouts (Synth fn (GhostApp (TyVar argType) argGhostArgs) (Ghost
   (_, precondOuts) <- mkOutPointsTos resultParams'
   (postCondOutVars, postCondOuts) <- mkOutPointsTos resultParams'
 
-  let params = map (convertName . modedNameName) $ argParams ++ resultParams
+  let params = map (convertName . modedNameName) (concat argsParams) ++ map (convertName . modedNameName) resultParams
 
-      allocs = mkLayoutApps [Just $ PikaCore.ArgLayout (name2String argType) $ map modedNameName argParams ++ map string2Name argGhostArgs]
-      outAllocs = allocs ++ mkLayoutApps [Just $ PikaCore.ArgLayout (name2String resultType) $ map (string2Name . show) postCondOutVars ++ map string2Name resultGhostArgs]
+      mkAlloc argType argParams argGhostArgs =
+        Just $ PikaCore.ArgLayout argType
+          $ map modedNameName argParams ++ map string2Name argGhostArgs
+
+      allocs = mkLayoutApps (zipWith3 mkAlloc argLayoutNames argsParams argsGhosts)
+
+      -- allocs = mkLayoutApps
+      --           [Just $
+      --             PikaCore.ArgLayout
+      --               (name2String argType)
+      --               $ map modedNameName argParams ++ map string2Name argGhostArgs]
+
+      outAllocs = -- allocs ++
+        mkLayoutApps [Just $ PikaCore.ArgLayout (name2String resultType) $ map (string2Name . show) postCondOutVars ++ map string2Name resultGhostArgs]
 
       spec = SuSLik.FnSpec
                { SuSLik._fnSpecPrecond = allocs ++ precondOuts
-               , SuSLik._fnSpecPostcond = postCondOuts ++ outAllocs
+               , SuSLik._fnSpecPostcond = (purePart', postCondOuts ++ outAllocs)
                }
+
+      purePart' = convertBase $ ToPikaCore.convertBasicExpr purePart
 
   pure $ SuSLik.FnSig
     { SuSLik._fnSigName = fn
-    , SuSLik._fnSigArgTypes = replicate (length argParams + length resultParams) (TyVar (string2Name "unused"))
+    , SuSLik._fnSigArgTypes = replicate (length (concat argsParams) + length resultParams) (TyVar (string2Name "unused"))
     , SuSLik._fnSigResultType = TyVar $ string2Name "unused"
     , SuSLik._fnSigConds = (params, spec)
     }
@@ -92,8 +120,10 @@ codeGenFnSig fnDef = runFreshM $ do
   let spec = SuSLik.FnSpec
               { SuSLik._fnSpecPrecond = allocs ++ precondOuts
               , SuSLik._fnSpecPostcond =
-                  [RecApply fnName (map mkVar (inParams' ++ postCondOutVars))]
-                  ++ postCondOuts
+                  (SuSLik.BoolLit True
+                  ,[RecApply fnName (map mkVar (inParams' ++ postCondOutVars))]
+                    ++ postCondOuts
+                  )
               }
   let (argTypes, resultType) = splitFnType $ PikaCore._fnDefType fnDef
 
@@ -164,8 +194,8 @@ convertLayoutBody useGhosts = map go . _unLayoutBody
     go (LPointsTo p) =
       let PointsToS q = convertPointsTo p
       in
-      ReadOnlyPointsToS q
-      -- PointsToS q
+      -- ReadOnlyPointsToS q
+      PointsToS q
     go (LApply n ghosts _ vs) =
       let args = if useGhosts
                  then vs ++ ghosts

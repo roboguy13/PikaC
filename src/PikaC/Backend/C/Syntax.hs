@@ -27,6 +27,7 @@ data CExpr
   | Sub CExpr CExpr
   | Equal CExpr CExpr
   | Lt CExpr CExpr
+  | Le CExpr CExpr
   | And CExpr CExpr
   | Mod CExpr CExpr
   | Div CExpr CExpr
@@ -179,6 +180,7 @@ instance Ppr CExpr where
   ppr (Sub x y) = sep [intCast (pprP x), text "-", intCast (pprP y)]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
   ppr (Lt x y) = sep [pprP x, text "<", pprP y]
+  ppr (Le x y) = sep [pprP x, text "<=", pprP y]
   ppr (Not x) = text "!" <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
   ppr (Deref x) = text "*" <> ppr x
@@ -200,6 +202,7 @@ instance IsNested CExpr where
   isNested (Sub {}) = True
   isNested (Equal {}) = True
   isNested (Lt {}) = True
+  isNested (Le {}) = True
   isNested (Not {}) = True
   isNested (And {}) = True
   isNested (Deref {}) = False

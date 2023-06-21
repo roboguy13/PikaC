@@ -63,6 +63,7 @@ exprToC (SuSLang.Div x y) = C.Div (exprToC x) (exprToC y)
 exprToC (SuSLang.Equal x y) = C.Equal (exprToC x) (exprToC y)
 exprToC (SuSLang.Not x) = C.Not (exprToC x)
 exprToC (SuSLang.Lt x y) = C.Lt (exprToC x) (exprToC y)
+exprToC (SuSLang.Le x y) = C.Le (exprToC x) (exprToC y)
 exprToC (SuSLang.And x y) = C.And (exprToC x) (exprToC y)
 exprToC (SuSLang.LocVal loc) = C.LocValue (convertLoc loc)
 

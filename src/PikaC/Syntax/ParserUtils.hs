@@ -5,6 +5,8 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
+import Control.Monad.Combinators.Expr
+
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 
@@ -71,4 +73,10 @@ keywords = ["not", "data", "deref", "addr", "in", "with", "layout", "let", "if",
 parseConstructor :: Parser String
 parseConstructor = label "constructor name"
   parseUppercaseName
+
+binaryL name f = InfixL  (f <$ symbol name)
+binaryR name f = InfixR  (f <$ symbol name)
+binaryN name f = InfixN  (f <$ symbol name)
+prefix  name f = Prefix  (f <$ symbol name)
+postfix name f = Postfix (f <$ symbol name)
 

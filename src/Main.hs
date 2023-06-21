@@ -242,12 +242,12 @@ withModule opts pikaModule = do
 
   -- main function for tests
   when (_optOnlyC opts) $ do
-    let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
+    let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts (map getFnTypeSig fnDefs) $ mkConvertedTests (moduleTests pikaModule)
     putStrLn $ ppr' $ genTestMain convertedLayouts convertedTests
   where
     fnDefs = moduleFnDefs pikaModule
     layouts = moduleLayouts pikaModule
-    convertedLayouts = map (runIdentity . runPikaConvert layouts [] fnDefs . convertLayout) layouts
+    convertedLayouts = map (runIdentity . runPikaConvert layouts [] (map getFnTypeSig fnDefs) . convertLayout) layouts
 
     mkConvertedTests :: Logger m => [Test Expr] -> PikaConvert m [Test PikaCore.Expr]
     mkConvertedTests =
@@ -294,8 +294,8 @@ withModule opts pikaModule = do
     getPikaCore :: FnDef -> IO PikaCore.FnDef
     getPikaCore fnDef
       | _optSimplifierLog opts =
-          runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
+          runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) fnDef
       | otherwise =
-          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
+          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) fnDef
 
 

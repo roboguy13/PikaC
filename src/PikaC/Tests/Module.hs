@@ -18,6 +18,8 @@ import PikaC.Ppr
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 
+import PikaC.Syntax.Pika.FnDef (getFnTypeSig)
+
 import Test.QuickCheck
 
 import Data.Validity
@@ -62,7 +64,7 @@ prop_basicArgs_toPikaCore =
     within theTimeout $
   -- forAllShow genModule ppr' $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) $ moduleLookupFn pikaModule fnName
     in
     case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
@@ -95,7 +97,7 @@ prop_simplify_from_Pika =
     -- infinite loop here
     within theTimeout $
     let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) $ moduleLookupFn pikaModule fnName
     in
     case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprIsSimplified pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False

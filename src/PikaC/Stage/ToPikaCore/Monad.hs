@@ -46,7 +46,7 @@ data PikaConvertEnv =
   PikaConvertEnv
   { _origLayoutEnv :: LayoutEnv Pika.Expr
   , _layoutEnv :: LayoutEnv PikaCore.Expr
-  , _globalFns :: [Pika.FnDef]
+  , _globalFnSigs :: [(String, TypeSig)]
   -- , _layoutVarSubst :: LayoutVarSubst
   }
 
@@ -78,15 +78,15 @@ piLift = PikaIntern . lift
 pcLift :: Monad m => FreshMT m a -> PikaConvert m a
 pcLift = PikaConvert . lift . piLift
 
-runPikaConvert :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> m a
+runPikaConvert :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, TypeSig)] -> PikaConvert m a -> m a
 runPikaConvert origLayouts layouts globalFns =
   runFreshMT . runPikaConvert' origLayouts layouts globalFns
 
-runPikaConvert' :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> FreshMT m a
+runPikaConvert' :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, TypeSig)] -> PikaConvert m a -> FreshMT m a
 runPikaConvert' origLayouts layouts globalFns =
   runPikaIntern' . runPikaConvert'' origLayouts layouts globalFns
 
-runPikaConvert'' :: LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [Pika.FnDef] -> PikaConvert m a -> PikaIntern m a
+runPikaConvert'' :: LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, TypeSig)] -> PikaConvert m a -> PikaIntern m a
 runPikaConvert'' origLayouts layouts globalFns (PikaConvert m) = runReaderT m (PikaConvertEnv origLayouts layouts globalFns)
 
 lookupLayoutM :: Monad m => String -> PikaConvert m (Layout PikaCore.Expr)
@@ -94,20 +94,17 @@ lookupLayoutM layoutName = do
   layouts <- asks _layoutEnv
   pure $ lookupLayout layouts layoutName
 
-lookupFnDef :: (Monad m, HasCallStack) => String -> PikaConvert m Pika.FnDef
-lookupFnDef name = go <$> asks _globalFns
+lookupFnSig :: (Monad m, HasCallStack) => String -> PikaConvert m TypeSig
+lookupFnSig name = go <$> asks _globalFnSigs
   where
-    go [] = error $ "lookupFnDef: Cannot find function " ++ name
-    go (x:xs)
-      | Pika.fnDefName x == name = x
-      | otherwise = go xs
-
-lookupFnTypeSig :: (Monad m, HasCallStack) => String -> PikaConvert m TypeSig
-lookupFnTypeSig name = Pika.fnDefTypeSig <$> lookupFnDef name
+    go xs =
+      case lookup name xs of
+        Nothing -> error $ "lookupFnSig: Cannot find function signature for " ++ name
+        Just r -> r
 
 lookupFnResultType :: (Monad m, HasCallStack) => String -> PikaConvert m Type
 lookupFnResultType fnName = do
-  sig <- lookupFnTypeSig fnName
+  sig <- lookupFnSig fnName
   case _typeSigLayoutConstraints sig of
     (_:_) -> error $ "lookupFnResultType: Function " ++ fnName ++ " should not be layout polymorphic. Found type " ++ ppr' sig
     [] ->

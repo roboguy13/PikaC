@@ -25,6 +25,8 @@ SetLayout (Node left v right) :=
   SetLayout left @s1 [p] **
   SetLayout right @s2 [q];
 
+synth append : (s == (s1 ++ s2)) ;; Sll @s1 -> Sll @s2 -> Sll @s;
+
 synth setToSll : SetLayout @s -> Sll @s;
 
 member : Int -> SetLayout -> Bool;
@@ -56,6 +58,14 @@ insert n (Node l a r) | ((not (n < a)) && (not (a < n))) := Node l a r [SetLayou
 
 %test "member2" Bool:
   member 100
+    (insert 3
+      (insert 2
+        (insert 5
+          (insert 20
+            (Empty [SetLayout])))));
+
+%test "setToSll1" Sll:
+  setToSll
     (insert 3
       (insert 2
         (insert 5

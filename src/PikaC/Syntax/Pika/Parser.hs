@@ -161,14 +161,16 @@ parseSynth = do
   keyword "synth"
   fn <- parseFnName
   symbol ":"
-  (argType, resultType) <- parseSynthSig
+  purePart <- fromMaybe (BoolLit True) <$> optional (parseGhostExpr <* symbol ";;")
+  ty <- parseType
+  let (argTypes, resultType) = splitFnType ty
   symbol ";"
-  pure $ Synth fn argType resultType
+  pure $ Synth fn purePart argTypes resultType
 
-parseSynthSig :: Parser (Type, Type)
-parseSynthSig = do
-  FnType x y <- parseFnType
-  pure (x, y)
+-- parseSynthSig :: Parser (Type, Type)
+-- parseSynthSig = do
+--   FnType x y <- parseFnType
+--   pure (x, y)
 
 parseFnDefBranch :: String -> Parser FnDefBranch
 parseFnDefBranch fnName = label "function branch" $ lexeme $ try $ do

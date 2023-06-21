@@ -8,6 +8,9 @@ import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Expr
+import PikaC.Syntax.Type
+
+import PikaC.Utils
 
 import PikaC.Stage.ToPikaCore
 import PikaC.Stage.ToPikaCore.SimplifyM
@@ -57,19 +60,23 @@ genAndRun which fuel compiler pikaModule = do
     $ \(fileName, handle) -> do
       hPutStrLn handle =<< readFile "tests/common/common.h"
 
+      let synths = moduleSynths pikaModule
+
       hPutStrLn handle . render . pprLayoutPrinters $ convertedLayouts
-      mapM_ (hPutStrLn handle . ppr') =<< mapM convertSynths (moduleSynths pikaModule)
+      mapM_ (hPutStrLn handle . ppr') =<< mapM (uncurry convertSynths) (removeOne synths)
+
+      let fnSigs = map getSynthTypeSig synths ++ map getFnTypeSig fnDefs
 
       -- invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
 
       case which of
-        C -> (hPutStrLn handle . render . pprGenFns) =<< mapM generateFn (moduleGenerates pikaModule)
+        C -> (hPutStrLn handle . render . pprGenFns) =<< mapM (generateFn fnSigs) (moduleGenerates pikaModule)
         SuSLang -> do
           mapM_ (hPutStrLn handle . ppr') =<<
-            mapM (suslangConvert . moduleLookupFn pikaModule)
+            mapM (suslangConvert fnSigs . moduleLookupFn pikaModule)
                  (moduleGenerates pikaModule)
 
-      let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnDefs $ mkConvertedTests (moduleTests pikaModule)
+      let convertedTests = runQuiet $ runPikaConvert layouts convertedLayouts fnSigs $ mkConvertedTests (moduleTests pikaModule)
       hPutStrLn handle $ ppr' $ genTestMain convertedLayouts convertedTests
 
       hClose handle
@@ -95,12 +102,12 @@ genAndRun which fuel compiler pikaModule = do
           %%~
             convertExprAndSimplify [])
 
-    convertedLayouts = map (runIdentity . runPikaConvert layouts [] fnDefs . convertLayout) layouts
+    convertedLayouts = map (runIdentity . runPikaConvert layouts [] [] . convertLayout) layouts
 
     -- Go via SuSLik to SuSLang then C
-    suslangConvert :: FnDef -> IO CFunction
-    suslangConvert fnDef = do
-      pikaCore <- getPikaCore fnDef
+    suslangConvert :: [(String, TypeSig)] -> FnDef -> IO CFunction
+    suslangConvert fnSigs fnDef = do
+      pikaCore <- getPikaCore fnSigs fnDef
       let layoutPreds = map (codeGenLayout False) convertedLayouts
           fnIndPred = codeGenIndPred pikaCore
           fnSig = codeGenFnSig pikaCore
@@ -109,23 +116,24 @@ genAndRun which fuel compiler pikaModule = do
         Right susLang ->
           pure $ functionToC susLang
 
-    getPikaCore :: FnDef -> IO PikaCore.FnDef
-    getPikaCore fnDef
+    getPikaCore :: [(String, TypeSig)] -> FnDef -> IO PikaCore.FnDef
+    getPikaCore fnSigs fnDef
       -- | _optSimplifierLog opts =
       --     runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
       | otherwise =
-          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef
+          pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) fnSigs fnDef
 
-    generateFn = getPikaCore . moduleLookupFn pikaModule
+    generateFn fnSigs = getPikaCore fnSigs . moduleLookupFn pikaModule
 
-    convertSynths :: Synth -> IO CFunction
-    convertSynths synth = do
+    convertSynths :: Synth -> [Synth] -> IO CFunction
+    convertSynths synth otherSynths = do
       let (layoutPreds, fnSig) = SuSLik.codeGenSynth convertedLayouts synth
+          otherFnSigs = map (snd . SuSLik.codeGenSynth convertedLayouts) otherSynths
 
       mapM_ (putStrLn . ppr') layoutPreds
       putStrLn $ ppr' fnSig
 
-      invokeSuSLik [] layoutPreds [] fnSig >>= \case
+      invokeSuSLik [] layoutPreds otherFnSigs fnSig >>= \case
         Left err -> error $ "SuSLik error: " ++ err
         Right susLang ->
           pure $ functionToC susLang

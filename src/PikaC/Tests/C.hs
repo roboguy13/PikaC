@@ -11,6 +11,8 @@ import PikaC.Syntax.Pika.Parser
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 
+import PikaC.Syntax.Pika.FnDef (getFnTypeSig)
+
 import PikaC.Ppr
 
 import Data.Validity
@@ -44,7 +46,7 @@ moduleToPikaCore :: PikaModule -> PikaCore.FnDef
 moduleToPikaCore pikaModule = 
   let (fnName:_) = moduleGenerates pikaModule
   in
-  (runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (moduleFnDefs pikaModule) $ moduleLookupFn pikaModule fnName)
+  (runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) $ moduleLookupFn pikaModule fnName)
 
 return []
 checkAllProps :: IO Bool

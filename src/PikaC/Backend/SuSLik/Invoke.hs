@@ -14,7 +14,7 @@ suslikStdinOpt :: [String]
 suslikStdinOpt = ["--stdin", "true"]
 
 defaultSuslikOpts :: [String]
-defaultSuslikOpts = suslikStdinOpt ++ ["-b","true", "-c", "2"]
+defaultSuslikOpts = suslikStdinOpt ++ ["-b","true", "-c", "2", "-o","2"]
 
 suslikCmd :: String
 suslikCmd = "./suslik.sh"
@@ -34,10 +34,10 @@ invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
   (exitCode, suslikOut, stderrOut) <- readCreateProcessWithExitCode (proc suslikCmd susOpts) suslikCode
 
   case exitCode of
-    ExitSuccess ->
-      pure $ Right
-        $ parse' parseFunction
+    ExitSuccess -> do
           -- Drop the initial 2 lines, which just give the pre- and post-condition
-        $ unlines $ drop 2 $ lines $ suslikOut
+      let suslangCode = unlines $ drop 2 $ lines $ suslikOut
+      -- putStrLn suslangCode
+      pure $ Right $ parse' parseFunction suslangCode
     ExitFailure n -> pure $ Left stderrOut
 

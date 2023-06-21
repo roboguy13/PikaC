@@ -26,6 +26,7 @@ data Expr
   | Div Expr Expr
   | Equal Expr Expr
   | Lt Expr Expr
+  | Le Expr Expr
   | Not Expr
   | And Expr Expr
   deriving (Show, Generic)

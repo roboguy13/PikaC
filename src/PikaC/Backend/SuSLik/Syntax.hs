@@ -30,6 +30,7 @@ data Expr
   | Sub Expr Expr
   | Equal Expr Expr
   | Lt Expr Expr
+  | Le Expr Expr
   | And Expr Expr
   | Not Expr
 
@@ -107,7 +108,9 @@ data FnSig
 data FnSpec
   = FnSpec
     { _fnSpecPrecond :: [HeapletS]
-    , _fnSpecPostcond :: Assertion
+    , _fnSpecPostcond ::
+        (Expr -- Pure part
+        ,Assertion)
     }
   deriving (Show, Generic)
 
@@ -147,6 +150,7 @@ instance Ppr Expr where
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
   ppr (Lt x y) = sep [pprP x, text "<", pprP y]
+  ppr (Le x y) = sep [pprP x, text "<=", pprP y]
   ppr (Not x) = text "not " <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
   ppr EmptySet = text "{}"
@@ -228,11 +232,15 @@ instance Ppr InductivePredicate where
 
 instance Ppr FnSpec where
   ppr fnSpec =
-    let postCond = _fnSpecPostcond fnSpec
+    let (purePart, postCond) = _fnSpecPostcond fnSpec
+        purePartDoc =
+          case purePart of
+            BoolLit True -> mempty
+            _ -> ppr purePart <+> text ";"
     in
     vcat
       [ braces (sep (punctuate (text " **") (map ppr (_fnSpecPrecond fnSpec))))
-      , braces (sep (punctuate (text " **") (map ppr postCond)))
+      , braces (purePartDoc <+> sep (punctuate (text " **") (map ppr postCond)))
       ]
 
 instance Ppr FnSig where

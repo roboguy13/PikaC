@@ -7,6 +7,8 @@ import Text.Megaparsec hiding (parseTest)
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
+import Control.Monad.Combinators.Expr
+
 import PikaC.Syntax.ParserUtils hiding (sc, lexeme, keywords, parseLowercaseName)
 import PikaC.Syntax.Heaplet
 
@@ -140,20 +142,37 @@ parseLoc = label "dereferenced location" $ lexeme $
 
 parseExpr :: Parser Expr
 parseExpr = label "expression" $ lexeme $
-  try (fmap LocVal parseLoc) <|>
-  try (parseBinOp "%" Mod) <|>
-  try (parseBinOp "&&" And) <|>
-  try (parseBinOp "/" Div) <|>
-  try (parseBinOp "+" Add) <|>
-  try (parseBinOp "*" Mul) <|>
-  try (parseBinOp "-" Sub) <|>
-  try (parseBinOp "==" Equal) <|>
-  try (parseBinOp "<" Lt) <|>
-  try parseExpr'
+  makeExprParser
+    parseExpr'
+    [ [ binaryN "==" Equal
+      , binaryN "!=" (\x y -> Not (Equal x y))
+      , binaryN "<=" Le
+      , binaryN "<" Lt
+      ]
+    , [ binaryL "&&" And
+      , prefix "!" Not
+      ]
+    , [ binaryL "*" Mul
+      , binaryL "/" Div
+      , binaryL "%" Mod
+      , binaryL "+" Add
+      , binaryL "-" Sub
+      ]
+    ]
+  -- try (parseBinOp "%" Mod) <|>
+  -- try (parseBinOp "&&" And) <|>
+  -- try (parseBinOp "/" Div) <|>
+  -- try (parseBinOp "+" Add) <|>
+  -- try (parseBinOp "*" Mul) <|>
+  -- try (parseBinOp "-" Sub) <|>
+  -- try (parseBinOp "==" Equal) <|>
+  -- try (parseBinOp "<" Lt) <|>
+  -- try parseExpr'
 
 parseExpr' :: Parser Expr
 parseExpr' = label "expression" $ lexeme $
   try (symbol "(" *> parseExpr <* symbol ")") <|>
+  try (fmap LocVal parseLoc) <|>
   try (IntLit <$> parseInt) <|>
   try (keyword "false" $> BoolLit False) <|>
   try (keyword "true" $> BoolLit True) <|>

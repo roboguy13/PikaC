@@ -26,6 +26,8 @@ import Control.Monad
 
 import Control.DeepSeq
 
+import GHC.Stack
+
 data Type
   = IntType
   | BoolType
@@ -33,6 +35,10 @@ data Type
   | TyVar TypeName
   | GhostApp Type [String]
   deriving (Show, Generic)
+
+getTyVar :: HasCallStack => Type -> TypeName
+getTyVar (TyVar t) = t
+getTyVar (GhostApp (TyVar t) _) = t
 
 isBaseType :: Type -> Bool
 isBaseType IntType = True
