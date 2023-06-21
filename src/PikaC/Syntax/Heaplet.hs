@@ -167,9 +167,11 @@ getAllAllocs allocs x =
 
 -- | "Merge" any allocations with the same name, by taking the maximum size
 mergeMaxAllocs :: (Typeable a, Alpha a) => [Allocation a] -> [Allocation a]
-mergeMaxAllocs allocs = map go $ map (getAllAllocs allocs) (map allocName allocs)
+mergeMaxAllocs = map (foldr1 go) . groupBy (aeq `on` allocName)
   where
-    go (name, szs) = Alloc name (maximum szs)
+    go (Alloc n x) (Alloc m y)
+      | not (aeq n m) = error "mergeMaxAllocs: Internal error: Did not group names correctly"
+      | otherwise = Alloc n (max x y)
 
 findAllocations :: forall a. (Alpha a, Typeable a, IsName a a) => [Name a] -> [PointsTo a] -> [Allocation a]
 findAllocations names xs = mergeMaxAllocs $ map toAlloc locMaximums

@@ -582,7 +582,7 @@ maxAllocsForLayout layout params =
     let (_, bnd) = unsafeUnbind (_layoutBranches layout)
         branches = instantiate bnd (map mkVar params)
     in
-      concatMap go branches
+      mergeMaxAllocs $ concatMap go branches
   where
     go (LayoutBranch (PatternMatch m)) =
       let B _ bnd1 = m

@@ -1,0 +1,21 @@
+%generate g8
+
+-- WARNING: This uses a lot of memory and CPU time.
+
+-- Layouts:
+Bhau_layout : layout[-pzt](S);
+Bhau_layout (I tazg) :=
+  exists +plko.
+  (pzt + 2) :-> tazg ** (pzt + 13) :-> tazg ** (pzt + 3) :-> tazg ** (pzt + 16) :-> tazg ** Bhau_layout tazg [plko];
+Fxh_layout : layout[-afm](S);
+Fxh_layout (I trq) :=
+  exists +kbd.
+  (afm + 15) :-> trq ** (afm + 12) :-> trq ** (afm + 17) :-> trq ** (afm + 2) :-> trq ** afm :-> trq ** (afm + 4) :-> trq ** (afm + 1) :-> trq ** (afm + 7) :-> trq ** (afm + 19) :-> trq ** Fxh_layout trq [kbd];
+-- Synths:
+-- Fn defs:
+g8 : Bhau_layout -> Fxh_layout;
+g8 (I v0) :=
+    I (I (I (g8 v0) [Fxh_layout]) [Fxh_layout]) [Fxh_layout];
+g2 : Fxh_layout -> Fxh_layout -> Bhau_layout;
+g2 (I v0) (I v1) := I (I (g2 v0 v1) [Bhau_layout]) [Bhau_layout];
+-- Tests:

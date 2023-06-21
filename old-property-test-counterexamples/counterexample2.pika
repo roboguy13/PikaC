@@ -1,0 +1,23 @@
+%generate h8
+
+-- Layouts:
+UWH_layout : layout[-u](V);
+UWH_layout (ZGC ksk z) :=
+  exists +drav, +afx.
+  (u + 18) :-> ksk ** (u + 13) :-> z ** (u + 8) :-> z ** (u + 12) :-> z ** (u + 11) :-> ksk ** (u + 19) :-> ksk ** (u + 4) :-> ksk ** (u + 3) :-> z ** (u + 14) :-> z ** (u + 10) :-> ksk ** UWH_layout ksk [drav] ** UWH_layout z [afx];
+UWH_layout (DJH mdj) :=
+  exists +rn.
+  u :-> mdj ** UWH_layout mdj [rn];
+GYj_layout : layout[-mbz](V);
+GYj_layout (ZGC k feul) :=
+  exists +x, +io.
+  (mbz + 3) :-> k ** (mbz + 1) :-> feul ** (mbz + 11) :-> feul ** (mbz + 13) :-> feul ** GYj_layout k [x] ** GYj_layout feul [io];
+GYj_layout (DJH evy) :=
+  exists +rod.
+  (mbz + 20) :-> evy ** (mbz + 3) :-> evy ** (mbz + 5) :-> evy ** (mbz + 8) :-> evy ** mbz :-> evy ** (mbz + 19) :-> evy ** (mbz + 4) :-> evy ** (mbz + 1) :-> evy ** GYj_layout evy [rod];
+-- Synths:
+-- Fn defs:
+h8 : GYj_layout -> UWH_layout;
+h8 (ZGC v0 v1) := ZGC 2 (h8 v1) [UWH_layout];
+h8 (DJH v0) := h8 v0;
+-- Tests:
