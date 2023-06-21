@@ -106,7 +106,7 @@ convertLayoutBody = map go . _unLayoutBody
       let PointsToS q = convertPointsTo p
       in
       ReadOnlyPointsToS q
-    go (LApply n _ vs) = RecApply n (map (mkVar . convertName . PikaCore.getV) vs)
+    go (LApply n ghosts _ vs) = RecApply n (map (mkVar . convertName . PikaCore.getV) (vs ++ ghosts))
 
 mkOutPointsTos :: Fresh m => [SuSLik.ExprName] -> m ([SuSLik.ExprName], [HeapletS])
 mkOutPointsTos [] = pure ([], [])

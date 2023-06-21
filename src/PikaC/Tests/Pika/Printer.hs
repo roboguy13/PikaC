@@ -89,7 +89,7 @@ layoutPrinter layout =
                cmdHere ++ restCmds
             ]
         -- TODO: Handle layouts that apply *other* layouts.
-        goBody recVars (LayoutBody (LApply layoutName patVar layoutVars : rest))
+        goBody recVars (LayoutBody (LApply layoutName _ghosts patVar layoutVars : rest))
           | layoutName /= _layoutName layout =
               C.Call (unFnName (getPrinter (TyVar (string2Name layoutName))))
                 (map (C.V . convertName . getV) layoutVars)
@@ -120,7 +120,7 @@ getPrinter (TyVar x) = FnName $ "_print_" ++ name2String x
 -- | Is used as an argument to a layout application
 isRecVar :: LayoutBody Expr -> ExprName -> Bool
 isRecVar body name =
-  let appArgs =  body ^.. (unLayoutBody.traversed._LApply._3)
+  let appArgs =  body ^.. (unLayoutBody.traversed._LApply._4)
   in
   any (V name `aeq`) $ concat appArgs
 

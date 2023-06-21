@@ -292,7 +292,7 @@ parseCondLayoutBody = label "ghost conditioned layout body" $ lexeme $ do
 
 parseGhostExpr' :: Parser Expr
 parseGhostExpr' = lexeme $
-  try parseExpr <|>
+  try parseExpr' <|>
   try (lexeme (symbol "{" *> symbol "}" *> pure EmptySet)) <|>
   try (lexeme (fmap SingletonSet (symbol "{" *> parseGhostExpr <* symbol "}"))) <|>
   try (symbol "(" *> parseGhostExpr <* symbol ")")
@@ -353,10 +353,17 @@ parseLoc = label "location" $ lexeme $
       pure (v :+ i)
 
 parseLayoutApply :: Parser (LayoutHeaplet Expr)
-parseLayoutApply = do
+parseLayoutApply = label "layout application" $ lexeme $ do
   layoutName <- parseLayoutName
   n <- parseExprName
-  LApply layoutName (V n) <$> some parseLayoutArg
+  ghosts <- many parseGhostArg
+  args <- some parseLayoutArg
+  pure $ LApply layoutName ghosts (V n) args
+
+parseGhostArg :: Parser Expr
+parseGhostArg = label "ghost argument" $ lexeme $ do
+  char '@'
+  parseGhostExpr'
 
 parseLayoutArg :: Parser Expr
 parseLayoutArg = label "layout argument" $ lexeme $

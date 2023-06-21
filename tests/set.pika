@@ -4,16 +4,16 @@
 -- Sets as BSTs
 
 SetLayout : @(s : set) layout[-x](Set);
-SetLayout Empty := emp;
+SetLayout Empty := s == {} ;; emp;
 SetLayout (Node left v right) :=
   exists +p, +q.
-  s == ({v} ++ s1)
+  s == ({v} ++ s1 ++ s2)
     ;;
   x :-> p **
   (x+1) :-> v **
   (x+2) :-> q **
-  SetLayout left [p] **
-  SetLayout right [q];
+  SetLayout left @s1 [p] **
+  SetLayout right @s2 [q];
 
 member : Int -> SetLayout -> Bool;
 member n Empty := False;

@@ -354,7 +354,7 @@ convertLApplies names heaplets = do
   go applies (PikaCore.SslAssertion (bind names pointsTos))
   where
     go [] z = pure z
-    go ((layoutName, exprArg, layoutVarExprs) : xs) z =
+    go ((layoutName, _ghosts, exprArg, layoutVarExprs) : xs) z =
       convertLApply layoutName exprArg layoutVarExprs
         =<< go xs z
 
@@ -411,7 +411,7 @@ lookupVar1 :: [LayoutHeaplet PikaCore.Expr] -> Name PikaCore.Expr -> Maybe [Name
 lookupVar1 [] v = Nothing
 lookupVar1 (LPointsTo ((x :+ i) :-> PikaCore.V rhs) : rest) v
   | rhs == v = Just [v]
-lookupVar1 (LApply layoutName (PikaCore.V patVar) layoutParams : rest) v
+lookupVar1 (LApply layoutName _ghosts (PikaCore.V patVar) layoutParams : rest) v
   | patVar == v = Just (map getName layoutParams)
 lookupVar1 (_ : rest) v = lookupVar1 rest v
 
@@ -457,10 +457,11 @@ convertLayoutBranch (LayoutBranch branch) = do
       GhostCondition x' . LayoutBody <$> traverse go' y
 
     go' :: LayoutHeaplet Pika.Expr -> PikaConvert m (LayoutHeaplet PikaCore.Expr)
-    go' (LApply layoutName patVar vs) = do
+    go' (LApply layoutName ghosts patVar vs) = do
       patVar' <- convertExpr mempty patVar
       vs' <- mapM internExprName (map getName vs)
-      pure $ LApply layoutName patVar' (map PikaCore.V vs')
+      ghosts' <- mapM (convertExpr mempty) ghosts
+      pure $ LApply layoutName ghosts' patVar' (map PikaCore.V vs')
 
     go' (LPointsTo ((Pika.V a :+ i) :-> b)) = do
       a' <- internExprName a

@@ -223,6 +223,7 @@ data LayoutHeaplet a
   = LPointsTo (PointsTo a)
   | LApply
       String -- Layout name
+      [a] -- Ghost parameters
       a    -- Pattern variable
       [a]    -- Layout variables
       -- [LocVar]    -- Layout variables
@@ -231,12 +232,12 @@ data LayoutHeaplet a
 -- | Split into points-to and applications
 splitLayoutHeaplets ::
   [LayoutHeaplet a] ->
-  ([PointsTo a], [(String, a, [a])])
+  ([PointsTo a], [(String, [a], a, [a])])
 splitLayoutHeaplets [] = ([], [])
 splitLayoutHeaplets (LPointsTo p : xs) =
   first (p:) (splitLayoutHeaplets xs)
-splitLayoutHeaplets (LApply layoutName exprArg layoutVars : xs) =
-  second ((layoutName, exprArg, layoutVars) :) (splitLayoutHeaplets xs)
+splitLayoutHeaplets (LApply layoutName ghosts exprArg layoutVars : xs) =
+  second ((layoutName, ghosts, exprArg, layoutVars) :) (splitLayoutHeaplets xs)
 
 -- type PatternVar = Name Expr
 
@@ -348,9 +349,10 @@ instance Subst (Exists a) Mode
 
 instance (IsNested a, Ppr a) => Ppr (LayoutHeaplet a) where
   ppr (LPointsTo p) = ppr p
-  ppr (LApply f patVar layoutVars) =
+  ppr (LApply f ghosts patVar layoutVars) =
     text f
       <+> pprP patVar
+      <+> hsep (map ((text "@" <>) . ppr) ghosts)
       <+> (text "["
           <> hsep (punctuate (text ",") (map ppr layoutVars))
           <> text "]")
@@ -560,11 +562,11 @@ getPointsTos b@(LayoutBody xs0) = go xs0
     go (LApply {} : xs) = go xs
     go (LPointsTo p : xs) = p : go xs
 
-getLApplies :: LayoutBody a -> [(String, a, [a])]
+getLApplies :: LayoutBody a -> [(String, [a], a, [a])]
 getLApplies b@(LayoutBody xs0) = go xs0
   where
     go [] = []
-    go ((LApply n e vs) : xs) = (n, e, vs) : go xs
+    go ((LApply n ghosts e vs) : xs) = (n, ghosts, e, vs) : go xs
     go (LPointsTo {} : xs) = go xs
 
 maxAllocsForLayout :: forall a. (HasVar a, IsName a a, Subst a (Layout a), Subst a (LayoutBranch a), Typeable a, Alpha a) => Layout a -> [Name a] -> [Allocation a]
@@ -585,7 +587,7 @@ layoutLAppliesMaxAllocs layouts = toMaxAllocs . concatMap (go . _unLayoutBody)
   where
     go :: [LayoutHeaplet a] -> [Allocation a]
     go [] = []
-    go (LApply n e vs : xs) =
+    go (LApply n _ghosts e vs : xs) =
       let layout = lookupLayout layouts n
       in
         maxAllocsForLayout layout (map getName vs) ++ go xs
@@ -747,8 +749,8 @@ instance (IsBase a, Arbitrary a) => Arbitrary (LayoutBody a) where
 
 instance (IsBase a, Arbitrary a) => Arbitrary (LayoutHeaplet a) where
   arbitrary = error "Arbitrary LayoutHeaplet"
-  shrink (LApply layoutName x ys) =
-    LApply layoutName <$> shrink x <*> sequenceA (map shrink ys)
+  shrink (LApply layoutName ghosts x ys) =
+    LApply layoutName <$> shrink ghosts <*> shrink x <*> sequenceA (map shrink ys)
   shrink e = genericShrink e
 
 -- NOTE: Only Out mode parameters for now
@@ -885,7 +887,7 @@ genExistHeaplets layoutName (patVar:patVars) params existVars size = do
 
   (existVars', heaplets) <- genExistHeaplets layoutName patVars params rest (size-1)
 
-  pure $ (here ++ existVars', LApply layoutName (mkVar patVar) (map mkVar xs) : heaplets)
+  pure $ (here ++ existVars', LApply layoutName [] (mkVar patVar) (map mkVar xs) : heaplets)
 
 genLayoutRequiredPointsTo :: (IsName a a, HasVar a) =>
   String ->

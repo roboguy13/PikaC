@@ -95,7 +95,7 @@ modeCheckHeaplet h@(LPointsTo ((n :+ _) :-> _)) = do
     In -> modeErrorM $
             text "Variable" <+> ppr n <+> text "has input mode in left-hand side of points-to: " $$ nest 4 (ppr h)
 
-modeCheckHeaplet h@(LApply layoutName _patVar layoutVars) = do
+modeCheckHeaplet h@(LApply layoutName _ghosts _patVar layoutVars) = do
   layout <- asks (lookupLayout . _mcLayoutEnv) <*> pure layoutName
   zipWithM_ modeMatch' (getLayoutParams layout) (map getName layoutVars)
   where
