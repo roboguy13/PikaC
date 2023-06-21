@@ -186,6 +186,7 @@ test-suite PikaC-golden-tests
                       lens,
                       lens-action,
                       megaparsec,
+                      parser-combinators,
                       text,
                       hedgehog,
                       validity,

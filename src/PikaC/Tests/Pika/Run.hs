@@ -130,11 +130,18 @@ genAndRun which fuel compiler pikaModule = do
       let (layoutPreds, fnSig) = SuSLik.codeGenSynth convertedLayouts synth
           otherFnSigs = map (snd . SuSLik.codeGenSynth convertedLayouts) otherSynths
 
-      mapM_ (putStrLn . ppr') layoutPreds
-      putStrLn $ ppr' fnSig
+      -- mapM_ (putStrLn . ppr') layoutPreds
+      -- putStrLn $ ppr' fnSig
 
       invokeSuSLik [] layoutPreds otherFnSigs fnSig >>= \case
-        Left err -> error $ "SuSLik error: " ++ err
+        Left err ->
+          error $
+            unlines
+              ["SuSLik error: When trying to synthesize"
+              ,unlines $ map ppr' layoutPreds
+              ,ppr' fnSig
+              ,"Got the error: " ++ err
+              ]
         Right susLang ->
           pure $ functionToC susLang
 
