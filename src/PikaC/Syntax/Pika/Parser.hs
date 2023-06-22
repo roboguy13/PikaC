@@ -168,7 +168,7 @@ parseSynth = do
   keyword "synth"
   fn <- parseFnName
   symbol ":"
-  purePart <- fromMaybe (BoolLit True) <$> optional (parseGhostExpr <* symbol ";;")
+  purePart <- fromMaybe (BoolLit True) <$> optional (parseExpr <* symbol ";;")
   ty <- parseType
   let (argTypes, resultType) = splitFnType ty
   symbol ";"
@@ -223,6 +223,8 @@ parseExpr = label "expression" $ lexeme $
   try (parseBinOp "-" Sub) <|>
   try (parseBinOp "==" Equal) <|>
   try (parseBinOp "<" Lt) <|>
+  try parseSetUnion <|>
+  -- try parseGhostExpr'
   try (Not <$> (keyword "not" *> parseExpr')) <|>
   try parseLayoutLambda <|>
   try parseApplyLayout <|>
@@ -235,7 +237,9 @@ parseExpr' = label "expression" $ lexeme $
   try (IntLit <$> parseInt) <|>
   try (keyword "False" $> BoolLit False) <|>
   try (keyword "True" $> BoolLit True) <|>
-  try (V <$> parseLowercaseExprName)
+  try (V <$> parseLowercaseExprName) <|>
+  try (lexeme (symbol "{" *> symbol "}" *> pure EmptySet)) <|>
+  try (lexeme (fmap SingletonSet (symbol "{" *> parseExpr <* symbol "}")))
 
 parseLayoutLambda :: Parser Expr
 parseLayoutLambda = label "layout lambda" $ lexeme $ do
@@ -316,34 +320,31 @@ parseLayoutBranch layoutName = lexeme $ try $ do
 
 parseCondLayoutBody :: Parser (GhostCondition Expr (LayoutBody Expr))
 parseCondLayoutBody = label "ghost conditioned layout body" $ lexeme $ do
-  cond <- optional (try (parseGhostExpr <* symbol ";;"))
+  cond <- optional (try (parseExpr <* symbol ";;"))
   body <- parseLayoutBody
   pure (GhostCondition cond body)
 
-parseGhostExpr' :: Parser Expr
-parseGhostExpr' = lexeme $
-  try parseExpr' <|>
-  try (lexeme (symbol "{" *> symbol "}" *> pure EmptySet)) <|>
-  try (lexeme (fmap SingletonSet (symbol "{" *> parseGhostExpr <* symbol "}"))) <|>
-  try (symbol "(" *> parseGhostExpr <* symbol ")")
+-- parseGhostExpr' :: Parser Expr
+-- parseGhostExpr' = lexeme $
+--   try parseExpr <|>
+--   try (lexeme (symbol "{" *> symbol "}" *> pure EmptySet)) <|>
+--   try (lexeme (fmap SingletonSet (symbol "{" *> parseGhostExpr <* symbol "}"))) <|>
+--   try (symbol "(" *> parseGhostExpr <* symbol ")")
 
-parseGhostExpr :: Parser Expr
-parseGhostExpr = label "ghost expression" $ lexeme $
-  try parseSetUnion <|>
-  try parseEq <|>
-  try parseGhostExpr'
-  where
-    parseEq = lexeme $ do
-      x <- parseGhostExpr'
-      symbol "=="
-      y <- parseGhostExpr
-      pure $ Equal x y
+-- parseGhostExpr :: Parser Expr
+-- parseGhostExpr = label "ghost expression" $ lexeme $
+--   where
+-- parseEq = lexeme $ do
+--   x <- parseExpr'
+--   symbol "=="
+--   y <- parseExpr
+--   pure $ Equal x y
 
-    parseSetUnion = lexeme $ do
-      x <- parseGhostExpr'
-      symbol "++"
-      y <- parseGhostExpr
-      pure $ SetUnion x y
+parseSetUnion = lexeme $ do
+  x <- parseExpr'
+  symbol "++"
+  y <- parseExpr
+  pure $ SetUnion x y
 
 parseExists :: Parser [Exists Expr]
 parseExists = label "existential quantifier" $ lexeme $ do
@@ -393,7 +394,7 @@ parseLayoutApply = label "layout application" $ lexeme $ do
 parseGhostArg :: Parser Expr
 parseGhostArg = label "ghost argument" $ lexeme $ do
   char '@'
-  parseGhostExpr'
+  parseExpr'
 
 parseLayoutArg :: Parser Expr
 parseLayoutArg = label "layout argument" $ lexeme $
