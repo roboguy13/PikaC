@@ -1,0 +1,90 @@
+# -b true -c 2 -o 2
+
+predicate Sll(loc x1, set s)
+{
+| x1 == 0 => { s == {} ; emp }
+| not (x1 == 0) => { s == {h3} ++ s1 ; [x1,2] **
+                                       x1 :-> h3 **
+                                       (x1 + 1) :-> nxt4 **
+                                       Sll(nxt4, s1) }
+}
+predicate HeapLayout(loc x1, set s)
+{
+| x1 == 0 => { s == {} ; emp }
+| not (x1 == 0) => { s == {a3} ++ s1 ; [x1,2] **
+                                       x1 :-> a3 **
+                                       (x1 + 1) :-> nxt4 **
+                                       ForestLayout(nxt4, s1) }
+}
+predicate ForestLayout(loc x1, set s)
+{
+| x1 == 0 => { s == {} ; emp }
+| not (x1 == 0) => { s == s1 ++ s2 ; [x1,2] **
+                                     x1 :-> p5 **
+                                     (x1 + 1) :-> nxt4 **
+                                     HeapLayout(p5, s1) **
+                                     ForestLayout(nxt4, s2) }
+}
+void heapToSll(loc x1, loc x3)
+  {HeapLayout(x1, s) ** x3 :-> x4}
+  {x3 :-> x5 ** Sll(x5, s)}
+{ ?? }
+
+
+
+###
+This is the synthesis result:
+
+{x3 :-> x4 ** HeapLayout(x1, s)<_alpha_4>}
+{x3 :-> x5 ** Sll(x5, s)<_alpha_5>}
+void heapToSll (loc x1, loc x3) {
+  if (x1 == 0) {
+    *x3 = 0;
+  } else {
+    heapToSll0010(x1, x3);
+  }
+}
+
+{_alpha_1x1 < _alpha_4 && not (x1 == 0) && not (x3 == 0) && s =i {a3x1} ++ s1x1 && true ; (x1 + 1) :-> nxt4x1 ** x1 :-> a3x1 ** x3 :-> x41 ** ForestLayout(nxt4x1, s1x1)<_alpha_1x1>[0,1] ** [x1, 2]}
+{not (x3 == 0) ; x3 :-> x5 ** Sll(x5, s)<_alpha_5>}
+void heapToSll0010 (loc x1, loc x3) {
+  let a = *x1;
+  let n = *(x1 + 1);
+  if (n == 0) {
+    *(x1 + 1) = 0;
+    *x3 = x1;
+  } else {
+    let p = *n;
+    heapToSll(p, x3);
+    let x = *x3;
+    heapToSll0010(n, x3);
+    heapToSll00160016014025(x, p, a, x1, x3);
+  }
+}
+
+{_alpha_1x1 < _alpha_4 && _alpha_2nxt4x11 < _alpha_1x1 && _alpha_3nxt4x11 < _alpha_1x1 && not (nxt4x11 == 0) && not (nxt4x11 == x1) && not (nxt4x11 == x3) && not (x1 == 0) && not (x1 == x3) && not (x3 == 0) && true ; (x1 + 1) :-> nxt4x11 ** x1 :-> a ** x3 :-> x52 ** Sll(x5, s1nxt4x11)<_alpha_51>[1,0] ** Sll(x52, {p} ++ s2nxt4x11)<_alpha_52>[1,0] ** [x1, 2]}
+{not (x3 == 0) ; x3 :-> x5 ** Sll(x5, {a} ++ s1nxt4x11 ++ s2nxt4x11)<_alpha_5>}
+void heapToSll00160016014025 (loc x5, int p, int a, loc x1, loc x3) {
+  assume (a <= p && p <= a) {
+    if (x5 == 0) {
+      free(x1);
+    } else {
+      let h = *x5;
+      let n = *(x5 + 1);
+      if (a <= h && h <= a) {
+        *x5 = a;
+        *(x5 + 1) = x1;
+        heapToSll00160016014025(n, p, a, x5, x3);
+        free(x1);
+      } else {
+        *x5 = a;
+        *(x5 + 1) = x1;
+        heapToSll00160016014025(n, p, a, x5, x3);
+        let x = *x3;
+        *x3 = x1;
+        *(x1 + 1) = x;
+        *x1 = h;
+      }
+    }
+  }
+}
