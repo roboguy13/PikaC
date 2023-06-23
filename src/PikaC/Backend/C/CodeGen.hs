@@ -357,6 +357,7 @@ convertBaseInto outVar (PikaCore.Sub x y) = convertBaseBin outVar C.Sub x y
 convertBaseInto outVar (PikaCore.Equal x y) = convertBaseBin outVar C.Equal x y
 convertBaseInto outVar (PikaCore.And x y) = convertBaseBin outVar C.And x y
 convertBaseInto outVar (PikaCore.Lt x y) = convertBaseBin outVar C.Lt x y
+convertBaseInto outVar (PikaCore.Le x y) = convertBaseBin outVar C.Le x y
 convertBaseInto outVar (PikaCore.Not x) = do
   (name, cmds) <- convertBaseIntoFresh x
   pure $ cmds ++ [assignValue outVar (C.Not (C.V name))]
@@ -376,6 +377,7 @@ convertBase (PikaCore.Sub x y) = C.Sub (convertBase x) (convertBase y)
 convertBase (PikaCore.Equal x y) = C.Equal (convertBase x) (convertBase y)
 convertBase (PikaCore.And x y) = C.And (convertBase x) (convertBase y)
 convertBase (PikaCore.Lt x y) = C.Lt (convertBase x) (convertBase y)
+convertBase (PikaCore.Le x y) = C.Le (convertBase x) (convertBase y)
 convertBase (PikaCore.Not x) = C.Not (convertBase x)
 convertBase e = error $ "convertBase: " ++ ppr' e
 

@@ -384,6 +384,7 @@ convertBase (PikaCore.Equal x y) = SuSLik.Equal (convertBase x) (convertBase y)
 convertBase (PikaCore.And x y) = SuSLik.And (convertBase x) (convertBase y)
 convertBase (PikaCore.Not x) = SuSLik.Not (convertBase x)
 convertBase (PikaCore.Lt x y) = SuSLik.Lt (convertBase x) (convertBase y)
+convertBase (PikaCore.Le x y) = SuSLik.Le (convertBase x) (convertBase y)
 convertBase PikaCore.EmptySet = SuSLik.EmptySet
 convertBase (PikaCore.SingletonSet x) = SuSLik.SingletonSet $ convertBase x
 convertBase (PikaCore.SetUnion x y) = SuSLik.SetUnion (convertBase x) (convertBase y)

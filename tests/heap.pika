@@ -18,29 +18,39 @@ Sll (LCons h t) :=
   (x+1) :-> nxt **
   Sll t @s1 [nxt];
 
-HeapLayout : @(s : set) layout[-x](Heap);
-HeapLayout Empty := s == {} ;; emp;
+HeapLayout : @(s : set) @(i : int) layout[-x](Heap);
+HeapLayout Empty := ((s == {}) && (i == 10000000)) ;; emp;
 HeapLayout (Node a as) :=
   exists +nxt.
-  s == ({a} ++ s1)
+  ((s == ({a} ++ s1))
+    &&
+  (a <= i1))
+    &&
+  (i == a)
     ;;
   x :-> a **
   (x+1) :-> nxt **
-  ForestLayout as @s1 [nxt];
+  ForestLayout as @s1 @i1 [nxt];
 
-ForestLayout : @(s : set) layout[-x](Forest);
-ForestLayout Nil := s == {} ;; emp;
+ForestLayout : @(s : set) @(i : int) layout[-x](Forest);
+ForestLayout Nil := (s == {}) && (i == 10000000) ;; emp;
 ForestLayout (Cons h t) :=
   exists +p, +nxt.
-  s == (s1 ++ s2)
+  (((s == (s1 ++ s2))
+    &&
+  (i <= i1))
+    &&
+  (i <= i2))
+    &&
+  (i == a)
     ;;
   x :-> p **
   (x+1) :-> nxt **
-  HeapLayout h @s1 [p] **
-  ForestLayout t @s2 [nxt];
+  HeapLayout h @s1 @i1 [p] **
+  ForestLayout t @s2 @i2 [nxt];
 
   -- Unfortunately, SuSLik synthesizes something that violates the heap property here
--- synth forestToHeap : ForestLayout @s -> HeapLayout @s;
+-- synth forestToHeap : ((i < 10000000) && (j <= i)) ;; ForestLayout @s @i -> HeapLayout @s @j;
 
   -- This seems to require an additional variant which does not hold:
 -- synth heapToSll : HeapLayout @s -> Sll @s;

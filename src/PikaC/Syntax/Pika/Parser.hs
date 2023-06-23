@@ -223,6 +223,7 @@ parseExpr = label "expression" $ lexeme $
   try (parseBinOp "-" Sub) <|>
   try (parseBinOp "==" Equal) <|>
   try (parseBinOp "<" Lt) <|>
+  try (parseBinOp "<=" Le) <|>
   try parseSetUnion <|>
   -- try parseGhostExpr'
   try (Not <$> (keyword "not" *> parseExpr')) <|>

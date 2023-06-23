@@ -391,6 +391,7 @@ convertExpr openedArgLayouts = go
     go (Pika.Sub x y) = PikaCore.Sub <$> go x <*> go y
     go (Pika.Equal x y) = PikaCore.Equal <$> go x <*> go y
     go (Pika.Lt x y) = PikaCore.Lt <$> go x <*> go y
+    go (Pika.Le x y) = PikaCore.Le <$> go x <*> go y
     go (Pika.IntLit i) = pure $ PikaCore.IntLit i
     go Pika.EmptySet = pure PikaCore.EmptySet
     go (Pika.SingletonSet x) = PikaCore.SingletonSet <$> go x

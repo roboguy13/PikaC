@@ -60,6 +60,7 @@ data Expr
   | Sub Expr Expr
   | Equal Expr Expr
   | Lt Expr Expr
+  | Le Expr Expr
   | Not Expr
 
   -- For the ghost language:
@@ -106,6 +107,7 @@ instance Ppr Expr where
   ppr (Sub x y) = hsep [pprP x, text "-", pprP y]
   ppr (Equal x y) = hsep [pprP x, text "==", pprP y]
   ppr (Lt x y) = hsep [pprP x, text "<", pprP y]
+  ppr (Le x y) = hsep [pprP x, text "<=", pprP y]
   ppr (Not x) = hsep [text "not", parens (pprP x)]
   ppr EmptySet = text "{}"
   ppr (SingletonSet x) = braces (ppr x)
@@ -127,6 +129,7 @@ instance IsNested Expr where
   isNested (Sub {}) = True
   isNested (Equal {}) = True
   isNested (Lt {}) = True
+  isNested (Le {}) = True
   isNested (Not {}) = True
   isNested EmptySet = False
   isNested (SingletonSet {}) = False
@@ -157,6 +160,8 @@ instance Plated Expr where
     Equal <$> plate f x <*> plate f y
   plate f (Lt x y) =
     Lt <$> plate f x <*> plate f y
+  plate f (Le x y) =
+    Le <$> plate f x <*> plate f y
   plate f (Not x) = Not <$> f x
   plate f (SingletonSet x) = SingletonSet <$> f x
   plate f EmptySet = pure EmptySet
@@ -281,6 +286,7 @@ reduceLayouts = go
     go (SetUnion x y) = SetUnion (go x) (go y)
     go (Equal x y) = Equal (go x) (go y)
     go (Lt x y) = Lt (go x) (go y)
+    go (Le x y) = Le (go x) (go y)
     go (LName x) = LName x
 
 --

@@ -73,6 +73,7 @@ data Expr' (s :: Stage)
   | Div (Expr' s) (Expr' s)
   | Equal (Expr' s) (Expr' s)
   | Lt (Expr' s) (Expr' s)
+  | Le (Expr' s) (Expr' s)
   | Not (Expr' s)
   | And (Expr' s) (Expr' s)
   -- | App (Expr a) (LayoutArg a)
@@ -198,6 +199,7 @@ bindXV convertNameExpr convertNameAsn vars = go
     go (Mod x y) = liftA2 Mod (go x) (go y)
     go (Equal x y) = liftA2 Equal (go x) (go y)
     go (Lt x y) = liftA2 Lt (go x) (go y)
+    go (Le x y) = liftA2 Le (go x) (go y)
     go (Not x) = fmap Not (go x)
     go (And x y) = liftA2 And (go x) (go y)
     go (SingletonSet x) = SingletonSet <$> go x
@@ -332,6 +334,7 @@ instance Plated Expr where
   plate f (Sub x y) = Sub <$> f x <*> f y
   plate f (Equal x y) = Equal <$> f x <*> f y
   plate f (Lt x y) = Lt <$> f x <*> f y
+  plate f (Le x y) = Le <$> f x <*> f y
   plate f (Not x) = Not <$> f x
   plate f (And x y) = And <$> f x <*> f y
   plate f (SingletonSet x) = SingletonSet <$> f x
@@ -430,6 +433,10 @@ pprExpr (Equal x y) = do
   xDoc <- pprExpr x
   yDoc <- pprExpr y
   pure $ sep [xDoc, text "==", yDoc]
+pprExpr (Le x y) = do
+  xDoc <- pprExpr x
+  yDoc <- pprExpr y
+  pure $ sep [xDoc, text "<=", yDoc]
 pprExpr (Lt x y) = do
   xDoc <- pprExpr x
   yDoc <- pprExpr y
@@ -471,6 +478,7 @@ instance IsNested (Expr' s) where
   isNested (Sub {}) = True
   isNested (Equal {}) = True
   isNested (Lt {}) = True
+  isNested (Le {}) = True
   isNested (Not {}) = True
   isNested (And {}) = True
   isNested (App {}) = True
@@ -492,6 +500,7 @@ isBasic (Mul x y) = True
 isBasic (Sub x y) = True
 isBasic (Equal x y) = True
 isBasic (Lt x y) = True
+isBasic (Le x y) = True
 isBasic (Not x) = True
 isBasic (And x y) = True
 isBasic EmptySet = True
@@ -596,6 +605,7 @@ getOutputCount (Equal {}) = 1
 getOutputCount (And {}) = 1
 getOutputCount (Not {}) = 1
 getOutputCount (Lt {}) = 1
+getOutputCount (Le {}) = 1
 getOutputCount (WithIn _ bnd) =
   let (_, body) = unsafeUnbind bnd
   in
@@ -678,6 +688,7 @@ genSimpleExpr bvs size =
     ,Mul <$> halvedGen <*> halvedGen
     ,Equal <$> halvedGen <*> halvedGen
     ,Lt <$> halvedGen <*> halvedGen
+    ,Le <$> halvedGen <*> halvedGen
     ,Not <$> genSimpleExpr bvs (size - 1)
     ,And <$> halvedGen <*> halvedGen
     ]
@@ -707,6 +718,7 @@ genValidExpr' bvs size =
     ,Mul <$> halvedGen <*> halvedGen
     ,Equal <$> halvedGen <*> halvedGen
     ,Lt <$> halvedGen <*> halvedGen
+    ,Le <$> halvedGen <*> halvedGen
     ,Not <$> genValidExpr' bvs (size - 1)
     ,And <$> halvedGen <*> halvedGen
     ,(let n' = newName bvs
