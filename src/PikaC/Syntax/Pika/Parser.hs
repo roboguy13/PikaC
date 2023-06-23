@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-}
 
 module PikaC.Syntax.Pika.Parser
   where
@@ -46,19 +47,26 @@ import Control.DeepSeq
 
 import Data.Validity
 
-data PikaModule =
+data PikaModule' a =
   PikaModule
   { moduleLayouts :: [Layout Expr]
-  , moduleFnDefs :: [FnDef]
+  , moduleFnDefs :: [FnDef' a]
   , moduleSynths :: [Synth]
   , moduleGenerates :: [String]
   , moduleTests :: [Test Expr]
   }
   deriving (Show, Generic)
 
-instance NFData PikaModule
+type PikaModule = PikaModule' TypeSig
+type PikaModuleElaborated = PikaModule' Type
 
-instance Ppr PikaModule where
+toPikaModuleElaborated_unsafe :: PikaModule -> PikaModuleElaborated
+toPikaModuleElaborated_unsafe pikaModule =
+  pikaModule { moduleFnDefs = map (fmap fromTypeSig_unsafe) (moduleFnDefs pikaModule) }
+
+instance NFData a => NFData (PikaModule' a)
+
+instance Ppr a => Ppr (PikaModule' a) where
   ppr (PikaModule layouts fns synths generates tests) =
     text "-- Layouts:"
     $$ vcat (map ppr layouts)
@@ -83,8 +91,8 @@ instance Monoid PikaModule where
 singleLayout :: Layout Expr -> PikaModule
 singleLayout x = mempty { moduleLayouts = [x] }
 
-singleFnDef :: FnDef -> PikaModule
-singleFnDef x = mempty { moduleFnDefs = [x] }
+singleFnDef :: FnDef' TypeSig -> PikaModule' TypeSig
+singleFnDef x = (mempty :: PikaModule' TypeSig) { moduleFnDefs = [x] }
 
 singleSynth :: Synth -> PikaModule
 singleSynth x = mempty { moduleSynths = [x] }
@@ -95,10 +103,10 @@ singleGenerate x = mempty { moduleGenerates = [x] }
 singleTest :: Test Expr -> PikaModule
 singleTest x = mempty { moduleTests = [x] }
 
-moduleLookupLayout :: PikaModule -> String -> Layout Expr
+moduleLookupLayout :: PikaModule' a -> String -> Layout Expr
 moduleLookupLayout = lookupLayout . moduleLayouts
 
-moduleLookupFn :: PikaModule -> String -> FnDef
+moduleLookupFn :: PikaModule' a -> String -> FnDef' a
 moduleLookupFn pikaModule name = go (moduleFnDefs pikaModule)
   where
     go [] = error $ "moduleLookupFn: Cannot find function named " ++ show name
@@ -154,7 +162,7 @@ parseGenerate = label "generate directive" $ lexeme $ do
   keyword "%generate"
   parseFnName
 
-parseFnDef :: Parser FnDef
+parseFnDef :: Parser (FnDef' TypeSig)
 parseFnDef = label "function definition" $ lexeme $ do
   fnName <- parseFnName
   symbol ":"
@@ -253,7 +261,7 @@ parseApplyLayout :: Parser Expr
 parseApplyLayout = label "layout application" $ lexeme $ do
   e <- try parseApp <|> parseExpr' <|> parseNullaryConstructorApp
   symbol "["
-  ty <- parseTypeName
+  ty <- parseType
   symbol "]"
   pure (ApplyLayout e ty)
 
@@ -434,7 +442,7 @@ parsePatternVar = label "pattern variable" $ string2Name <$> lexeme parseLowerca
 -- Property tests --
 --
 
-instance Arbitrary PikaModule where
+instance Arbitrary a => Arbitrary (PikaModule' a) where
   arbitrary = error "Arbitrary PikaModule"
   shrink mod0@(PikaModule x y z w a) = do
     let x' = map shrink x
@@ -485,7 +493,7 @@ genModule' size = do
 
   pure $ PikaModule
     { moduleLayouts = layouts
-    , moduleFnDefs = fns
+    , moduleFnDefs = map (fmap toTypeSig) fns
     , moduleGenerates = map fnDefName fns
     , moduleSynths = []
     , moduleTests = []
@@ -498,13 +506,13 @@ genModule' size = do
     convertSig adtSigs layout =
       let Just constructors = lookup (_layoutAdt layout) adtSigs
       in
-      (string2Name $ _layoutName layout, map go constructors)
+      (_layoutName layout, map go constructors)
       where
         go :: (String, [AdtArg]) -> (String, [Maybe LayoutName])
         go (cName, args) = (cName, map goArg args)
 
         goArg BaseArg = Nothing
-        goArg RecArg = Just $ string2Name $ _layoutName layout
+        goArg RecArg = Just $ _layoutName layout
 
     -- convertAdtSig ::
     --   LayoutName ->

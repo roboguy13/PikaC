@@ -7,6 +7,7 @@ import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Parser
+import PikaC.Syntax.Type
 
 import PikaC.Syntax.PikaCore.FnDef
 import PikaC.Syntax.Heaplet
@@ -28,6 +29,8 @@ import Control.Exception
 import System.IO
 import System.Exit
 
+import Data.Bifunctor
+
 import Control.DeepSeq
 
 theTimeout :: Int
@@ -35,9 +38,12 @@ theTimeout =
   3 -- seconds
     *1000000
 
+defaultTestCount :: Int
+defaultTestCount = 2000
+
 prop_sane_genModule :: Property
 prop_sane_genModule =
-  withMaxSuccess 700 $
+  withMaxSuccess defaultTestCount $
   forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
       case pikaModule `deepseq` prettyValidation (validate pikaModule) of
         Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
@@ -45,7 +51,7 @@ prop_sane_genModule =
 
 prop_wellScoped_modFns :: Property
 prop_wellScoped_modFns =
-  withMaxSuccess 700 $ ioProperty $
+  withMaxSuccess defaultTestCount $ ioProperty $
   catch (evaluate $
     forAllShrink genModule shrink $ \pikaModule ->
       case pikaModule `deepseq` prettyValidation (mconcat (map validate (moduleLayouts pikaModule)) <> mconcat (map validate (moduleFnDefs pikaModule))) of
@@ -57,14 +63,14 @@ prop_wellScoped_modFns =
 prop_basicArgs_toPikaCore :: Property
 prop_basicArgs_toPikaCore =
   -- forAllShrinkShow genModule (const []) show $ \pikaModule ->
-  withMaxSuccess 700 $
+  withMaxSuccess defaultTestCount $
   forAllShrinkShow genModule shrink ppr' $ \pikaModule ->
     -- TODO: Figure out why some rare test cases seem to be going into an
     -- infinite loop here (NOTE: This even happened when the fuel was set to 0)
     discardAfter theTimeout $
   -- forAllShow genModule ppr' $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . fmap fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ fmap fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName
     in
     case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
@@ -89,7 +95,7 @@ prop_basicArgs_toPikaCore =
 -- for translation into C and/or SuSLik
 prop_simplify_from_Pika :: Property
 prop_simplify_from_Pika =
-  withMaxSuccess 700 $
+  withMaxSuccess defaultTestCount $
   -- forAllShrinkShow genModule (filter isValid . shrink) ppr' $ \pikaModule ->
   forAllShrinkShow genModule (shrink) ppr' $ \pikaModule ->
   -- forAllShow genModule ppr' $ \pikaModule ->
@@ -97,7 +103,7 @@ prop_simplify_from_Pika =
     -- infinite loop here
     discardAfter theTimeout $
     let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . fmap fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ fmap fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName
     in
     case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprIsSimplified pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False

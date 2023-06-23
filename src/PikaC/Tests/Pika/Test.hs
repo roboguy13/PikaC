@@ -64,8 +64,8 @@ call (FnName n) args = C.Call n args []
 mkOutVars :: [Layout Expr] -> Type -> GenC ([Int], [C.CName])
 mkOutVars _ IntType = ([0],) . (:[]) <$> fresh (string2Name "i")
 mkOutVars _ BoolType = ([0],) . (:[]) <$> fresh (string2Name "b")
-mkOutVars layouts (TyVar x) = do
-  let layout = lookupLayout layouts (name2String x)
+mkOutVars layouts (LayoutId x) = do
+  let layout = lookupLayout layouts x
       vs = layoutParamNames layout
       allocs = maxAllocsForLayout layout (map (string2Name . name2String) vs)
   freshVs <- mapM fresh vs

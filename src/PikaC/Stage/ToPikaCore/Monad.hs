@@ -46,7 +46,7 @@ data PikaConvertEnv =
   PikaConvertEnv
   { _origLayoutEnv :: LayoutEnv Pika.Expr
   , _layoutEnv :: LayoutEnv PikaCore.Expr
-  , _globalFnSigs :: [(String, TypeSig)]
+  , _globalFnSigs :: [(String, Type)]
   -- , _layoutVarSubst :: LayoutVarSubst
   }
 
@@ -78,15 +78,15 @@ piLift = PikaIntern . lift
 pcLift :: Monad m => FreshMT m a -> PikaConvert m a
 pcLift = PikaConvert . lift . piLift
 
-runPikaConvert :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, TypeSig)] -> PikaConvert m a -> m a
+runPikaConvert :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, Type)] -> PikaConvert m a -> m a
 runPikaConvert origLayouts layouts globalFns =
   runFreshMT . runPikaConvert' origLayouts layouts globalFns
 
-runPikaConvert' :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, TypeSig)] -> PikaConvert m a -> FreshMT m a
+runPikaConvert' :: Monad m => LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, Type)] -> PikaConvert m a -> FreshMT m a
 runPikaConvert' origLayouts layouts globalFns =
   runPikaIntern' . runPikaConvert'' origLayouts layouts globalFns
 
-runPikaConvert'' :: LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, TypeSig)] -> PikaConvert m a -> PikaIntern m a
+runPikaConvert'' :: LayoutEnv Pika.Expr -> LayoutEnv PikaCore.Expr -> [(String, Type)] -> PikaConvert m a -> PikaIntern m a
 runPikaConvert'' origLayouts layouts globalFns (PikaConvert m) = runReaderT m (PikaConvertEnv origLayouts layouts globalFns)
 
 lookupLayoutM :: Monad m => String -> PikaConvert m (Layout PikaCore.Expr)
@@ -94,7 +94,7 @@ lookupLayoutM layoutName = do
   layouts <- asks _layoutEnv
   pure $ lookupLayout layouts layoutName
 
-lookupFnSig :: (Monad m, HasCallStack) => String -> PikaConvert m TypeSig
+lookupFnSig :: (Monad m, HasCallStack) => String -> PikaConvert m Type
 lookupFnSig name = go <$> asks _globalFnSigs
   where
     go xs =
@@ -104,13 +104,9 @@ lookupFnSig name = go <$> asks _globalFnSigs
 
 lookupFnResultType :: (Monad m, HasCallStack) => String -> PikaConvert m Type
 lookupFnResultType fnName = do
-  sig <- lookupFnSig fnName
-  case _typeSigLayoutConstraints sig of
-    (_:_) -> error $ "lookupFnResultType: Function " ++ fnName ++ " should not be layout polymorphic. Found type " ++ ppr' sig
-    [] ->
-      let (_, r) = splitFnType (_typeSigTy sig)
-      in
-      pure r
+  ty <- lookupFnSig fnName
+  let (_, r) = splitFnType ty
+  pure r
 
 -- -- | Construct an ADT value using a pre-specified layout
 -- newtype Construct a =

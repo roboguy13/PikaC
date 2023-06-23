@@ -14,6 +14,7 @@ import Text.Show.Deriving
 
 -- import Bound
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Bind
 
 import Control.Monad.Trans
 import GHC.Generics
@@ -26,19 +27,22 @@ import Control.Monad
 
 import Control.DeepSeq
 
+import Data.Validity
+
 import GHC.Stack
 
 data Type
   = IntType
   | BoolType
   | FnType Type Type
-  | TyVar TypeName
+  -- | TyVar TypeName
+  | LayoutId String
   | GhostApp Type [String]
   deriving (Show, Generic)
 
-getTyVar :: HasCallStack => Type -> TypeName
-getTyVar (TyVar t) = t
-getTyVar (GhostApp (TyVar t) _) = t
+getLayoutId :: HasCallStack => Type -> String
+getLayoutId (LayoutId t) = t
+getLayoutId (GhostApp (LayoutId t) _) = t
 
 isBaseType :: Type -> Bool
 isBaseType IntType = True
@@ -58,10 +62,25 @@ splitFnType x = ([], x)
 --     (a :~ layout(Adt2), b :~ layout(Adt2)) => a -> b
 data TypeSig =
   TypeSig
-  { _typeSigLayoutConstraints :: [LayoutConstraint]
-  , _typeSigTy :: Type
+  { _typeSigConstrainedType :: Bind [TypeName] ConstrainedType
   }
   deriving (Show, Generic)
+
+data ConstrainedType =
+  ConstrainedType
+  { _ctypeLayoutConstraints :: [LayoutConstraint]
+  , _ctypeTy :: Type
+  }
+  deriving (Show, Generic)
+
+toTypeSig :: Type -> TypeSig
+toTypeSig = TypeSig . bind [] . ConstrainedType []
+
+fromTypeSig_unsafe :: HasCallStack => TypeSig -> Type
+fromTypeSig_unsafe (TypeSig (B [] (ConstrainedType [] ty))) = ty
+
+instance Alpha LayoutConstraint
+instance Alpha ConstrainedType
 
 instance Arbitrary Type where
   arbitrary = error "Arbitrary Type"
@@ -72,6 +91,14 @@ instance Arbitrary Type where
     --   , FnType
     --   ]
 
+  -- TODO: Implement
+instance Validity TypeSig where validate _ = mempty
+instance Validity Type where validate _ = mempty
+
+instance Arbitrary ConstrainedType where
+  arbitrary = error "Arbitrary ConstrainedType"
+  shrink = genericShrink
+
 instance Arbitrary TypeSig where
   arbitrary = error "Arbitrary TypeSig"
   shrink = genericShrink
@@ -81,8 +108,13 @@ instance Arbitrary LayoutConstraint where
   shrink = genericShrink
 
 instance Ppr TypeSig where
-  ppr (TypeSig [] ty) = ppr ty
-  ppr (TypeSig xs ty) =
+  ppr (TypeSig bnd) = runFreshM $ do
+    (_, ctype) <- unbind bnd
+    pure $ ppr ctype
+
+instance Ppr ConstrainedType where
+  ppr (ConstrainedType [] ty) = ppr ty
+  ppr (ConstrainedType xs ty) =
     hsep
       [text "(" <>
          hsep (punctuate (text ",") (map ppr xs)) <>
@@ -121,7 +153,8 @@ instance Ppr Type where
   ppr IntType = text "Int"
   ppr BoolType = text "Bool"
   ppr (FnType src tgt) = hsep [pprP src, text "->", ppr tgt]
-  ppr (TyVar x) = ppr x
+  -- ppr (TyVar x) = ppr x
+  ppr (LayoutId x) = text x
   ppr (GhostApp ty xs) = pprP ty <+> hsep (map (\x -> text "@" <> text x) xs)
 
 instance Ppr AdtName where ppr (AdtName n) = text n
@@ -133,7 +166,8 @@ instance IsNested Type where
   isNested (FnType {}) = True
   isNested IntType = False
   isNested BoolType = False
-  isNested (TyVar x) = False
+  -- isNested (TyVar x) = False
+  isNested (LayoutId x) = False
   isNested (GhostApp {}) = False
 
 makeLenses ''TypeSig
@@ -143,6 +177,8 @@ instance NFData AdtName
 instance NFData Type
 instance NFData TypeSig
 instance NFData LayoutConstraint
+instance NFData ConstrainedType
+
 
 --
 -- Property tests --

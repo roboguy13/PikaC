@@ -7,6 +7,7 @@ import PikaC.Backend.C.CodeGen
 import PikaC.Stage.ToPikaCore
 import PikaC.Stage.ToPikaCore.SimplifyM
 import PikaC.Syntax.Pika.Parser
+import PikaC.Syntax.Type
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
@@ -46,7 +47,7 @@ moduleToPikaCore :: PikaModule -> PikaCore.FnDef
 moduleToPikaCore pikaModule = 
   let (fnName:_) = moduleGenerates pikaModule
   in
-  (runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) $ moduleLookupFn pikaModule fnName)
+  (runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . fmap fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ fmap fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName)
 
 return []
 checkAllProps :: IO Bool

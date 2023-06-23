@@ -615,7 +615,8 @@ instance (Typeable a, Show a, Alpha a) => Alpha (LayoutHeaplet a)
 instance (Show a, Typeable a, Alpha a) => Alpha (LayoutBody a)
 instance (Show a, Typeable a, Alpha a) => Alpha (LayoutBranch a)
 
-type LayoutName = TypeName
+-- type LayoutName = TypeName
+type LayoutName = String
 
 -- getLayoutSig ::
 --   Layout a ->

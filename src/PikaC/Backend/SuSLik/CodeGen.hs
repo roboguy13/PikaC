@@ -42,15 +42,15 @@ codeGenSynth layouts synth =
   (map (codeGenLayout True) layouts, sig)
 
 unGhostApp :: Type -> (String, [String])
-unGhostApp (GhostApp (TyVar v) args) = (name2String v, args)
+unGhostApp (GhostApp (LayoutId v) args) = (v, args)
 
 codeGenSynthSig :: [Layout PikaCore.Expr] -> Synth -> SuSLik.FnSig
-codeGenSynthSig layouts (Synth fn purePart args (GhostApp (TyVar resultType) resultGhostArgs)) = runFreshM $ do
+codeGenSynthSig layouts (Synth fn purePart args (GhostApp (LayoutId resultType) resultGhostArgs)) = runFreshM $ do
 
   let (argLayoutNames, argsGhosts) = unzip $ map unGhostApp args
 
   let argLayouts = map (lookupLayout layouts) argLayoutNames
-      resultLayout = lookupLayout layouts (name2String resultType)
+      resultLayout = lookupLayout layouts resultType
 
   let getArgParams argLayout = do
         (_, argBnd) <- unbind $ _layoutBranches argLayout
@@ -85,7 +85,7 @@ codeGenSynthSig layouts (Synth fn purePart args (GhostApp (TyVar resultType) res
       --               $ map modedNameName argParams ++ map string2Name argGhostArgs]
 
       outAllocs = -- allocs ++
-        mkLayoutApps [Just $ PikaCore.ArgLayout (name2String resultType) $ map (string2Name . show) postCondOutVars ++ map string2Name resultGhostArgs]
+        mkLayoutApps [Just $ PikaCore.ArgLayout resultType $ map (string2Name . show) postCondOutVars ++ map string2Name resultGhostArgs]
 
       spec = SuSLik.FnSpec
                { SuSLik._fnSpecPrecond = allocs ++ precondOuts
@@ -96,8 +96,8 @@ codeGenSynthSig layouts (Synth fn purePart args (GhostApp (TyVar resultType) res
 
   pure $ SuSLik.FnSig
     { SuSLik._fnSigName = fn
-    , SuSLik._fnSigArgTypes = replicate (length (concat argsParams) + length resultParams) (TyVar (string2Name "unused"))
-    , SuSLik._fnSigResultType = TyVar $ string2Name "unused"
+    , SuSLik._fnSigArgTypes = replicate (length (concat argsParams) + length resultParams) (LayoutId "Unused")
+    , SuSLik._fnSigResultType = LayoutId "Unused"
     , SuSLik._fnSigConds = (params, spec)
     }
 
@@ -148,8 +148,8 @@ codeGenLayout useGhosts layout = runFreshM $ do
 
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = _layoutName layout
-    , SuSLik._indPredArgTypes = map (const (TyVar (string2Name "unused"))) params
-    , SuSLik._indPredResultType = TyVar (string2Name "unused2") --resultType
+    , SuSLik._indPredArgTypes = map (const (LayoutId "Unused")) params
+    , SuSLik._indPredResultType = LayoutId "Unused2" --resultType
     , SuSLik._indPredGhostTypes =
         if useGhosts
           then map getGhostType ghosts
@@ -237,7 +237,7 @@ codeGenIndPred fnDef = runFreshM $ do
 
   pure $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
-    , SuSLik._indPredArgTypes = argTypes ++ [TyVar (string2Name "unused")] -- TODO: We need a way to deal with layouts that have multiple parameters
+    , SuSLik._indPredArgTypes = argTypes ++ [LayoutId "Unused"] -- TODO: We need a way to deal with layouts that have multiple parameters
     , SuSLik._indPredResultType = resultType
     , SuSLik._indPredGhostTypes = []
     , SuSLik._indPredBody =

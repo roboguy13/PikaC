@@ -266,7 +266,7 @@ genValidFnDef = do
 
   FnDef "testFn"
     <$> replicateM (length modedOutParams) (choose (1, 4)) -- TODO: Does this make sense?
-    <*> pure (FnType (TyVar $ string2Name "placeholder") (TyVar $ string2Name "placeholder2")) -- TODO: Generate type)
+    <*> pure (FnType (LayoutId "Placeholder") (LayoutId "Placeholder2")) -- TODO: Generate type)
     <*>
       (bind modedInParams
         <$> (bind modedOutParams

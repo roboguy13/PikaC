@@ -117,7 +117,7 @@ data FnSpec
 pprFnSigPrototype :: FnSig -> Doc
 pprFnSigPrototype fnSig =
     let (params, conds) = _fnSigConds fnSig
-        argTypes = _fnSigArgTypes fnSig ++ [TyVar (string2Name "unused")] -- [_fnSigResultType fnSig]
+        argTypes = _fnSigArgTypes fnSig ++ [LayoutId "Unused"] -- [_fnSigResultType fnSig]
         -- conds = unsafeUnbind bnd
     in
     vcat
@@ -204,7 +204,7 @@ instance Ppr PredicateBranch where
 toSuSLikType :: Type -> Doc
 toSuSLikType IntType = text "int"
 toSuSLikType BoolType = text "bool"
-toSuSLikType (TyVar _) = text "loc"
+toSuSLikType (LayoutId _) = text "loc"
 toSuSLikType t = error $  "toSuSLikType: " ++ show t
 
 ghostToSuSLikType :: GhostType -> Doc

@@ -9,6 +9,8 @@ import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Parser
 
+import PikaC.Syntax.Type
+
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 
@@ -204,7 +206,9 @@ main = do
 
         fileData <- readFile fileName
 
-        let pikaModule = parse'' fileName parsePikaModule fileData
+        let pikaModule' = parse'' fileName parsePikaModule fileData
+              -- TODO: Do elaboration and type checking here:
+            pikaModule = toPikaModuleElaborated_unsafe pikaModule'
             layouts = moduleLayouts pikaModule
 
         -- mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
@@ -219,7 +223,7 @@ main = do
            | otherwise -> withModule opts pikaModule
       _ -> error "Expected file name"
 
-genAndRunTests :: Options -> PikaModule -> IO ()
+genAndRunTests :: Options -> PikaModuleElaborated -> IO ()
 genAndRunTests opts pikaModule = do
   let compiler = if _optCompCert opts
                  then "ccomp"
@@ -227,7 +231,7 @@ genAndRunTests opts pikaModule = do
   let which = if _optRunSuSLangTests opts then SuSLang else C
   putStrLn =<< genAndRun which (_optSimplifierFuel opts) compiler pikaModule
 
-withModule :: Options -> PikaModule -> IO ()
+withModule :: Options -> PikaModuleElaborated -> IO ()
 withModule opts pikaModule = do
   -- print $ moduleSynths pikaModule
   -- mapM_ (putStrLn . ppr' . codeGenSynth convertedLayouts) $ moduleSynths pikaModule
@@ -255,7 +259,7 @@ withModule opts pikaModule = do
           %%~
             convertExprAndSimplify [])
 
-    generateFn :: Options -> PikaModule -> String -> IO ()
+    generateFn :: Options -> PikaModuleElaborated -> String -> IO ()
     generateFn opts pikaModule fnName =
         if _optOnlyC opts
           then (putStrLn . ppr' . codeGenFn) =<< getPikaCore (moduleLookupFn pikaModule fnName)

@@ -49,7 +49,9 @@ goldenTestTree = do
 runTest :: FilePath -> IO ByteString
 runTest fileName = do
   fileData <- readFile fileName
-  let pikaModule = parse'' fileName parsePikaModule fileData
+  let pikaModule' = parse'' fileName parsePikaModule fileData
+              -- TODO: Do elaboration and type checking here:
+      pikaModule = toPikaModuleElaborated_unsafe pikaModule'
 
   fromString <$> genAndRun C Unlimited cCompiler pikaModule
 

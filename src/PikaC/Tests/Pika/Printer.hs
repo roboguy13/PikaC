@@ -50,7 +50,7 @@ layoutPrinter layout =
   }
   where
     params = layoutParamNames layout
-    ourFnName = unFnName $ getPrinter (TyVar (string2Name (_layoutName layout)))
+    ourFnName = unFnName $ getPrinter (LayoutId (_layoutName layout))
 
     go :: [LayoutBranch Expr] -> [C.Command]
     go [] = []
@@ -91,7 +91,7 @@ layoutPrinter layout =
         -- TODO: Handle layouts that apply *other* layouts.
         goBody recVars (LayoutBody (LApply layoutName _ghosts patVar layoutVars : rest))
           | layoutName /= _layoutName layout =
-              C.Call (unFnName (getPrinter (TyVar (string2Name layoutName))))
+              C.Call (unFnName (getPrinter (LayoutId layoutName)))
                 (map (C.V . convertName . getV) layoutVars)
                 []
               : goBody recVars (LayoutBody rest)
@@ -115,7 +115,7 @@ getPrinter :: Type -> Printer
 getPrinter ty@(FnType {}) = error $ "getPrinter: " ++ ppr' ty
 getPrinter IntType = FnName "_printInt"
 getPrinter BoolType = FnName "_printBool"
-getPrinter (TyVar x) = FnName $ "_print_" ++ name2String x
+getPrinter (LayoutId x) = FnName $ "_print_" ++ x
 
 -- | Is used as an argument to a layout application
 isRecVar :: LayoutBody Expr -> ExprName -> Bool

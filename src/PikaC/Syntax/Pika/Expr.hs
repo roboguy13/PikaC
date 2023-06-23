@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Syntax.Pika.Expr
   where
@@ -49,8 +50,8 @@ data Expr
   = V ExprName
   | IntLit Int
   | BoolLit Bool
-  | LayoutLambda AdtName (Bind LayoutName Expr)
-  | ApplyLayout Expr TypeName
+  | LayoutLambda AdtName (Bind TypeName Expr)
+  | ApplyLayout Expr Type -- The type should either be a TyVar or a LayoutId
   | App String [Expr]
   | Div Expr Expr
   | Mod Expr Expr
@@ -67,9 +68,6 @@ data Expr
   | EmptySet
   | SingletonSet Expr
   | SetUnion Expr Expr
-
-  | LName LayoutName -- TODO: Remove?
-  -- | Not Expr
   deriving (Show, Generic)
 
 data Test a =
@@ -112,7 +110,6 @@ instance Ppr Expr where
   ppr EmptySet = text "{}"
   ppr (SingletonSet x) = braces (ppr x)
   ppr (SetUnion x y) = pprP x <+> text "++" <+> pprP y
-  ppr (LName x) = ppr x
 
 instance IsNested Expr where
   isNested (V _) = False
@@ -134,7 +131,6 @@ instance IsNested Expr where
   isNested EmptySet = False
   isNested (SingletonSet {}) = False
   isNested (SetUnion {}) = True
-  isNested (LName {}) = False
 
 instance Plated Expr where
   plate f (V x) = pure $ V x
@@ -166,7 +162,6 @@ instance Plated Expr where
   plate f (SingletonSet x) = SingletonSet <$> f x
   plate f EmptySet = pure EmptySet
   plate f (SetUnion x y) = SetUnion <$> plate f x <*> plate f y
-  plate f (LName x) = pure $ LName x
 
 -- example :: Expr
 -- example =
@@ -194,6 +189,8 @@ instance IsBase Expr where
 instance Subst Expr AdtName
 
 instance Alpha Expr
+instance Subst a Expr => Subst a Type
+-- instance Subst Expr Type
 instance Subst Expr Expr where
   isvar (V n) = Just $ SubstName n
   isvar _ = Nothing
@@ -268,12 +265,12 @@ reduceLayouts = go
     go (BoolLit b) = BoolLit b
     go (LayoutLambda a (B p t)) =
       LayoutLambda a (B p (go t))
-    go (ApplyLayout e arg) =
+    go (ApplyLayout e (LayoutId arg)) =
       case go e of
         (LayoutLambda _ (B p e)) ->
-          rename [(p, arg)] e
+          rename [(p, string2Name arg)] e
           -- substBind bnd arg
-        e' -> ApplyLayout e' arg
+        e' -> ApplyLayout e' (LayoutId arg)
     go (App f args) =
       App f (map go args)
     go (Mod x y) = Mod (go x) (go y)
@@ -287,7 +284,6 @@ reduceLayouts = go
     go (Equal x y) = Equal (go x) (go y)
     go (Lt x y) = Lt (go x) (go y)
     go (Le x y) = Le (go x) (go y)
-    go (LName x) = LName x
 
 --
 -- Property tests --
@@ -317,9 +313,10 @@ reduceLayouts = go
 --         ]
 --   }
 
+instance WellScoped (Name Expr) Type
 instance WellScoped (Name Expr) Expr
 -- TODO: Figure out a way to handle this case properly
-instance WellScoped (Name Expr) (Bind LayoutName Expr) where
+instance WellScoped (Name Expr) (Bind TypeName Expr) where
   wellScoped inScopeVars (B v body) =
     wellScoped inScopeVars body
 instance WellScoped (Name Expr) (Name Type) where
@@ -342,7 +339,6 @@ instance Arbitrary Expr where
 isConcreteExpr :: Expr -> Validation
 isConcreteExpr e0 = mconcat (map go (universe e0))
   where
-    go (LName {}) = invalid "Concrete expression should not have an LName"
     go (LayoutLambda {}) = invalid "Concrete expression should not have a layout lambda"
     go _ = mempty
 
@@ -437,7 +433,7 @@ genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
   let newSize = size `div` length arity
   ApplyLayout
     <$> (App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
-    <*> pure layout
+    <*> pure (LayoutId layout)
 
 genSimpleExpr' :: [ExprName] -> Int -> Gen Expr
 genSimpleExpr' [] _ =

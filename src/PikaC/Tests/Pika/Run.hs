@@ -54,7 +54,7 @@ pprFns fns =
 data WhichLang = C | SuSLang
   deriving (Show)
 
-genAndRun :: WhichLang -> SimplifyFuel -> String -> PikaModule -> IO String
+genAndRun :: WhichLang -> SimplifyFuel -> String -> PikaModule' Type -> IO String
 genAndRun which fuel compiler pikaModule = do
       -- Generate C file
   bracket (openTempFile "temp" "tests.c")
@@ -112,7 +112,7 @@ genAndRun which fuel compiler pikaModule = do
     convertedLayouts = map (runIdentity . runPikaConvert layouts [] [] . convertLayout) layouts
 
     -- Go via SuSLik to SuSLang then C
-    suslangConvert :: [(String, TypeSig)] -> FnDef -> IO [CFunction]
+    suslangConvert :: [(String, Type)] -> FnDef -> IO [CFunction]
     suslangConvert fnSigs fnDef = do
       pikaCore <- getPikaCore fnSigs fnDef
       let layoutPreds = map (codeGenLayout False) convertedLayouts
@@ -123,7 +123,7 @@ genAndRun which fuel compiler pikaModule = do
         Right susLang ->
           pure $ map functionToC susLang
 
-    getPikaCore :: [(String, TypeSig)] -> FnDef -> IO PikaCore.FnDef
+    getPikaCore :: [(String, Type)] -> FnDef -> IO PikaCore.FnDef
     getPikaCore fnSigs fnDef
       -- | _optSimplifierLog opts =
       --     runLogIO $ toPikaCore fuel (moduleLayouts pikaModule) (moduleFnDefs pikaModule) fnDef

@@ -31,13 +31,15 @@ import Data.Validity
 
 import Control.DeepSeq
 
-data FnDef =
+data FnDef' a =
   FnDef
     { fnDefName :: String
-    , fnDefTypeSig :: TypeSig
+    , fnDefTypeSig :: a
     , fnDefBranches :: [FnDefBranch]
     }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Functor)
+
+type FnDef = FnDef' Type
 
 data GuardedExpr =
   GuardedExpr
@@ -54,7 +56,7 @@ newtype FnDefBranch =
     -- }
   deriving (Show, Generic)
 
-getFnTypeSig :: FnDef -> (String, TypeSig)
+getFnTypeSig :: FnDef -> (String, Type)
 getFnTypeSig fnDef = (fnDefName fnDef, fnDefTypeSig fnDef)
 
 -- | 'synth' directive to use SuSLik to synthesize a function
@@ -66,9 +68,9 @@ data Synth =
     Type     -- | Result type
   deriving (Show, Generic)
 
-getSynthTypeSig :: Synth -> (String, TypeSig)
+getSynthTypeSig :: Synth -> (String, Type)
 getSynthTypeSig (Synth f _ argTypes resultType) =
-  (f, TypeSig [] (foldr FnType resultType argTypes))
+  (f, foldr FnType resultType argTypes)
 
 unguardMatches :: PatternMatches Expr GuardedExpr -> PatternMatches Expr Expr
 unguardMatches (PatternMatches matches) =
@@ -76,7 +78,7 @@ unguardMatches (PatternMatches matches) =
   in
   PatternMatches $ bind vars body
 
-instance NFData FnDef
+instance NFData a => NFData (FnDef' a)
 instance NFData GuardedExpr
 instance NFData FnDefBranch
 instance NFData Synth
@@ -98,30 +100,30 @@ getFirstPatterns fnDef =
   in
   pats
 
-getResultAllocSize :: [Layout Expr] -> TypeSig -> [ExprName] -> [Allocation Expr]
-getResultAllocSize layouts (TypeSig _ ty) outParams =
+getResultAllocSize :: [Layout Expr] -> Type -> [ExprName] -> [Allocation Expr]
+getResultAllocSize layouts ty outParams =
   let (_, resultTy) = splitFnType ty
-      handleTyVar layoutName = 
+      handleLayoutId layoutName = 
         let
-            layout = lookupLayout layouts (name2String layoutName)
+            layout = lookupLayout layouts layoutName
         in
         maxAllocsForLayout layout outParams
   in
   case resultTy of
     _ | isBaseType resultTy -> []
-    TyVar layoutName -> handleTyVar layoutName
-    GhostApp (TyVar layoutName) _ -> handleTyVar layoutName
+    LayoutId layoutName -> handleLayoutId layoutName
+    GhostApp (LayoutId layoutName) _ -> handleLayoutId layoutName
 
-getResultAllocSizeInts :: [Layout Expr] -> TypeSig -> [Int]
-getResultAllocSizeInts layouts typeSig@(TypeSig _ ty) =
+getResultAllocSizeInts :: [Layout Expr] -> Type -> [Int]
+getResultAllocSizeInts layouts ty =
   let (_, t) = splitFnType ty
-      layoutName = getTyVar t
-      layout = lookupLayout layouts (name2String layoutName)
-      allocs = getResultAllocSize layouts typeSig $ map modedNameName $ getLayoutParams layout
+      layoutName = getLayoutId t
+      layout = lookupLayout layouts layoutName
+      allocs = getResultAllocSize layouts ty $ map modedNameName $ getLayoutParams layout
   in
   map allocSize allocs
 
-instance Ppr FnDef where
+instance Ppr a => Ppr (FnDef' a) where
   ppr fn =
     vcat
       (hsep [text (fnDefName fn), text ":", ppr (fnDefTypeSig fn)] <> text ";"
@@ -140,7 +142,7 @@ instance Ppr FnDefBranch where
 -- Property tests
 --
 
-instance Validity FnDef where
+instance Validity a => Validity (FnDef' a) where
   validate (FnDef _ _ branches) = mconcat (map validate branches)
 
 instance Validity FnDefBranch where
@@ -153,7 +155,7 @@ instance Arbitrary FnDefBranch where
   arbitrary = error "Arbitrary FnDefBranch"
   shrink = genericShrink
 
-instance Arbitrary FnDef where
+instance Arbitrary a => Arbitrary (FnDef' a) where
   arbitrary = error "Arbitrary FnDef"
   shrink fn = do
     let b = map shrink (fnDefBranches fn)
@@ -204,11 +206,11 @@ genFnDef fnSigs layouts size (fnName, inLayouts, outLayout) = do
   pure $
       FnDef
       { fnDefName = fnName
-      , fnDefTypeSig =
-          TypeSig
-          {_typeSigLayoutConstraints = []
-          ,_typeSigTy = ty 
-          }
+      , fnDefTypeSig = ty
+          -- TypeSig
+          -- {_typeSigLayoutConstraints = []
+          -- ,_typeSigTy = ty 
+          -- }
       , fnDefBranches = branches
       }
   where
@@ -217,7 +219,7 @@ genFnDef fnSigs layouts size (fnName, inLayouts, outLayout) = do
       let Just r = lookup layoutName layouts
       in r
 
-    goType (Just layoutName) = TyVar layoutName
+    goType (Just layoutName) = LayoutId layoutName
     goType Nothing = IntType -- For now, we just assume every base type is an Int
 
 genFnDefBranch ::

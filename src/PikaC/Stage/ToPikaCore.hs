@@ -134,9 +134,9 @@ convertExprAndSimplify openedLayouts e = do
 --      well-moded.
 --   2. There should be no LayoutLambda's
 --
-toPikaCore :: forall m. Logger m => SimplifyFuel -> [Layout Pika.Expr] -> [(String, TypeSig)] -> Pika.FnDef -> m PikaCore.FnDef
+toPikaCore :: forall m. Logger m => SimplifyFuel -> [Layout Pika.Expr] -> [(String, Type)] -> Pika.FnDef -> m PikaCore.FnDef
 toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
-  let (argTypes, resultType) = splitFnType (_typeSigTy (Pika.fnDefTypeSig fn))
+  let (argTypes, resultType) = splitFnType (Pika.fnDefTypeSig fn)
 
   layouts <- mapM (runPikaConvert'' layouts0 mempty globalFns . convertLayout) layouts0
   -- outParams <- generateParams layouts resultType
@@ -173,7 +173,7 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
       { PikaCore._fnDefName = PikaCore.FnName $ Pika.fnDefName fn
       , PikaCore._fnDefOutputSizes =
           map (lookupAllocation outAllocs . modedNameName) outParams
-      , PikaCore._fnDefType = _typeSigTy (Pika.fnDefTypeSig fn)
+      , PikaCore._fnDefType = Pika.fnDefTypeSig fn
       , PikaCore._fnDefBranches =
           bind (concat inParams)
             (bind outParams (layouts, branches'))
@@ -182,7 +182,7 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
 getArgLayout :: Type -> [PikaCore.ExprName] -> Maybe PikaCore.ArgLayout
 getArgLayout IntType vs = Nothing
 getArgLayout BoolType vs = Nothing
-getArgLayout (TyVar n) vs = Just $ PikaCore.ArgLayout (name2String n) vs
+getArgLayout (LayoutId n) vs = Just $ PikaCore.ArgLayout n vs
 
 mkInputs :: [OpenedArg] -> [PikaCore.ExprAssertion] -> [PikaCore.Input]
 mkInputs [] [] = []
@@ -250,8 +250,8 @@ convertAppHereUsing opened e params = do
 convertAppHere :: (Monad m, HasCallStack) =>
   [OpenedArgBody] -> Pika.Expr ->
   PikaConvert m PikaCore.Expr
-convertAppHere opened e@(Pika.ApplyLayout _ layoutName) = do
-  layout <- lookupLayoutM (name2String layoutName)
+convertAppHere opened e@(Pika.ApplyLayout _ (LayoutId layoutName)) = do
+  layout <- lookupLayoutM layoutName
   let params0 = getLayoutParams layout
   params <- mapM (fresh . modedNameName) params0
   let modedParams = zipWith Moded (map getMode params0) params
@@ -261,8 +261,8 @@ convertAppHere opened e@(Pika.App f args)
   | otherwise = do
         -- TODO: Handle base types
       resultTy <- lookupFnResultType f
-      let handleTyVar layoutName = do
-            layout <- lookupLayoutM (name2String layoutName)
+      let handleLayoutId layoutName = do
+            layout <- lookupLayoutM layoutName
             let params0 = getLayoutParams layout
             params <- mapM (fresh . modedNameName) params0
             let modedParams = zipWith Moded (map getMode params0) params
@@ -271,8 +271,8 @@ convertAppHere opened e@(Pika.App f args)
         _ | isBaseType resultTy -> do
           param <- fresh (string2Name "p")
           convertAppHereUsing opened e [Moded Out param]
-        TyVar layoutName  -> handleTyVar layoutName
-        GhostApp (TyVar layoutName) _ -> handleTyVar layoutName
+        LayoutId layoutName  -> handleLayoutId layoutName
+        GhostApp (LayoutId layoutName) _ -> handleLayoutId layoutName
 convertAppHere opened e = convertExpr opened e
 
 convertApps :: (Monad m, HasCallStack) =>
@@ -378,8 +378,8 @@ convertExpr openedArgLayouts = go
     go e0@(Pika.LayoutLambda {}) = error $ "convertExpr: " ++ ppr' e0
     go (Pika.ApplyLayout (Pika.V v) layoutName) = PikaCore.V <$> internExprName v -- TODO: Is this correct?
 
-    go e@(Pika.ApplyLayout (Pika.App f args) layoutName)
-      | isConstructor f = lowerConstructor openedArgLayouts f args (name2String layoutName)
+    go e@(Pika.ApplyLayout (Pika.App f args) (LayoutId layoutName))
+      | isConstructor f = lowerConstructor openedArgLayouts f args layoutName
     go e@(Pika.ApplyLayout {}) = convertAppHere openedArgLayouts e
     go e@(Pika.App {}) = convertAppHere openedArgLayouts e
     go (Pika.Div x y) = PikaCore.Div <$> go x <*> go y
@@ -482,7 +482,7 @@ convertPattern (Pattern constructor vars) =
   Pattern constructor <$> mapM internExprName vars
 
 lookupTypeLayout :: Fresh m => [Layout PikaCore.Expr] -> Type -> m OpenedArgLayout
-lookupTypeLayout layouts (TyVar n) = pure . LayoutArg $ lookupLayout layouts (name2String n)
+lookupTypeLayout layouts (LayoutId n) = pure . LayoutArg $ lookupLayout layouts n
 lookupTypeLayout _ IntType = BaseArg () <$> fresh (string2Name "i")
 lookupTypeLayout _ BoolType = BaseArg () <$> fresh (string2Name "b")
 
