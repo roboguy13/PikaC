@@ -9,6 +9,8 @@ import qualified Text.Megaparsec.Char.Lexer as L
 
 import Control.Monad.Combinators.Expr
 
+import Control.Applicative hiding (some, many)
+
 import PikaC.Syntax.ParserUtils hiding (sc, lexeme, keywords, parseLowercaseName)
 import PikaC.Syntax.Heaplet
 

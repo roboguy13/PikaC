@@ -159,8 +159,16 @@ applyPatternMatches' matches args =
     Right r -> r
 
 instance (Typeable a) => Alpha (Pattern a)
-instance Subst (Name a) (Pattern a)
-instance Subst (Pattern a) AdtName
+-- instance Subst (Name a) (Pattern a)
+-- instance Subst (Pattern a) AdtName
+
+-- instance Subst a a => Subst a (Pattern a)
+instance Subst a b => Subst a (Pattern b)
+instance (Subst a a, Subst a b, Typeable a, Typeable b, Alpha a, Alpha b) => Subst a (PatternMatch a b)
+instance (Subst a a, Subst a b, Typeable a, Typeable b, Alpha a, Alpha b) => Subst a (PatternMatches a b)
+
+
+
 
 instance (Typeable a, Alpha b, Arbitrary b) => Arbitrary (PatternMatch a b) where
   arbitrary = error "Arbitrary PatternMatch"

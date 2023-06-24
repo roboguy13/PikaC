@@ -29,6 +29,7 @@ executable PikaC
     -- Modules included in this executable, other than Main.
     other-modules:
       PikaC.TypeChecker.Mode
+      PikaC.TypeChecker.Elaborate
       PikaC.Backend.C.CodeGen
       PikaC.Backend.C.Monad
       PikaC.Backend.C.Syntax
@@ -84,7 +85,7 @@ executable PikaC
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.18.0.0,
+    build-depends:    base,
                       containers,
                       mtl,
                       pretty,
@@ -109,6 +110,7 @@ executable PikaC
                       tasty-golden,
                       filepath,
                       bytestring,
+                      equivalence,
     hs-source-dirs:   src
     default-language: GHC2021
 
@@ -119,63 +121,64 @@ test-suite PikaC-golden-tests
 
     -- Modules included in this executable, other than Main.
     other-modules:
-      PikaC.TypeChecker.Mode
-      PikaC.Backend.C.CodeGen
-      PikaC.Backend.C.Monad
-      PikaC.Backend.C.Syntax
-      PikaC.Backend.SuSLik.Syntax
-      PikaC.Backend.SuSLik.CodeGen
-      PikaC.Backend.SuSLik.Invoke
-      PikaC.Backend.SuSLik.SuSLang.Syntax
-      PikaC.Backend.SuSLik.SuSLang.Parser
-      PikaC.Backend.SuSLik.SuSLang.ToC
-      PikaC.Backend.Utils
-      -- PikaC.Backend.C.DataDeps
-      PikaC.Ppr
-      PikaC.Syntax.ParserUtils
-      PikaC.Syntax.Heaplet
-      PikaC.Syntax.PikaCore.Expr
-      PikaC.Syntax.PikaCore.FnDef
-      PikaC.Syntax.PikaCore.Parser
-      PikaC.Syntax.Pika.Pattern
-      PikaC.Syntax.Pika.Layout
-      PikaC.Syntax.Pika.Expr
-      PikaC.Syntax.Pika.FnDef
-      PikaC.Syntax.Pika.Parser
-      PikaC.Syntax.Type
-      PikaC.Syntax.Type.Parser
-      PikaC.Stage.ToPikaCore
-      PikaC.Stage.ToPikaCore.Simplify
-      PikaC.Stage.ToPikaCore.SubstWithLayoutVar
-      PikaC.Stage.ToPikaCore.NestedCalls
-      PikaC.Stage.ToPikaCore.WithOfWith
-      PikaC.Stage.ToPikaCore.RenameResultLayout
-      PikaC.Stage.ToPikaCore.LayoutToWith
-      PikaC.Stage.ToPikaCore.WithLayoutV
-      PikaC.Stage.ToPikaCore.CallOfWith
-      PikaC.Stage.ToPikaCore.WithSubst
-      PikaC.Stage.ToPikaCore.ReuseExistingPtrs
-      PikaC.Stage.ToPikaCore.ReplaceClosedAssertions
-      PikaC.Stage.ToPikaCore.CallOfCall
-      PikaC.Stage.ToPikaCore.AssertionOfCall
-      PikaC.Stage.ToPikaCore.AssertionOfAssertion
-      PikaC.Stage.ToPikaCore.Monad
-      PikaC.Stage.ToPikaCore.Utils
-      PikaC.Stage.ToPikaCore.SimplifyM
-      PikaC.Stage
-      PikaC.Tests.Module
-      PikaC.Tests.C
-      PikaC.Tests.Pika.Test
-      PikaC.Tests.Pika.Printer
-      PikaC.Tests.Pika.Run
-      PikaC.Utils
-      PikaC.Subst
-      PikaC.FreshGen
+     PikaC.TypeChecker.Mode
+     PikaC.TypeChecker.Elaborate
+     PikaC.Backend.C.CodeGen
+     PikaC.Backend.C.Monad
+     PikaC.Backend.C.Syntax
+     PikaC.Backend.SuSLik.Syntax
+     PikaC.Backend.SuSLik.CodeGen
+     PikaC.Backend.SuSLik.Invoke
+     PikaC.Backend.SuSLik.SuSLang.Syntax
+     PikaC.Backend.SuSLik.SuSLang.Parser
+     PikaC.Backend.SuSLik.SuSLang.ToC
+     PikaC.Backend.Utils
+     -- PikaC.Backend.C.DataDeps
+     PikaC.Ppr
+     PikaC.Syntax.ParserUtils
+     PikaC.Syntax.Heaplet
+     PikaC.Syntax.PikaCore.Expr
+     PikaC.Syntax.PikaCore.FnDef
+     PikaC.Syntax.PikaCore.Parser
+     PikaC.Syntax.Pika.Pattern
+     PikaC.Syntax.Pika.Layout
+     PikaC.Syntax.Pika.Expr
+     PikaC.Syntax.Pika.FnDef
+     PikaC.Syntax.Pika.Parser
+     PikaC.Syntax.Type
+     PikaC.Syntax.Type.Parser
+     PikaC.Stage.ToPikaCore
+     PikaC.Stage.ToPikaCore.Simplify
+     PikaC.Stage.ToPikaCore.SubstWithLayoutVar
+     PikaC.Stage.ToPikaCore.NestedCalls
+     PikaC.Stage.ToPikaCore.WithOfWith
+     PikaC.Stage.ToPikaCore.RenameResultLayout
+     PikaC.Stage.ToPikaCore.LayoutToWith
+     PikaC.Stage.ToPikaCore.WithLayoutV
+     PikaC.Stage.ToPikaCore.CallOfWith
+     PikaC.Stage.ToPikaCore.WithSubst
+     PikaC.Stage.ToPikaCore.ReuseExistingPtrs
+     PikaC.Stage.ToPikaCore.ReplaceClosedAssertions
+     PikaC.Stage.ToPikaCore.CallOfCall
+     PikaC.Stage.ToPikaCore.AssertionOfCall
+     PikaC.Stage.ToPikaCore.AssertionOfAssertion
+     PikaC.Stage.ToPikaCore.Monad
+     PikaC.Stage.ToPikaCore.Utils
+     PikaC.Stage.ToPikaCore.SimplifyM
+     PikaC.Stage
+     PikaC.Tests.Module
+     PikaC.Tests.C
+     PikaC.Tests.Pika.Test
+     PikaC.Tests.Pika.Printer
+     PikaC.Tests.Pika.Run
+     PikaC.Utils
+     PikaC.Subst
+     PikaC.FreshGen
 
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.18.0.0,
+    build-depends:    base,
                       containers,
                       mtl,
                       pretty,

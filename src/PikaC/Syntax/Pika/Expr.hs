@@ -186,16 +186,26 @@ instance IsBase Expr where
   mkEqual = Equal
   mkAnd = error "Pika.mkAnd"
 
-instance Subst Expr AdtName
+-- instance Subst Expr AdtName
 
 instance Alpha Expr
-instance Subst a Expr => Subst a Type
+-- instance (Subst a AdtName, Subst a Expr) => Subst a LayoutConstraint
+-- instance (Subst a AdtName, Subst a Expr, Subst a Type) => Subst a ConstrainedType
+-- instance (Subst (f a) Expr, Subst (f a) AdtName, Subst a Type) => Subst (f a) Type
+-- instance (Subst (f a) a, Subst a Type) => Subst (f a) Expr
+-- instance (Subst (f a) a) => Subst (f a) AdtName
+instance Subst Expr Type
+-- instance (Subst a AdtName, Subst a Expr) => Subst a Type
 -- instance Subst Expr Type
 instance Subst Expr Expr where
   isvar (V n) = Just $ SubstName n
   isvar _ = Nothing
 
-instance Subst Expr a => Subst Expr (Loc a)
+-- instance Subst (Exists Expr) Expr
+
+-- instance Subst Expr a => Subst Expr (Loc a)
+
+instance Subst (f a) (f a) => Subst (f a) Expr
 
 type ExprName = Name Expr
 
@@ -203,41 +213,44 @@ type ExprName = Name Expr
 --   deriving (Eq, Ord, Show, Generic)
 -- type LayoutName = Name LayoutName'
 
-instance Subst Expr (LayoutBody Expr)
-instance Subst Expr (LayoutHeaplet Expr)
-instance Subst Expr (PointsTo Expr)
-instance Subst Expr (ModedName Expr)
-instance Subst Expr Mode
--- instance Subst Expr LocVar
-instance Subst (Exists Expr) Expr
-instance Subst (Pattern Expr) Expr
+-- instance Subst Expr (LayoutBody Expr)
+-- instance Subst Expr (LayoutHeaplet Expr)
+-- instance Subst Expr (PointsTo Expr)
+-- instance Subst Expr (ModedName Expr)
+-- instance Subst Expr Mode
+-- -- instance Subst Expr LocVar
+-- instance Subst (Exists Expr) Expr
+-- instance Subst (Pattern Expr) Expr
+--
+-- -- instance Subst (Name Expr) Expr
+-- -- instance Subst (Name Expr) AdtName
+--
+-- instance Subst Expr (LayoutBranch Expr)
+-- instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (LayoutBody Expr)))
+-- instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (GhostCondition Expr (LayoutBody Expr))))
+-- instance Subst Expr (Pattern Expr)
+--
+-- instance Subst [ModedName Expr] (PatternMatch Expr (Bind [Exists Expr] (GhostCondition Expr (LayoutBody Expr))))
+-- instance Subst [ModedName Expr] (GhostCondition Expr (LayoutBody Expr))
+-- instance Subst [ModedName Expr] (LayoutBody Expr)
+-- instance Subst [ModedName Expr] (LayoutHeaplet Expr)
+-- instance Subst [ModedName Expr] (PointsTo Expr)
+-- instance Subst [ModedName Expr] (Loc Expr)
+-- -- instance Subst [ModedName Expr] Expr
+-- -- instance Subst [ModedName Expr] AdtName
+-- instance Subst [ModedName Expr] (Exists Expr)
+-- instance Subst [ModedName Expr] (Moded' PC (Name Expr))
+-- instance Subst [ModedName Expr] Mode
+-- instance Subst [ModedName Expr] (Pattern Expr)
+--
+-- -- instance Subst (Moded Expr) Expr
+-- -- instance Subst (Moded Expr) AdtName
+-- instance Subst Expr (Layout Expr)
+-- instance Subst Expr (Ghost Expr)
+-- instance Subst Expr GhostType
 
-instance Subst (Name Expr) Expr
-instance Subst (Name Expr) AdtName
+instance Subst Type Expr where
 
-instance Subst Expr (LayoutBranch Expr)
-instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (LayoutBody Expr)))
-instance Subst Expr (PatternMatch Expr (Bind [Exists Expr] (GhostCondition Expr (LayoutBody Expr))))
-instance Subst Expr (Pattern Expr)
-
-instance Subst [ModedName Expr] (PatternMatch Expr (Bind [Exists Expr] (GhostCondition Expr (LayoutBody Expr))))
-instance Subst [ModedName Expr] (GhostCondition Expr (LayoutBody Expr))
-instance Subst [ModedName Expr] (LayoutBody Expr)
-instance Subst [ModedName Expr] (LayoutHeaplet Expr)
-instance Subst [ModedName Expr] (PointsTo Expr)
-instance Subst [ModedName Expr] (Loc Expr)
-instance Subst [ModedName Expr] Expr
-instance Subst [ModedName Expr] AdtName
-instance Subst [ModedName Expr] (Exists Expr)
-instance Subst [ModedName Expr] (Moded' PC (Name Expr))
-instance Subst [ModedName Expr] Mode
-instance Subst [ModedName Expr] (Pattern Expr)
-
-instance Subst (Moded Expr) Expr
-instance Subst (Moded Expr) AdtName
-instance Subst Expr (Layout Expr)
-instance Subst Expr (Ghost Expr)
-instance Subst Expr GhostType
 
 makePrisms ''Expr
 makeLenses ''Test
@@ -314,6 +327,10 @@ reduceLayouts = go
 --   }
 
 instance WellScoped (Name Expr) Type
+instance WellScoped (Name Expr) (Bind (TypeName, Embed AdtName) Type)
+instance WellScoped (Name Expr) (Embed AdtName)
+instance WellScoped (Name Expr) ConstrainedType
+instance WellScoped (Name Expr) LayoutConstraint
 instance WellScoped (Name Expr) Expr
 -- TODO: Figure out a way to handle this case properly
 instance WellScoped (Name Expr) (Bind TypeName Expr) where

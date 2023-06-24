@@ -9,6 +9,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module PikaC.Utils
   where

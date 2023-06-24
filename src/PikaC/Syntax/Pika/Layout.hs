@@ -38,6 +38,7 @@ import GHC.Stack
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
 import Unbound.Generics.LocallyNameless.Unsafe
+import Unbound.Generics.LocallyNameless.Subst
 
 import Data.Void
 import Data.Typeable
@@ -152,6 +153,7 @@ deriving instance (Show (XModed s), Show a) => Show (Moded' s a)
 
 type family XModed (s :: Stage)
 type instance XModed PC = ()
+type instance XModed AllocAnnotated = Int
 
 type Moded = Moded' PC
 
@@ -199,7 +201,7 @@ newtype Exists a = Exists { getExists :: ModedName a }
   deriving (Show, Generic)
 
 instance (Typeable a) => Alpha (Exists a)
-instance Subst a (ModedName a) => Subst a (Exists a)
+-- instance Subst a (ModedName a) => Subst a (Exists a)
 
 instance HasNames (Exists a) a where
   getNames (Exists x) = getNames x
@@ -270,26 +272,46 @@ instance (IsNested a, Ppr a) => Ppr (LayoutBody a) where
   ppr (LayoutBody []) = text "emp"
   ppr (LayoutBody xs) = hsep (intersperse (text "**") (map ppr xs))
 
-instance (Subst (Name a) a, Alpha a, Typeable a) => Subst (Name a) (LayoutBranch a)
-instance (Subst (Name a) a, Alpha a, Typeable a) => Subst (Name a) (PatternMatch a (Bind [Exists a] (LayoutBody a)))
-instance Subst (Name a) (Exists a)
-instance Subst (Name a) (Moded (Name a))
-instance Subst (Name a) Mode
-instance Subst (Name a) a => Subst (Name a) (LayoutBody a)
-instance Subst (Name a) a => Subst (Name a) (LayoutHeaplet a)
-instance Subst (Pattern a) a => Subst (Pattern a) (LayoutBody a)
-instance Subst (Pattern a) a => Subst (Pattern a) (LayoutHeaplet a)
-instance Subst (Pattern a) (Exists a)
-instance Subst (Pattern a) (Moded (Name a))
-instance Subst (Pattern a) Mode
-instance Subst (Exists a) a => Subst (Exists a) (LayoutBody a)
-instance Subst (Exists a) a => Subst (Exists a) (LayoutHeaplet a)
+instance (Subst a a, Typeable a, Alpha a) => Subst a (Ghost a)
+instance (Subst a a, Typeable a, Alpha a) => Subst a GhostType
+instance (Subst a a, Typeable a, Alpha a) => Subst a (Layout a)
+instance (Typeable a, Alpha a, Subst a a, Subst a c, Subst a (XModed b)) => Subst a (Moded' b c)
+-- instance (Subst a a, Typeable a, Alpha a, Subst a (XModed s)) => Subst a (Moded' s a)
+-- instance (Subst a a, Typeable a, Alpha a, Subst a (XModed s)) => Subst a (Moded' s (Name b))
+instance (Subst a a, Typeable a, Alpha a) => Subst a Mode
+instance (Subst a a, Typeable a, Alpha a) => Subst a (LayoutBody a)
+instance (Subst a a, Typeable a, Alpha a) => Subst a (LayoutHeaplet a)
+instance (Subst a a, Typeable a, Alpha a) => Subst a (LayoutBranch a)
+-- instance (Subst a a, Typeable a, Alpha a) => Subst a (PointsTo a)
+-- instance (Subst a a, Typeable a, Alpha a) => Subst a (Loc a)
+instance (Subst a a, Subst a b) => Subst a (GhostCondition a b)
+-- instance (Subst (g b) b) => Subst (g a) (GhostCondition a b)
 
-instance Subst (Exists a) a => Subst (Exists a) (PointsTo a)
-instance Subst (Exists a) a => Subst (Exists a) (Loc a)
+instance (Subst a b, Subst a a, Subst b b, Typeable a, Alpha a) => Subst a (Exists b)
+-- instance (Subst a b, Subst a a, Subst b b, Typeable a, Alpha a) => Subst (Exists a) b
+-- instance (Subst (f a) a, Generic (f a)) => Subst (Exists a) (f a)
+-- instance (Generic a) => Subst (Exists a) a
 
-instance (Typeable a, Alpha a, Subst (Name a) a) => Subst (Name a) (PatternMatch a (Bind [Exists a] (GhostCondition a (LayoutBody a))))
-instance Subst (Name a) a => Subst (Name a) (GhostCondition a (LayoutBody a))
+-- instance (Subst (Name a) a, Alpha a, Typeable a) => Subst (Name a) (LayoutBranch a)
+-- instance (Subst (Name a) a, Alpha a, Typeable a) => Subst (Name a) (PatternMatch a (Bind [Exists a] (LayoutBody a)))
+-- instance Subst (Name a) (Exists a)
+-- instance Subst (Name a) (Moded (Name a))
+-- instance Subst (Name a) Mode
+-- instance Subst (Name a) a => Subst (Name a) (LayoutBody a)
+-- instance Subst (Name a) a => Subst (Name a) (LayoutHeaplet a)
+-- instance Subst (Pattern a) a => Subst (Pattern a) (LayoutBody a)
+-- instance Subst (Pattern a) a => Subst (Pattern a) (LayoutHeaplet a)
+-- instance Subst (Pattern a) (Exists a)
+-- instance Subst (Pattern a) (Moded (Name a))
+-- instance Subst (Pattern a) Mode
+-- instance Subst (Exists a) a => Subst (Exists a) (LayoutBody a)
+-- instance Subst (Exists a) a => Subst (Exists a) (LayoutHeaplet a)
+
+-- instance Subst (Exists a) a => Subst (Exists a) (PointsTo a)
+-- instance Subst (Exists a) a => Subst (Exists a) (Loc a)
+
+-- instance (Typeable a, Alpha a, Subst (Name a) a) => Subst (Name a) (PatternMatch a (Bind [Exists a] (GhostCondition a (LayoutBody a))))
+-- instance Subst (Name a) a => Subst (Name a) (GhostCondition a (LayoutBody a))
 
 instance forall a. (Subst a a, Subst (Exists a) a, Subst (Pattern a) a, Subst (Name a) a, IsNested a, HasVar a, Subst a (LayoutBody a), Subst a (LayoutBranch a), Subst a (ModedName a), Typeable a, Alpha a, Ppr a) =>
     Ppr (Layout a) where
@@ -342,18 +364,18 @@ getLayoutParams layout =
 -- unbindLayout :: (Fresh m, Typeable a, Alpha a) => Layout a -> m ([ModedName a], [LayoutBranch a])
 -- unbindLayout = unbind . _layoutBranches
 
-instance (Subst (Moded' s a) (Moded' PC (Name a)), Subst (Moded' s a) (Exists a), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (LayoutBranch a)
-instance Subst (Moded' s a) a => Subst (Moded' s a) (Pattern a)
-instance Subst (Moded' s a) a => Subst (Moded' s a) (LayoutBody a)
-instance Subst (Moded' s a) a => Subst (Moded' s a) (LayoutHeaplet a)
-instance Subst (Moded' s a) a => Subst (Moded' s a) (PointsTo a)
-instance Subst (Moded' s a) a => Subst (Moded' s a) (Loc a)
-instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (LayoutBody a))
-instance (Alpha a, Typeable a, Subst (Moded' s a) (Exists a), Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (Bind [Exists a] (LayoutBody a)))
+-- instance (Subst (Moded' s a) (Moded' PC (Name a)), Subst (Moded' s a) (Exists a), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (LayoutBranch a)
+-- instance Subst (Moded' s a) a => Subst (Moded' s a) (Pattern a)
+-- instance Subst (Moded' s a) a => Subst (Moded' s a) (LayoutBody a)
+-- instance Subst (Moded' s a) a => Subst (Moded' s a) (LayoutHeaplet a)
+-- instance Subst (Moded' s a) a => Subst (Moded' s a) (PointsTo a)
+-- instance Subst (Moded' s a) a => Subst (Moded' s a) (Loc a)
+-- instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (LayoutBody a))
+-- instance (Alpha a, Typeable a, Subst (Moded' s a) (Exists a), Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (Bind [Exists a] (LayoutBody a)))
 
-instance Subst (Exists a) AdtName
-instance Subst (Exists a) (Moded (Name a))
-instance Subst (Exists a) Mode
+-- instance Subst (Exists a) AdtName
+-- instance Subst (Exists a) (Moded (Name a))
+-- instance Subst (Exists a) Mode
 
 instance (IsNested a, Ppr a) => Ppr (LayoutHeaplet a) where
   ppr (LPointsTo p) = ppr p
@@ -629,14 +651,14 @@ type LayoutName = String
 --   where
 --     go (LayoutBranch (PatternMatch (B (Pattern cName patVars) (B existVars body)))) = undefined
 
-instance (Subst a (LayoutBody a), Subst a a) => Subst a (GhostCondition a (LayoutBody a))
-instance (Subst (Moded' s a) (Moded' PC (Name a)), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (Bind [Exists a] (GhostCondition a (LayoutBody a))))
-instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (GhostCondition a (LayoutBody a))
+-- instance (Subst a (LayoutBody a), Subst a a) => Subst a (GhostCondition a (LayoutBody a))
+-- instance (Subst (Moded' s a) (Moded' PC (Name a)), Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (PatternMatch a (Bind [Exists a] (GhostCondition a (LayoutBody a))))
+-- instance (Alpha a, Typeable a, Subst (Moded' s a) a) => Subst (Moded' s a) (GhostCondition a (LayoutBody a))
 
-instance (Subst (Moded' s a) (Moded' PC (Name a))) => Subst (Moded' s a) (Exists a)
+-- instance (Subst (Moded' s a) (Moded' PC (Name a))) => Subst (Moded' s a) (Exists a)
 -- instance Subst a (Name a) => Subst (Moded' s a) (Moded' s2 (Name a))
 -- instance Subst (Moded' s a) (Moded' PC (Name a))
-instance Subst (Moded' s a) Mode
+-- instance Subst (Moded' s a) Mode
 -- instance Subst (Moded' s a) (Exists a)
 
 --

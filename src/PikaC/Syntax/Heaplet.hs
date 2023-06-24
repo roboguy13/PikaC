@@ -31,6 +31,7 @@ import Control.Lens.Plated
 import Control.Lens hiding (elements)
 
 import Control.Monad
+import Control.Applicative
 
 import Test.QuickCheck
 import Data.Validity
@@ -50,10 +51,8 @@ instance Ppr a => Ppr (LayoutArg a) where
 data PointsTo a = Loc a :-> a
   deriving (Show, Generic, Eq, Ord)
 
-instance Subst (Name a) a => Subst (Name a) (PointsTo a)
-instance Subst (Name a) a => Subst (Name a) (Loc a)
-instance Subst (Pattern a) a => Subst (Pattern a) (PointsTo a)
-instance Subst (Pattern a) a => Subst (Pattern a) (Loc a)
+instance Subst a b => Subst a (PointsTo b)
+instance Subst a b => Subst a (Loc b)
 
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (PointsTo a)
 instance (Typeable a, Alpha a, WellScoped (Name a) a) => WellScoped (Name a) (Loc a)

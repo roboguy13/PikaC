@@ -93,6 +93,8 @@ instance Subst Expr FnDefBranch
 instance Subst Expr ArgLayout
 
 instance WellScoped (Name Expr) Type
+instance WellScoped (Name Expr) (Bind (TypeName, Embed AdtName) Type)
+instance WellScoped (Name Expr) (Embed AdtName)
 instance WellScoped (Name Expr) (Name Type)
 
 inputNames :: Input -> [ExprName]

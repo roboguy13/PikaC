@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Backend.SuSLik.Syntax
   where
@@ -136,9 +137,11 @@ instance Subst Expr Expr where
   isvar (V n) = Just $ SubstName n
   isvar _ = Nothing
 
-instance Subst Expr HeapletS where
-instance Subst Expr a => Subst Expr (PointsTo a)
-instance Subst Expr a => Subst Expr (Loc a)
+instance Subst a Expr => Subst a HeapletS
+
+-- instance Subst Expr HeapletS where
+-- instance Subst Expr a => Subst Expr (PointsTo a)
+-- instance Subst Expr a => Subst Expr (Loc a)
 
 instance Ppr Expr where
   ppr (V x) = ppr x

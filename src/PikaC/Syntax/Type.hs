@@ -15,6 +15,7 @@ import Text.Show.Deriving
 -- import Bound
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import Control.Monad.Trans
 import GHC.Generics
@@ -24,6 +25,7 @@ import Control.Lens.TH
 
 import Test.QuickCheck
 import Control.Monad
+import Control.Applicative
 
 import Control.DeepSeq
 
@@ -35,10 +37,17 @@ data Type
   = IntType
   | BoolType
   | FnType Type Type
-  -- | TyVar TypeName
+  | TyVar TypeName
   | LayoutId String
+  | ForAll (Bind (TypeName, Embed AdtName) Type)
   | GhostApp Type [String]
   deriving (Show, Generic)
+
+instance Subst Type Type where
+  isvar (TyVar v) = Just (SubstName v)
+  isvar _ = Nothing
+
+instance Subst (f a) (f a) => Subst (f a) Type
 
 getLayoutId :: HasCallStack => Type -> String
 getLayoutId (LayoutId t) = t
@@ -153,9 +162,16 @@ instance Ppr Type where
   ppr IntType = text "Int"
   ppr BoolType = text "Bool"
   ppr (FnType src tgt) = hsep [pprP src, text "->", ppr tgt]
-  -- ppr (TyVar x) = ppr x
+  ppr (TyVar x) = ppr x
   ppr (LayoutId x) = text x
   ppr (GhostApp ty xs) = pprP ty <+> hsep (map (\x -> text "@" <> text x) xs)
+  ppr (ForAll bnd) =
+    let ((v, Embed adt), body) = unsafeUnbind bnd
+    in
+    ((text "forall" <+> (parens (ppr v <+> text ":~" <+> ppr adt))) <> text ".") <+> ppr body
+
+-- instance Subst Type AdtName
+instance Subst a a => Subst a AdtName
 
 instance Ppr AdtName where ppr (AdtName n) = text n
 
@@ -166,9 +182,10 @@ instance IsNested Type where
   isNested (FnType {}) = True
   isNested IntType = False
   isNested BoolType = False
-  -- isNested (TyVar x) = False
+  isNested (TyVar x) = False
   isNested (LayoutId x) = False
   isNested (GhostApp {}) = False
+  isNested (ForAll {}) = True
 
 makeLenses ''TypeSig
 

@@ -50,9 +50,6 @@ convertName = string2Name . show
 
 -- type instance XLayout
 
-type instance XModed AllocAnnotated = Int
-type instance PikaCore.XV AllocAnnotated = Int
-
 type AllocExpr = PikaCore.Expr' AllocAnnotated
 
 -- instance Alpha (Moded' AllocAnnot

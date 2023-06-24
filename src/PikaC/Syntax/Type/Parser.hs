@@ -55,8 +55,8 @@ parseType'' = label "type" $ lexeme $
   try (symbol "(" *> parseType <* symbol ")") <|>
   try (keyword "Int" $> IntType) <|>
   try (keyword "Bool" $> BoolType) <|>
-  (LayoutId <$> parseLayoutId)
-  -- (TyVar <$> parseTypeName)
+  try (LayoutId <$> parseLayoutId) <|>
+  (TyVar <$> parseTypeName)
 
 parseFnType :: Parser Type
 parseFnType = label "function type" $ lexeme $ do
