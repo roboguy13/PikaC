@@ -26,8 +26,12 @@ import Control.Lens
 import Control.Monad
 import Control.Applicative
 
+import Control.Monad.Morph
+
 import Data.List
 import Data.Maybe
+
+import Data.Foldable
 
 import Unbound.Generics.LocallyNameless
 
@@ -90,10 +94,80 @@ requireCheckType2 ty x y = do
 checkExprSig :: TypeSig -> Expr -> Check s ()
 checkExprSig = undefined
 
-unify :: Type -> Type -> Check s Type
-unify = undefined
-
 -- checkAndElaborate = undefined
+
+-- | Eta-expand to layout lambdas applied to placeholder variables
+etaExpand :: Expr -> Check s Expr
+etaExpand = go
+  where
+    go (LayoutLambda adt bnd) = do
+      (v, body) <- unbind bnd
+      case body of
+        App f args -> App f <$> traverse go args
+        _ -> LayoutLambda adt <$> bind v <$> go body
+
+    go (App f xs)
+      | isConstructor f = constructorToLayoutLambda f xs
+      | otherwise = do
+          fmap (lookup f) (asks _fnEnv) >>= \case
+            Just (TypeSig sigBnd) -> do
+              (vs, ConstrainedType cts ty) <- unbind sigBnd
+              toLayoutLambdas cts =<< (App f <$> traverse go xs)
+
+    go e = plate go e -- TODO: Does this work?
+
+-- | Generate layout lambdas with applications to placeholder variables
+toLayoutLambdas :: Fresh m => [LayoutConstraint] -> Expr -> m Expr
+toLayoutLambdas [] e = pure e
+toLayoutLambdas ((v :~ adt) : rest) e = do
+  pv <- fresh v
+  ApplyLayout
+    <$> (LayoutLambda adt <$> bind v <$> toLayoutLambdas rest e)
+    <*> pure (PlaceholderVar pv)
+
+-- | Eta-expand the layout lambdas of data type constructors, applied to
+-- placeholder variables
+constructorToLayoutLambda :: String -> [Expr] -> Check s Expr
+constructorToLayoutLambda c args = do
+  cts <- constructorConstraints c
+  toLayoutLambdas cts (App c args)
+
+-- | NOTE: We assume that every layout is the same for each type. For
+-- example, if @Node : Tree -> Tree -> Tree@ is a constructor for a tree,
+-- all of the @Tree@s are assumed to use the same layout
+constructorConstraints :: String -> Check s [LayoutConstraint]
+constructorConstraints c = do
+  fmap (lookup c) (asks _constructorTypes) >>= \case
+    Just ty -> do
+      let (argTys, resultTy) = splitFnType ty
+      (cts, _) <- getTypes (argTys ++ [resultTy])
+      pure cts
+
+  where
+    getTypes :: Fresh m => [Type] -> m ([LayoutConstraint], [Type])
+    getTypes = go []
+      where
+        go cts [] = pure (cts, [])
+        go cts (t:ts) = do
+          (cts', t') <- getCts t cts
+          (cts'', ts') <- go cts' ts
+          pure (cts'', t' : ts')
+
+      -- Keep track of type variables for ADTs, reusing type variables when
+      -- we've already encounted the ADT
+    getCts :: Fresh m => Type -> [LayoutConstraint] -> m ([LayoutConstraint], Type)
+    getCts (LayoutId adt) cts = getCts' (AdtName adt) cts
+      -- NOTE: Even though this is a LayoutId, it is refering to an ADT
+    getCts ty cts = pure (cts, ty)
+
+    getCts' :: Fresh m => AdtName -> [LayoutConstraint] -> m ([LayoutConstraint], Type)
+    getCts' adt cts = do
+      case findAdtConstraint adt cts of
+        Just v -> pure (cts, TyVar v)
+        Nothing -> do
+          v <- fresh $ string2Name "t"
+          let cts' = (v :~ adt) : cts
+          pure (cts', TyVar v)
 
 checkAndRequire :: Expr -> Type -> Check s Type
 checkAndRequire e ty = do

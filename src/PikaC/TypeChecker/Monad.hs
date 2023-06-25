@@ -7,9 +7,13 @@ module PikaC.TypeChecker.Monad
 
 import Unbound.Generics.LocallyNameless
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Lens
 
 import Data.List
+import Data.Bifunctor
+
+import Control.Monad.Morph
 
 import PikaC.Ppr
 
@@ -26,6 +30,7 @@ data CheckEnv =
       , _fnEnv :: [(String, TypeSig)]
       , _layoutAdts :: [(LayoutName, AdtName)]
       , _layoutConstraints :: [LayoutConstraint]
+      , _constructorTypes :: [(String, Type)]
       , _typeEnv :: [(TypeName, Type)]
       , _typeEqs :: [(TypeName, TypeName)]
       }

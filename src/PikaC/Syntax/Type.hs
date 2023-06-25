@@ -41,6 +41,7 @@ data Type
   | LayoutId String
   | ForAll (Bind (TypeName, Embed AdtName) Type)
   | GhostApp Type [String]
+  | PlaceholderVar TypeName -- These should be replaced by actual TyVars or LayoutIds
   deriving (Show, Generic)
 
 instance Subst Type Type where
@@ -103,6 +104,18 @@ mkForAllCts :: [LayoutConstraint] -> Type -> Type
 mkForAllCts = flip $ foldr go
   where
     go (t :~ adt) = ForAll . bind (t, Embed adt)
+
+findConstraint :: TypeName -> [LayoutConstraint] -> Maybe AdtName
+findConstraint _ [] = Nothing
+findConstraint v ((v' :~ adt) : cts)
+  | v' == v = Just adt
+  | otherwise = findConstraint v cts
+
+findAdtConstraint :: AdtName -> [LayoutConstraint] -> Maybe TypeName
+findAdtConstraint _ [] = Nothing
+findAdtConstraint adt ((v :~ adt') : cts)
+  | adt' == adt = Just v
+  | otherwise = findAdtConstraint adt cts
 
 instance Alpha LayoutConstraint
 instance Alpha ConstrainedType
@@ -180,6 +193,7 @@ instance Ppr Type where
   ppr (FnType src tgt) = hsep [pprP src, text "->", ppr tgt]
   ppr (TyVar x) = ppr x
   ppr (LayoutId x) = text x
+  ppr (PlaceholderVar x) = text "?" <> ppr x
   ppr (GhostApp ty xs) = pprP ty <+> hsep (map (\x -> text "@" <> text x) xs)
   ppr (ForAll bnd) =
     let ((v, Embed adt), body) = unsafeUnbind bnd
@@ -200,6 +214,7 @@ instance IsNested Type where
   isNested BoolType = False
   isNested (TyVar x) = False
   isNested (LayoutId x) = False
+  isNested (PlaceholderVar x) = False
   isNested (GhostApp {}) = False
   isNested (ForAll {}) = True
 
