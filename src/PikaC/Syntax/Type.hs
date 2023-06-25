@@ -88,6 +88,22 @@ toTypeSig = TypeSig . bind [] . ConstrainedType []
 fromTypeSig_unsafe :: HasCallStack => TypeSig -> Type
 fromTypeSig_unsafe (TypeSig (B [] (ConstrainedType [] ty))) = ty
 
+fromTypeSig :: TypeSig -> Type
+fromTypeSig (TypeSig bnd) =
+  let (vs, ctType) = unsafeUnbind bnd
+  in
+  mkForAlls [ctType]
+
+mkForAlls :: [ConstrainedType] -> Type
+mkForAlls [ConstrainedType cts ty] = mkForAllCts cts ty
+mkForAlls (ConstrainedType cts ty : rest) =
+  mkForAllCts cts (mkForAlls rest)
+
+mkForAllCts :: [LayoutConstraint] -> Type -> Type
+mkForAllCts = flip $ foldr go
+  where
+    go (t :~ adt) = ForAll . bind (t, Embed adt)
+
 instance Alpha LayoutConstraint
 instance Alpha ConstrainedType
 

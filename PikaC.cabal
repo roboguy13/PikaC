@@ -30,6 +30,8 @@ executable PikaC
     other-modules:
       PikaC.TypeChecker.Mode
       PikaC.TypeChecker.Elaborate
+      PikaC.TypeChecker.Monad
+      PikaC.TypeChecker.Unify
       PikaC.Backend.C.CodeGen
       PikaC.Backend.C.Monad
       PikaC.Backend.C.Syntax

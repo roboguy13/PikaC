@@ -112,7 +112,7 @@ instance Ppr Input where
 
 instance Alpha Input
 
-instance Subst a (PointsTo Expr) => Subst a Input
+instance Subst a Expr => Subst a Input
 
 instance Ppr FnDef where
   ppr def = runFreshM $ do

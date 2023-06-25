@@ -12,6 +12,9 @@ import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Layout (LayoutName)
 
+import PikaC.TypeChecker.Monad
+import PikaC.TypeChecker.Unify
+
 import PikaC.Utils
 import PikaC.Ppr
 
@@ -19,6 +22,9 @@ import Control.Monad.State
 import Control.Monad.Reader
 
 import Control.Lens
+
+import Control.Monad
+import Control.Applicative
 
 import Data.List
 import Data.Maybe
@@ -44,61 +50,6 @@ import Unbound.Generics.LocallyNameless
 -- deriving instance MonadEquiv (Class s d v) v d m =>
 --   MonadEquiv (Class s d v) v d (FreshMT m)
 
-newtype Check s a = Check (FreshMT (ReaderT CheckEnv (Either String)) a)
-  deriving (Functor, Applicative, Monad, MonadReader CheckEnv, Fresh)
-
-data CheckEnv =
-    CheckEnv
-      { _localEnv :: [(ExprName, Type)]
-      , _fnEnv :: [(String, TypeSig)]
-      , _layoutAdts :: [(LayoutName, AdtName)]
-      , _layoutConstraints :: [LayoutConstraint]
-      , _typeEnv :: [(TypeName, Type)]
-      , _typeEqs :: [(TypeName, TypeName)]
-      }
-  deriving (Show)
-
-makeLenses ''CheckEnv
-
-lookupConstraint :: TypeName -> Check s AdtName
-lookupConstraint v =
-  fmap (find go) (asks _layoutConstraints) >>= \case
-    Nothing -> checkError $ text "Could not find constraint for type variable" <+> ppr v
-    Just (_ :~ t) -> pure t
-  where
-    go (x :~ _) = x == v
-
--- consistencyCheck :: forall s. Check s ()
--- consistencyCheck = mapM_ go =<< values
---   where
---     getAdts :: [TypeName] -> Check s [(TypeName, AdtName)]
---     getAdts xs =
---       catMaybes . map strength . zip xs <$> mapM lookupConstraint xs
---
---     go :: TypeName -> Check s ()
---     go t = do
---       ts <- classDesc t
---       consistentConstraints =<< getAdts ts
---
--- consistentConstraints :: [(TypeName, AdtName)] -> Check s ()
--- consistentConstraints [] = pure ()
--- consistentConstraints ((n, adt) : rest) = mapM_ go rest
---   where
---     go (m, adt')
---       | adt' /= adt = checkError $ text "Type variable" $$ nest 2 (ppr m) $$ text "is a layout for type" $$ nest 2 (ppr adt') $$ text "but it is expected to be a layout for type" $$ nest 2 (ppr adt) $$ text "since it is unified with variable" $$ ppr n
---       | otherwise = pure ()
-
-checkEnvLookupLocal :: ExprName -> CheckEnv -> Maybe Type
-checkEnvLookupLocal v = lookup v . _localEnv
-
-checkEnvExtendLocal :: ExprName -> Type -> CheckEnv -> CheckEnv
-checkEnvExtendLocal v ty = localEnv %~ ((v, ty) :)
-
-checkEnvLookupFn :: String -> CheckEnv -> Maybe TypeSig
-checkEnvLookupFn v = lookup v . _fnEnv
-
-checkError :: Doc -> Check s a
-checkError = Check . lift . lift . Left . render
 
 -- freshUnifierVar :: TypeName -> Check s TypeName
 -- freshUnifierVar a = do
@@ -106,22 +57,25 @@ checkError = Check . lift . lift . Left . render
 --   typeEqs %= ((new, a) :)
 --   pure new
 
-lookupLocalType :: ExprName -> Check s Type
+lookupLocalType :: ExprName -> Check s (Maybe Type)
 lookupLocalType v =
   asks (checkEnvLookupLocal v) >>= \case
-    Nothing -> checkError $ text "Cannot find type for variable" <+> ppr v
-    Just ty -> pure ty
+    Nothing -> pure Nothing --checkError $ text "Cannot find type for variable" <+> ppr v
+    Just ty -> pure $ Just ty
 
-lookupFnType :: String -> Check s TypeSig
+lookupFnType :: String -> Check s (Maybe Type)
 lookupFnType f =
   asks (checkEnvLookupFn f) >>= \case
-    Nothing -> checkError $ text "Cannot find function" <+> text f
-    Just sig -> pure sig
+    Nothing -> pure Nothing --checkError $ text "Cannot find function" <+> text f
+    Just sig -> pure $ Just $ fromTypeSig sig
 
-requireType :: Type -> Type -> Check s ()
-requireType ty1 ty2
-  | aeq ty1 ty2 = pure ()
-  | otherwise = checkError $ text "Expected type" $$ nest 2 (ppr ty1) $$ text "Found type" $$ nest 2 (ppr ty2)
+lookupType :: ExprName -> Check s Type
+lookupType x =
+  liftA2 (<|>)
+    (lookupLocalType x)
+    (lookupFnType (name2String x)) >>= \case
+      Nothing -> checkError $ text "Cannot find type for name" <+> ppr x
+      Just ty -> pure ty
 
 requireCheckType :: Type -> Expr -> Check s ()
 requireCheckType ty e = do
@@ -141,9 +95,16 @@ unify = undefined
 
 -- checkAndElaborate = undefined
 
+checkAndRequire :: Expr -> Type -> Check s Type
+checkAndRequire e ty = do
+  ty' <- checkExpr e
+  if not (aeq ty' ty)
+    then checkError $ text "Cannot match expected type" $$ nest 2 (ppr ty) $$ text "with actual type" $$ nest 2 (ppr ty') $$ text "in expression" $$ ppr e
+    else pure ty'
+
 checkExpr :: Expr -> Check s Type
 checkExpr = \case
-  V x -> lookupLocalType x
+  V x -> lookupType x
   IntLit {} -> pure IntType
   BoolLit {} -> pure BoolType
 
@@ -171,11 +132,14 @@ checkExpr = \case
     --         Nothing -> checkError $ text "Cannot find ADT for layout" <+> ppr layoutName
     --         Just adt -> pure adt
     if eAdt == tyAdt
-      then pure $ substBind bnd undefined
+      then pure $ substBind bnd ty
       else
         checkError $ text "When checking the type of" $$ nest 2 (ppr e) $$ text "cannot match expected layout" $$ nest 2 (ppr tyAdt) $$ text "with actual layout" $$ nest 2 (ppr eAdt)
 
-  App f xs -> undefined
+  App f xs -> do
+    (argTys, resultTy) <- splitFnType <$> checkExpr (V (string2Name f))
+    zipWithM checkAndRequire xs argTys
+    pure resultTy
 
   Div x y -> requireCheckType2 IntType x y *> pure IntType
   Mod x y -> requireCheckType2 IntType x y *> pure IntType
