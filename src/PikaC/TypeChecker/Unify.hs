@@ -1,6 +1,7 @@
 module PikaC.TypeChecker.Unify
   (Equal
-  ,getRepr
+  ,getUnifyVar
+  ,getNewType
   ,unify
   )
   where
@@ -45,8 +46,18 @@ getRepr sigVars v eqs = do
     Just (UnifyEq _ (Just layout)) -> pure $ LayoutId layout
     Just (UnifyEq xs Nothing) ->
       case sigVars `intersect` xs of
-        (v':_) -> pure $ TyVar v'
+        [v'] -> pure $ TyVar v'
+        (v':v'':_) -> checkError $ text "Cannot match" $$ nest 2 (ppr v') $$ text "with" $$ nest 2 (ppr v'')
         _ -> checkError $ text "Ambiguous type variable" $$ nest 2 (ppr v)
+
+-- | Use the representatives given by getRepr to create a new type
+getNewType :: [TypeName] -> [Equal] -> Type -> Check s Type
+getNewType sigVars eqs = rewriteM go
+  where
+    go (PlaceholderVar v) = do
+      t <- getRepr sigVars v eqs
+      pure $ Just t
+    go e = pure Nothing
 
 getUnifyEqs :: [(String, AdtName)] -> [Equal] -> [UnifyEq]
 getUnifyEqs layoutAdts = rewrite go . mapMaybe (singleUnifyEq layoutAdts)
@@ -71,6 +82,15 @@ lookupVarUnifyEq xs t = find go xs
   where
     go (UnifyEq ys _) = t `elem` ys
 
+getUnifyVar :: Type -> Maybe TypeName
+getUnifyVar (PlaceholderVar v) = Just v
+getUnifyVar (TyVar v) = Just v -- TODO: Should this case be here?
+getUnifyVar _ = Nothing
+
+isBasicUnifyType :: Type -> Bool
+isBasicUnifyType (TyVar {}) = True
+isBasicUnifyType t = isBaseType t
+
 combine :: UnifyEq -> UnifyEq -> Maybe UnifyEq
 combine (UnifyEq xs _) (UnifyEq ys _)
   | not (any (`elem` xs) ys) = Nothing
@@ -86,43 +106,52 @@ singleUnifyEq :: [(String, AdtName)] -> Equal -> Maybe UnifyEq
 singleUnifyEq layoutAdts (v :=: LayoutId layout) =
   Just $ UnifyEq [v] (Just layout)
 singleUnifyEq layoutAdts (v :=: TyVar v') = Just $ UnifyEq [v, v'] Nothing
+singleUnifyEq layoutAdts (v :=: PlaceholderVar v') = Just $ UnifyEq [v, v'] Nothing
 singleUnifyEq _ _ = Nothing
 
+unify :: Type -> Type -> Check s [Equal]
+unify x y = unifyWith x y []
 
-unify :: Type -> Type -> [Equal] -> Check s [Equal]
-unify x y eqs
+unifyWith :: Type -> Type -> [Equal] -> Check s [Equal]
+unifyWith x y eqs
   | x `aeq` y = pure eqs
-unify (TyVar x) y eqs = unifyVar x y eqs
-unify x (TyVar y) eqs = unifyVar y x eqs
-unify x y eqs
-  | isBaseType x || isBaseType y = checkError $ text "Cannot unify" $$ nest 2 (ppr x) $$ text "with" $$ nest 2 (ppr y)
+unifyWith x y eqs
+  | Just x' <- getUnifyVar x = unifyVar x' y eqs
+  | Just y' <- getUnifyVar y = unifyVar y' x eqs
+-- unifyWith (TyVar x) y eqs = unifyVar x y eqs
+-- unifyWith x (TyVar y) eqs = unifyVar y x eqs
+  | isBasicUnifyType x || isBasicUnifyType y = checkError $ text "Cannot unify" $$ nest 2 (ppr x) $$ text "with" $$ nest 2 (ppr y)
 
-unify (FnType x1 y1) (FnType x2 y2) eqs =
-  unify y1 y2 =<< unify x1 x2 eqs
+unifyWith (FnType x1 y1) (FnType x2 y2) eqs =
+  unifyWith y1 y2 =<< unifyWith x1 x2 eqs
 
-unify (LayoutId x) (LayoutId y) eqs
+unifyWith (LayoutId x) (LayoutId y) eqs
   | x == y = pure eqs
   | otherwise = checkError $ text "Cannot unify" $$ nest 2 (ppr x) $$ text "with" $$ nest 2 (ppr y)
 
-unify t1@(ForAll bnd1) t2@(ForAll bnd2) eqs = do
+unifyWith t1@(ForAll bnd1) t2@(ForAll bnd2) eqs = do
   ((v1, Embed adt1), body1) <- unbind bnd1
   ((v2, Embed adt2), body2) <- unbind bnd2
   if adt1 == adt2
-    then unify body1 body2 =<< unify (TyVar v1) (TyVar v2) eqs
+    then unifyWith body1 body2 =<< unifyWith (TyVar v1) (TyVar v2) eqs
     else checkError $ text "Cannot unify" $$ nest 2 (ppr t1) $$ text "with" $$ nest 2 (ppr t2)
 
-unify t1@(GhostApp ty1 xs1) t2@(GhostApp ty2 xs2) eqs = do
+unifyWith t1@(GhostApp ty1 xs1) t2@(GhostApp ty2 xs2) eqs = do
   if and $ zipWith (==) xs1 xs2
-    then unify ty1 ty2 eqs
+    then unifyWith ty1 ty2 eqs
     else checkError $ text "Cannot unify" $$ nest 2 (ppr t1) $$ text "with" $$ nest 2 (ppr t2)
 
 unifyVar :: TypeName -> Type -> [Equal] -> Check s [Equal]
-unifyVar x (TyVar y) eqs
-  | x `aeq` y = pure eqs
+unifyVar x t eqs
+  | Just y <- getUnifyVar t, x `aeq` y = pure eqs
+-- unifyVar x (TyVar y) eqs
+--   | x `aeq` y = pure eqs
 unifyVar x y eqs
-  | Just x' <- lookupEqual x eqs = unify x' y eqs
-unifyVar x (TyVar y) eqs
-  | Just y' <- lookupEqual y eqs = unify (TyVar x) y' eqs
+  | Just x' <- lookupEqual x eqs = unifyWith x' y eqs
+unifyVar x t eqs
+  | Just y <- getUnifyVar t, Just y' <- lookupEqual y eqs = unifyWith (TyVar x) y' eqs
+-- unifyVar x (TyVar y) eqs
+--   | Just y' <- lookupEqual y eqs = unify (TyVar x) y' eqs
 unifyVar x y eqs = do
   occurs <- occursIn x y eqs
   if occurs
@@ -130,11 +159,11 @@ unifyVar x y eqs = do
     else pure $ (x :=: y) : eqs
 
 occursIn :: TypeName -> Type -> [Equal] -> Check s Bool
-occursIn v (TyVar v') eqs
-  | v' == v = pure True
-  | Just t' <- lookupEqual v' eqs = occursIn v t' eqs
 occursIn v t eqs
-  | isBaseType t = pure False
+  | Just v' <- getUnifyVar t, v' == v = pure True
+  | Just v' <- getUnifyVar t, Just t' <- lookupEqual v' eqs = occursIn v t' eqs
+occursIn v t eqs
+  | isBasicUnifyType t = pure False
 occursIn v (FnType t1 t2) eqs = liftA2 (||) (occursIn v t1 eqs) (occursIn v t2 eqs)
 occursIn v (LayoutId {}) eqs = pure False
 occursIn v (ForAll bnd) eqs = do

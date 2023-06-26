@@ -29,6 +29,8 @@ import Control.Applicative
 
 import Control.DeepSeq
 
+import Control.Lens hiding (elements)
+
 import Data.Validity
 
 import GHC.Stack
@@ -49,6 +51,18 @@ instance Subst Type Type where
   isvar _ = Nothing
 
 instance Subst (f a) (f a) => Subst (f a) Type
+
+instance Plated Type where
+  plate _ IntType = pure IntType
+  plate _ BoolType = pure BoolType
+  plate _ (TyVar v) = pure $ TyVar v
+  plate _ (LayoutId x) = pure $ LayoutId x
+  plate f (ForAll bnd) =
+    let (v, body) = unsafeUnbind bnd
+    in
+    ForAll <$> bind v <$> plate f body
+  plate f (GhostApp t args) = GhostApp <$> plate f t <*> pure args
+  plate _ (PlaceholderVar v) = pure $ PlaceholderVar v
 
 getLayoutId :: HasCallStack => Type -> String
 getLayoutId (LayoutId t) = t
