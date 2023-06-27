@@ -43,14 +43,10 @@ import Data.Foldable
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Unsafe
 
-checkExprSig :: TypeSig -> Expr -> Check s ()
-checkExprSig = undefined
+import Debug.Trace
 
 data TypedExpr = Expr ::: Type
   deriving (Show)
-
-fillPlaceholders :: TypeSig -> Expr -> Check s Expr
-fillPlaceholders currentSig = undefined
 
 -- | Eta-expand to layout lambdas applied to placeholder variables
 etaExpand :: Expr -> Check s Expr
@@ -126,14 +122,14 @@ constructorConstraints c = do
           let cts' = (v :~ adt) : cts
           pure (cts', TyVar v)
   
-getAdt :: ExprName -> Check s AdtName
-getAdt x
-  | isConstructor (name2String x) = undefined
-
--- type TyCtx = [(ExprName, Type)]
-
 data Ctx = Ctx { _ctxDelta :: [(TypeName, AdtName)], _ctxGamma :: [(ExprName, Type)] }
   deriving (Show)
+
+ctxSingleDelta :: TypeName -> AdtName -> Ctx
+ctxSingleDelta x y = mempty { _ctxDelta = [(x, y)] }
+
+ctxSingleGamma :: ExprName -> Type -> Ctx
+ctxSingleGamma x y = mempty { _ctxGamma = [(x, y)] }
 
 instance Semigroup Ctx where
   Ctx xs1 ys1 <> Ctx xs2 ys2 = Ctx (xs1 <> xs2) (ys1 <> ys2)
@@ -156,10 +152,16 @@ ctxExtendType :: TypeName -> AdtName -> Ctx -> Ctx
 ctxExtendType n adt = ctxDelta %~ ((n, adt) :)
 
 lookupFnType_maybe :: String -> Check s (Maybe Type)
-lookupFnType_maybe f =
-  asks (checkEnvLookupFn f) >>= \case
-    Nothing -> pure Nothing
-    Just sig -> pure $ Just $ fromTypeSig sig
+lookupFnType_maybe f
+  | isConstructor f =
+      fmap (lookup f) (asks _constructorTypes) >>= \case
+        -- Nothing -> checkError $ text "Cannot find constructor" <+> text f
+        Nothing -> pure Nothing
+        Just r -> pure $ Just r
+  | otherwise =
+      asks (checkEnvLookupFn f) >>= \case
+        Nothing -> pure Nothing
+        Just sig -> pure $ Just $ fromTypeSig sig
 
 lookupFnType :: String -> Check s Type
 lookupFnType f =
@@ -198,10 +200,10 @@ genElaborationConstraints = go
     go :: Ctx -> Type -> Expr -> Check s [Equal]
     go ctx ty = \case
       V x -> pure []
-      ApplyLayout body (PlaceholderVar x) -> do
+      e0@(ApplyLayout body (PlaceholderVar x)) -> do
         (ForAll bodyBnd) <- inferExpr ctx body
         ((_v, Embed _adt), bodyTy) <- unbind bodyBnd
-        unify bodyTy ty
+        unify e0 bodyTy ty
 
       LayoutLambda adt bnd -> do
         (v, body) <- unbind bnd
@@ -220,30 +222,62 @@ fillInPlaceholders sigTys eqs = go
       ApplyLayout body <$> getNewType sigTys eqs ty
     go e = plate go e
 
-elaborate :: [TypeName] -> Expr -> Check s TypedExpr
-elaborate sigVars e = do 
-  ty <- inferExpr mempty e
-  eqs <- genElaborationConstraints mempty ty e
+elaborate :: [TypeName] -> Ctx -> Expr -> Check s TypedExpr
+elaborate sigVars ctx e = do 
+  ty <- inferExpr ctx e
+  eqs <- genElaborationConstraints ctx ty e
   e' <- fillInPlaceholders sigVars eqs e
   pure (e' ::: ty)
 
 elaborateFnDef :: CheckEnv -> FnDef' TypeSig -> Either String (FnDef' TypeSig)
 elaborateFnDef env fnDef = runCheck env $ do
-  branches' <- mapM go $ fnDefBranches fnDef
+  (sigVars, ty) <- unbind $ _typeSigConstrainedType $ fnDefTypeSig fnDef
+  let (argTys, _) = splitFnType $ _ctypeTy ty
+
+  branches' <- mapM (go sigVars argTys) $ fnDefBranches fnDef
   pure $ fnDef { fnDefBranches = branches' }
   where
-    (sigVars, _) = unsafeUnbind $ _typeSigConstrainedType $ fnDefTypeSig fnDef -- TODO: Does this work?
 
-    go :: FnDefBranch -> Check s FnDefBranch
-    go (FnDefBranch (PatternMatches bnd)) =
-      let (pats, body) = unsafeUnbind bnd
-      in
-      FnDefBranch . PatternMatches <$> bind pats <$> go' body
+    go :: [TypeName] -> [Type] -> FnDefBranch -> Check s FnDefBranch
+    go sigVars argTys (FnDefBranch (PatternMatches bnd)) = do
+      (pats, body) <- unbind bnd
 
-    go' :: GuardedExpr -> Check s GuardedExpr
-    go' (GuardedExpr cond body) = do
-      body' ::: _ <- elaborate sigVars body
+      ctx <- handlePatterns sigVars argTys pats
+
+      FnDefBranch . PatternMatches <$> bind pats <$> go' sigVars ctx body
+
+    go' :: [TypeName] -> Ctx -> GuardedExpr -> Check s GuardedExpr
+    go' sigVars ctx (GuardedExpr cond body) = do
+      body' ::: _ <- elaborate sigVars ctx body
       pure $ GuardedExpr cond body'
+
+handlePatterns :: [TypeName] -> [Type] -> [Pattern Expr] -> Check s Ctx
+handlePatterns sigVars patTys =
+  fmap mconcat . zipWithM (handlePattern sigVars) patTys
+
+handlePattern :: [TypeName] -> Type -> Pattern Expr -> Check s Ctx
+handlePattern sigVars patTy (PatternVar x) = pure $ ctxSingleGamma x patTy
+handlePattern sigVars patTy pat@(Pattern cName _) = do
+  cTyAssocs <- asks _constructorTypes
+  fmap (lookup cName) (asks _constructorTypes) >>= \case
+    Just cTy -> handlePattern' sigVars patTy cTy pat
+    Nothing -> error $ "handlePattern: Cannot find type for constructor " ++ ppr' cName ++ " in " ++ show cTyAssocs
+
+-- TODO: Handle ADTs that reference other ADTs
+-- | Uses the constructor type
+handlePattern' :: [TypeName] -> Type -> Type -> Pattern Expr -> Check s Ctx
+handlePattern' sigVars patTy cTy (PatternVar x) = pure $ ctxSingleGamma x patTy
+handlePattern' _ _ _ (Pattern _ []) = pure mempty
+handlePattern' sigVars patTy (ForAll cTy) pat0@(Pattern _ vs) = do
+  (_vs, cTy') <- unbind cTy
+
+  let (cArgTys, cResultTy) = splitFnType cTy'
+  eqs <- unify pat0 cResultTy patTy
+
+  cArgTys' <- mapM (getNewType sigVars eqs) cArgTys
+
+  pure $ foldMap (uncurry ctxSingleGamma) $ zip vs cArgTys'
+handlePattern' _ _ cTy _ = error $ "handlePattern': got constructor type: " ++ ppr' cTy
 
 -- | Does not check constraints
 inferExpr :: Ctx -> Expr -> Check s Type
@@ -260,13 +294,14 @@ inferExpr = go
     go ctx e@BoolLit{} = do
       pure BoolType
 
-    go ctx (App f args) = do
+    go ctx e0@(App f args) = do
       fType <- lookupFnType f
 
       let (fArgTys, fResultTy) = splitFnType fType
       argTys <- traverse (go ctx) args
 
-      zipWithM unify fArgTys argTys
+      -- trace ("- e0 = " ++ ppr' e0 ++ ":  fType = " ++ show fType ++ ", fArgTys = " ++ show fArgTys ++ ", argTys = " ++ show argTys)
+      sequence $ zipWith (unify e0) fArgTys argTys
 
       pure fResultTy -- TODO: Is this correct?
 
@@ -275,7 +310,18 @@ inferExpr = go
       bodyTy <- go (ctxExtendType tyVar adt ctx) body
       pure $ ForAll $ bind (tyVar, Embed adt) bodyTy
 
-    go ctx (ApplyLayout body appTy) =
+    -- TODO: Find a better way before it reaches here
+    go ctx e0@(ApplyLayout (App f args) appTy)
+      | isConstructor f = do
+          fType <- go ctx (ApplyLayout (V (string2Name f)) appTy)
+          let (fArgTys, fResultTy) = splitFnType fType
+          argTys <- traverse (go ctx) args
+
+          sequence $ zipWith (unify e0) fArgTys argTys
+
+          pure fResultTy -- TODO: Is this correct?
+
+    go ctx e0@(ApplyLayout body appTy) =
       -- | Just tyVar <- getUnifyVar appTy =
           go ctx body >>= \case
             ForAll forallBnd -> do
@@ -305,13 +351,4 @@ checkType2 :: Ctx -> Expr -> Type -> Expr -> Type -> Check s ()
 checkType2 ctx e1 ty1 e2 ty2 = do
   checkType ctx e1 ty1
   checkType ctx e2 ty2
-
--- requireType :: Type -> Type -> Check s ()
--- requireType expected found
---   | expected `aeq` found = pure ()
---   | otherwise = checkError $ "Expected type" $$ nest 2 (ppr expected) $$ "found type" $$ nest 2 (ppr found)
-
--- elaborateInferExpr :: [TypeName] -> Ctx -> Expr -> Check s TypedExpr
--- elaborateInferExpr sigVars ctx = \case
---   V x -> undefined
 

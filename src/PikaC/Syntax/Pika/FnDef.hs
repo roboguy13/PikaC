@@ -134,7 +134,7 @@ instance Ppr a => Ppr (FnDef' a) where
 instance Ppr FnDefBranch where
   ppr (FnDefBranch matches@(PatternMatches bnd)) =
     sep
-      [ hsep (map ppr (patternMatchesPats matches) ++ [text ":="])
+      [ hsep (map ppr (patternMatchesPats matches)) -- ++ [text ":="])
       , nest 1 $ ppr (openBind bnd) <> text ";"
       ]
 
@@ -171,9 +171,9 @@ instance WellScoped (Pattern Expr) GuardedExpr
 instance Subst Expr GuardedExpr
 
 instance Ppr GuardedExpr where
-  ppr (GuardedExpr (BoolLit True) body) = ppr body
+  ppr (GuardedExpr (BoolLit True) body) = text ":=" <+> ppr body
   ppr (GuardedExpr cond body) =
-    text "|" <+> ppr cond <+> text "=>" <+> ppr body
+    text "|" <+> ppr cond <+> text ":=" <+> ppr body
 
 genFnSig ::
    [(LayoutName, [(String, [Maybe LayoutName])])] ->

@@ -218,10 +218,13 @@ main = do
         -- mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
 
         let checkEnv = mkCheckEnv pikaModule'
-        let (firstFnDef:_) = moduleFnDefs pikaModule' 
+        let (_:firstFnDef:_) = moduleFnDefs pikaModule'
 
-        -- print $ elaborateFnDef checkEnv firstFnDef
-        -- print "test"
+        -- print $ moduleAdts pikaModule'
+
+        case elaborateFnDef checkEnv firstFnDef of
+          Left err -> error $ "Elaboration error: " ++ err
+          Right elaborated -> putStrLn $ ppr' elaborated
 
         case mapM_ (modeCheck layouts) layouts of
           Left e -> do

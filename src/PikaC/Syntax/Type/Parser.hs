@@ -75,10 +75,10 @@ parseLayoutConstraint :: Parser LayoutConstraint
 parseLayoutConstraint = label "layout constraint" $ lexeme $ do
   tyVar <- parseTypeName
   symbol ":~"
-  keyword "layout"
-  symbol "("
+  -- keyword "layout"
+  -- symbol "("
   adt <- parseAdtName
-  symbol ")"
+  -- symbol ")"
   pure (tyVar :~ adt)
 
 parseTypeName :: Parser TypeName

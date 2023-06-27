@@ -127,7 +127,7 @@ parsePikaModule = do
   fnDefs <- mconcat . map singleFnDef <$> some parseFnDef
   tests <- mconcat . map singleTest <$> many parseTest
 
-  pure (generates <> layouts <> fnDefs <> tests <> synths)
+  pure (generates <> adts <> layouts <> fnDefs <> tests <> synths)
 
   -- fmap mconcat $ some $
   --   try (singleGenerate <$> parseGenerate) <|>
@@ -176,14 +176,14 @@ parseConstructor adt = do
   name <- parseConstructorName
   tys <- many parseType'
 
-  pure $ Constructor name $ ForAll $ bind (recTypeVar, Embed adt) $ mkFnType (map go tys ++ [TyVar recTypeVar])
-  where
-    recTypeVar :: TypeName
-    recTypeVar = string2Name "t"
-
-    go (LayoutId x)
-      | x == unAdtName adt = TyVar recTypeVar
-    go x = x
+  pure $ mkConstructor name $ mkFnType (tys ++ [LayoutId (unAdtName adt)])
+  -- where
+  --   recTypeVar :: TypeName
+  --   recTypeVar = string2Name "t"
+  --
+  --   go (LayoutId x)
+  --     | x == unAdtName adt = TyVar recTypeVar
+  --   go x = x
 
 
 parseGenerate :: Parser String
@@ -289,6 +289,7 @@ parseLayoutLambda = label "layout lambda" $ lexeme $ do
 parseApplyLayout :: Parser Expr
 parseApplyLayout = label "layout application" $ lexeme $ do
   e <- try parseApp <|> parseExpr' <|> parseNullaryConstructorApp
+  -- e <- parseExpr' <|> parseNullaryConstructorApp
   symbol "["
   ty <- parseType
   symbol "]"

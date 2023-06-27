@@ -1,3 +1,5 @@
+-- TODO: Do we need checks to make sure that the type doesn't become too
+-- specific?
 module PikaC.TypeChecker.Unify
   (Equal
   ,getUnifyVar
@@ -109,53 +111,54 @@ singleUnifyEq layoutAdts (v :=: TyVar v') = Just $ UnifyEq [v, v'] Nothing
 singleUnifyEq layoutAdts (v :=: PlaceholderVar v') = Just $ UnifyEq [v, v'] Nothing
 singleUnifyEq _ _ = Nothing
 
-unify :: Type -> Type -> Check s [Equal]
-unify x y = unifyWith x y []
+unify :: Ppr a => a -> Type -> Type -> Check s [Equal]
+unify here x y = unifyWith here x y []
 
-unifyWith :: Type -> Type -> [Equal] -> Check s [Equal]
-unifyWith x y eqs
+unifyWith :: Ppr a => a -> Type -> Type -> [Equal] -> Check s [Equal]
+unifyWith here x y eqs
   | x `aeq` y = pure eqs
-unifyWith x y eqs
-  | Just x' <- getUnifyVar x = unifyVar x' y eqs
-  | Just y' <- getUnifyVar y = unifyVar y' x eqs
+unifyWith here x y eqs
+  | Just x' <- getUnifyVar x = unifyVar here x' y eqs
+  | Just y' <- getUnifyVar y = unifyVar here y' x eqs
 -- unifyWith (TyVar x) y eqs = unifyVar x y eqs
 -- unifyWith x (TyVar y) eqs = unifyVar y x eqs
-  | isBasicUnifyType x || isBasicUnifyType y = checkError $ text "Cannot unify" $$ nest 2 (ppr x) $$ text "with" $$ nest 2 (ppr y)
+  | isBasicUnifyType x || isBasicUnifyType y = checkError $ text "Cannot unify" $$ nest 2 (ppr x) $$ text "with" $$ nest 2 (ppr y) $$ text "in" $$ nest 2 (ppr here)
 
-unifyWith (FnType x1 y1) (FnType x2 y2) eqs =
-  unifyWith y1 y2 =<< unifyWith x1 x2 eqs
+unifyWith here (FnType x1 y1) (FnType x2 y2) eqs =
+  unifyWith here y1 y2 =<< unifyWith here x1 x2 eqs
 
-unifyWith (LayoutId x) (LayoutId y) eqs
+unifyWith here (LayoutId x) (LayoutId y) eqs
   | x == y = pure eqs
-  | otherwise = checkError $ text "Cannot unify" $$ nest 2 (ppr x) $$ text "with" $$ nest 2 (ppr y)
+  | otherwise = checkError $ text "Cannot unify" $$ nest 2 (ppr x) $$ text "with" $$ nest 2 (ppr y) $$ text "in" $$ nest 2 (ppr here)
 
-unifyWith t1@(ForAll bnd1) t2@(ForAll bnd2) eqs = do
+unifyWith here t1@(ForAll bnd1) t2@(ForAll bnd2) eqs = do
   ((v1, Embed adt1), body1) <- unbind bnd1
   ((v2, Embed adt2), body2) <- unbind bnd2
   if adt1 == adt2
-    then unifyWith body1 body2 =<< unifyWith (TyVar v1) (TyVar v2) eqs
-    else checkError $ text "Cannot unify" $$ nest 2 (ppr t1) $$ text "with" $$ nest 2 (ppr t2)
+    then unifyWith here body1 body2 =<< unifyWith here (TyVar v1) (TyVar v2) eqs
+    else checkError $ text "Cannot unify" $$ nest 2 (ppr t1) $$ text "with" $$ nest 2 (ppr t2) $$ text "in" $$ nest 2 (ppr here)
 
-unifyWith t1@(GhostApp ty1 xs1) t2@(GhostApp ty2 xs2) eqs = do
+unifyWith here t1@(GhostApp ty1 xs1) t2@(GhostApp ty2 xs2) eqs = do
   if and $ zipWith (==) xs1 xs2
-    then unifyWith ty1 ty2 eqs
-    else checkError $ text "Cannot unify" $$ nest 2 (ppr t1) $$ text "with" $$ nest 2 (ppr t2)
+    then unifyWith here ty1 ty2 eqs
+    else checkError $ text "Cannot unify" $$ nest 2 (ppr t1) $$ text "with" $$ nest 2 (ppr t2) $$ text "in" $$ nest 2 (ppr here)
+unifyWith here t1 t2 eqs = error $ "unifyWith (" ++ show t1 ++ ") ("  ++ show t2 ++ ")" ++ "\n  " ++ ppr' here
 
-unifyVar :: TypeName -> Type -> [Equal] -> Check s [Equal]
-unifyVar x t eqs
+unifyVar :: Ppr a => a -> TypeName -> Type -> [Equal] -> Check s [Equal]
+unifyVar here x t eqs
   | Just y <- getUnifyVar t, x `aeq` y = pure eqs
 -- unifyVar x (TyVar y) eqs
 --   | x `aeq` y = pure eqs
-unifyVar x y eqs
-  | Just x' <- lookupEqual x eqs = unifyWith x' y eqs
-unifyVar x t eqs
-  | Just y <- getUnifyVar t, Just y' <- lookupEqual y eqs = unifyWith (TyVar x) y' eqs
+unifyVar here x y eqs
+  | Just x' <- lookupEqual x eqs = unifyWith here x' y eqs
+unifyVar here x t eqs
+  | Just y <- getUnifyVar t, Just y' <- lookupEqual y eqs = unifyWith here (TyVar x) y' eqs
 -- unifyVar x (TyVar y) eqs
 --   | Just y' <- lookupEqual y eqs = unify (TyVar x) y' eqs
-unifyVar x y eqs = do
+unifyVar here x y eqs = do
   occurs <- occursIn x y eqs
   if occurs
-    then checkError $ text "Occurs check failed:" $$ nest 2 (ppr x) $$ text "occurs in" $$ nest 2 (ppr y)
+    then checkError $ text "Occurs check failed:" $$ nest 2 (ppr x) $$ text "occurs in" $$ nest 2 (ppr y) $$ text "in" $$ nest 2 (ppr here)
     else pure $ (x :=: y) : eqs
 
 occursIn :: TypeName -> Type -> [Equal] -> Check s Bool

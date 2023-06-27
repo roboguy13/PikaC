@@ -35,6 +35,8 @@ import Data.Validity
 
 import GHC.Stack
 
+import Debug.Trace
+
 data Type
   = IntType
   | BoolType
@@ -45,6 +47,13 @@ data Type
   | GhostApp Type [String]
   | PlaceholderVar TypeName -- These should be replaced by actual TyVars or LayoutIds
   deriving (Show, Generic)
+
+type TypeName = Name Type
+
+newtype AdtName = AdtName { unAdtName :: String }
+  deriving (Show, Eq, Ord, Generic, Data)
+
+makePrisms ''Type
 
 instance Subst Type Type where
   isvar (TyVar v) = Just (SubstName v)
@@ -57,11 +66,12 @@ instance Plated Type where
   plate _ BoolType = pure BoolType
   plate _ (TyVar v) = pure $ TyVar v
   plate _ (LayoutId x) = pure $ LayoutId x
+  plate f (FnType x y) = FnType <$> f x <*> f y
   plate f (ForAll bnd) =
     let (v, body) = unsafeUnbind bnd
     in
-    ForAll <$> bind v <$> plate f body
-  plate f (GhostApp t args) = GhostApp <$> plate f t <*> pure args
+    ForAll <$> bind v <$> f body
+  plate f (GhostApp t args) = GhostApp <$> f t <*> pure args
   plate _ (PlaceholderVar v) = pure $ PlaceholderVar v
 
 getLayoutId :: HasCallStack => Type -> String
@@ -175,9 +185,6 @@ instance Ppr ConstrainedType where
       ,ppr ty
       ]
 
-newtype AdtName = AdtName { unAdtName :: String }
-  deriving (Show, Eq, Ord, Generic, Data)
-
 data Adt =
   Adt
   { _adtName :: AdtName
@@ -192,6 +199,34 @@ data Constructor =
   }
   deriving (Show, Generic)
 
+-- | Build the appropriate layout polymorphic type, assuming
+-- that one layout is used for each type.
+-- Assumes that the constructor type has no quantifiers.
+mkConstructor :: String -> Type -> Constructor
+mkConstructor cName ty =
+  let ty' = mkForAllCts layoutCts $ mkFnType $ map go (argTys ++ [resultTy])
+  in
+  Constructor cName ty'
+  where
+    -- | Quantifier variables for each ADT in the constructor's type
+    adtVars :: [(AdtName, TypeName)]
+    adtVars = zip adts $ map (string2Name . ('a':) . show) [0..]
+
+    layoutCts :: [LayoutConstraint]
+    layoutCts = map (\(adt, ty) -> ty :~ adt) adtVars
+
+    (argTys, resultTy) = splitFnType ty
+
+    adts :: [AdtName]
+    adts = fastNub . map AdtName $ toListOf (traversed._LayoutId) $ universe $ ty
+
+    go :: Type -> Type
+    go (LayoutId adt) =
+      let Just tyVar = lookup (AdtName adt) adtVars
+      in
+      TyVar tyVar
+    go ty = ty
+
 mkFnType :: HasCallStack => [Type] -> Type
 mkFnType [] = error "mkFunType []"
 mkFnType [x] = x
@@ -201,7 +236,6 @@ instance Arbitrary AdtName where
   arbitrary = error "Arbitrary AdtName"
 
 -- newtype TypeVar = TypeVar { unTypeVar :: TypeName } deriving (Show, Generic)
-type TypeName = Name Type
 
 -- instance Alpha TypeVar
 

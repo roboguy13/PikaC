@@ -20,6 +20,12 @@ equal (Cons a as) (Cons b bs) | not (a == b) := False;
 equal Nil (Cons b bs) := False;
 equal (Cons a as) Nil := False;
 
+revcat_ : (a :~ List) => a -> a -> a;
+revcat_ Nil Nil := Nil [Sll];
+revcat_ Nil (Cons h t) := Cons h t [Sll];
+revcat_ (Cons h t) Nil := revcat_ t (Cons h (Nil [Sll]) [Sll]);
+revcat_ (Cons h1 t1) (Cons h2 t2) := revcat_ t1 (Cons h1 (Cons h2 t2 [Sll]) [Sll]);
+
 revcat : Sll -> Sll -> Sll;
 revcat Nil Nil := Nil [Sll];
 revcat Nil (Cons h t) := Cons h t [Sll];
