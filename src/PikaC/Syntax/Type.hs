@@ -18,7 +18,7 @@ import Unbound.Generics.LocallyNameless.Bind
 import Unbound.Generics.LocallyNameless.Unsafe
 
 import Control.Monad.Trans
-import GHC.Generics
+import GHC.Generics hiding (Constructor)
 import Data.Data
 
 import Control.Lens.TH
@@ -178,6 +178,25 @@ instance Ppr ConstrainedType where
 newtype AdtName = AdtName { unAdtName :: String }
   deriving (Show, Eq, Ord, Generic, Data)
 
+data Adt =
+  Adt
+  { _adtName :: AdtName
+  , _adtConstructors :: [Constructor]
+  }
+  deriving (Show, Generic)
+
+data Constructor =
+  Constructor
+  { _constructorName :: String
+  , _constructorType :: Type
+  }
+  deriving (Show, Generic)
+
+mkFnType :: HasCallStack => [Type] -> Type
+mkFnType [] = error "mkFunType []"
+mkFnType [x] = x
+mkFnType (x:xs) = FnType x (mkFnType xs)
+
 instance Arbitrary AdtName where
   arbitrary = error "Arbitrary AdtName"
 
@@ -240,6 +259,9 @@ instance NFData Type
 instance NFData TypeSig
 instance NFData LayoutConstraint
 instance NFData ConstrainedType
+
+instance NFData Adt
+instance NFData Constructor
 
 
 --

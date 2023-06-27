@@ -70,8 +70,8 @@ parseIdentifier = label "identifier"
 keywords :: [String]
 keywords = ["not", "data", "deref", "addr", "in", "with", "layout", "let", "if", "then", "else", "synth"]
 
-parseConstructor :: Parser String
-parseConstructor = label "constructor name"
+parseConstructorName :: Parser String
+parseConstructorName = label "constructor name"
   parseUppercaseName
 
 binaryL name f = InfixL  (f <$ symbol name)

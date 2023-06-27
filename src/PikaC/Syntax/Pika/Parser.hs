@@ -34,12 +34,12 @@ import Data.Semigroup
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Unbound.Generics.LocallyNameless (string2Name, bind)
+import Unbound.Generics.LocallyNameless (string2Name, bind, Embed (..))
 
 import Test.QuickCheck hiding (label)
 
 import Control.Monad
-import GHC.Generics
+import GHC.Generics hiding (Constructor)
 
 import Debug.Trace
 
@@ -49,7 +49,8 @@ import Data.Validity
 
 data PikaModule' a =
   PikaModule
-  { moduleLayouts :: [Layout Expr]
+  { moduleAdts :: [Adt]
+  , moduleLayouts :: [Layout Expr]
   , moduleFnDefs :: [FnDef' a]
   , moduleSynths :: [Synth]
   , moduleGenerates :: [String]
@@ -67,7 +68,7 @@ toPikaModuleElaborated_unsafe pikaModule =
 instance NFData a => NFData (PikaModule' a)
 
 instance Ppr a => Ppr (PikaModule' a) where
-  ppr (PikaModule layouts fns synths generates tests) =
+  ppr (PikaModule adts layouts fns synths generates tests) =
     text "-- Layouts:"
     $$ vcat (map ppr layouts)
     $$ text "-- Synths:"
@@ -78,15 +79,18 @@ instance Ppr a => Ppr (PikaModule' a) where
     $$ vcat (map ppr tests)
 
 isTrivialModule :: PikaModule -> Bool
-isTrivialModule (PikaModule x y z w a) =
-  null x || null y || null z || null w || null a
+isTrivialModule (PikaModule x y z w a b) =
+  null x || null y || null z || null w || null a || null b
 
 instance Semigroup PikaModule where
-  PikaModule xs1 ys1 zs1 ws1 as1 <> PikaModule xs2 ys2 zs2 ws2 as2 =
-    PikaModule (xs1 <> xs2) (ys1 <> ys2) (zs1 <> zs2) (ws1 <> ws2) (as1 <> as2)
+  PikaModule xs1 ys1 zs1 ws1 as1 bs1 <> PikaModule xs2 ys2 zs2 ws2 as2 bs2 =
+    PikaModule (xs1 <> xs2) (ys1 <> ys2) (zs1 <> zs2) (ws1 <> ws2) (as1 <> as2) (bs1 <> bs2)
 
 instance Monoid PikaModule where
-  mempty = PikaModule mempty mempty mempty mempty mempty
+  mempty = PikaModule mempty mempty mempty mempty mempty mempty
+
+singleAdt :: Adt -> PikaModule
+singleAdt x = mempty { moduleAdts = [x] }
 
 singleLayout :: Layout Expr -> PikaModule
 singleLayout x = mempty { moduleLayouts = [x] }
@@ -117,6 +121,7 @@ moduleLookupFn pikaModule name = go (moduleFnDefs pikaModule)
 parsePikaModule :: Parser PikaModule
 parsePikaModule = do
   generates <- mconcat . map singleGenerate <$> some parseGenerate
+  adts <- mconcat . map singleAdt <$> many parseAdt
   layouts <- mconcat . map singleLayout <$> some parseLayout
   synths <- mconcat . map singleSynth <$> many parseSynth
   fnDefs <- mconcat . map singleFnDef <$> some parseFnDef
@@ -156,6 +161,30 @@ parseTest = label "test definition" $ lexeme $ do
       strs <- many strChar
       char '"'
       pure $ concat strs
+
+parseAdt :: Parser Adt
+parseAdt = label "data type definition" $ lexeme $ do
+  keyword "data"
+  name <- parseAdtName
+  symbol ":="
+  cs <- parseConstructor name `sepBy1` symbol "|"
+  symbol ";"
+  pure $ Adt name cs
+
+parseConstructor :: AdtName -> Parser Constructor
+parseConstructor adt = do
+  name <- parseConstructorName
+  tys <- many parseType'
+
+  pure $ Constructor name $ ForAll $ bind (recTypeVar, Embed adt) $ mkFnType (map go tys ++ [TyVar recTypeVar])
+  where
+    recTypeVar :: TypeName
+    recTypeVar = string2Name "t"
+
+    go (LayoutId x)
+      | x == unAdtName adt = TyVar recTypeVar
+    go x = x
+
 
 parseGenerate :: Parser String
 parseGenerate = label "generate directive" $ lexeme $ do
@@ -426,8 +455,8 @@ parseExprName = label "variable" $ lexeme $ string2Name <$> (parseLowercaseName 
 parseLowercaseExprName :: Parser ExprName
 parseLowercaseExprName = label "variable" $ lexeme $ string2Name <$> parseLowercaseName
 
-parseConstructorName :: Parser String
-parseConstructorName = label "constructor name" $ lexeme parseUppercaseName
+-- parseConstructorName :: Parser String
+-- parseConstructorName = label "constructor name" $ lexeme parseUppercaseName
 
 parseFnName :: Parser String
 parseFnName = label "function name" $ lexeme (parseLowercaseName <|> parseUppercaseName)
@@ -444,16 +473,16 @@ parsePatternVar = label "pattern variable" $ string2Name <$> lexeme parseLowerca
 
 instance Arbitrary a => Arbitrary (PikaModule' a) where
   arbitrary = error "Arbitrary PikaModule"
-  shrink mod0@(PikaModule x y z w a) = do
-    let x' = map shrink x
-        y' = map shrink y
-    mod <- PikaModule <$> sequenceA x' <*> sequenceA y' <*> pure z <*> pure w <*> pure a
+  shrink mod0@(PikaModule x y z w a b) = do
+    let y' = map shrink y
+        z' = map shrink z
+    mod <- PikaModule x <$> sequenceA y' <*> sequenceA z' <*> pure w <*> pure a <*> pure b
     pure mod
   -- shrink = filter (not . isTrivialModule) . genericShrink
 
 instance Validity PikaModule where
-  validate (PikaModule x y z w _) =
-    validate x <> validate y
+  validate (PikaModule x y z w _ _) =
+    validate y <> validate z
 
 genModule :: Gen PikaModule
 genModule = sized genModule'
@@ -492,7 +521,8 @@ genModule' size = do
           `suchThat` (and . map isValid)
 
   pure $ PikaModule
-    { moduleLayouts = layouts
+    { moduleAdts = [] -- TODO: Generate these
+    , moduleLayouts = layouts
     , moduleFnDefs = map (fmap toTypeSig) fns
     , moduleGenerates = map fnDefName fns
     , moduleSynths = []

@@ -281,7 +281,7 @@ inferExpr = go
             ForAll forallBnd -> do
               (forallV, forallBody) <- unbind forallBnd
               pure $ instantiate forallBnd [appTy]
-            ty -> checkError $ "Expected quantified forall type, found" $$ nest 2 (ppr ty)
+            ty -> checkError $ text "Expected quantified forall type, found" $$ nest 2 (ppr ty)
 
     go ctx (Div x y) = checkType2 ctx x IntType y IntType *> pure IntType
     go ctx (Mod x y) = checkType2 ctx x IntType y IntType *> pure IntType

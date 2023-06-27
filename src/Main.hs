@@ -8,8 +8,10 @@ module Main
 import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Parser
+import PikaC.Syntax.Pika.Layout
 
 import PikaC.Syntax.Type
+import PikaC.TypeChecker.Elaborate
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
@@ -43,6 +45,8 @@ import PikaC.Tests.Pika.Printer
 import qualified PikaC.Tests.Module as TestsModule
 
 import Control.Lens
+
+import Control.Arrow ((&&&), (***))
 
 import Control.Monad
 import Control.Exception (bracket)
@@ -213,6 +217,12 @@ main = do
 
         -- mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
 
+        let checkEnv = mkCheckEnv pikaModule'
+        let (firstFnDef:_) = moduleFnDefs pikaModule' 
+
+        -- print $ elaborateFnDef checkEnv firstFnDef
+        -- print "test"
+
         case mapM_ (modeCheck layouts) layouts of
           Left e -> do
             putStrLn $ render $ text "Mode error:" <+> ppr e
@@ -302,4 +312,15 @@ withModule opts pikaModule = do
       | otherwise =
           pure . runQuiet $ toPikaCore fuel (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) fnDef
 
+mkCheckEnv :: PikaModule -> CheckEnv
+mkCheckEnv pikaModule =
+  CheckEnv
+    { _fnEnv = map goFnDef $ moduleFnDefs pikaModule
+    , _layoutAdts = map goLayout $ moduleLayouts pikaModule
+    , _constructorTypes = concatMap goConstructorType $ moduleAdts pikaModule
+    }
+  where
+    goFnDef fnDef = (fnDefName fnDef, fnDefTypeSig fnDef)
+    goLayout layout = (_layoutName layout, _layoutAdt layout)
+    goConstructorType = map (_constructorName &&& _constructorType) . _adtConstructors
 

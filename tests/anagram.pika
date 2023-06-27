@@ -3,6 +3,8 @@
 %generate reverse
 %generate isAnagram
 
+data List := Nil | Cons Int List;
+
 Sll : layout[-x](List);
 Sll Nil := emp;
 Sll (Cons head tail) :=
