@@ -2,6 +2,7 @@
 -- specific?
 module PikaC.TypeChecker.Unify
   (Equal
+  ,unifyWith
   ,getUnifyVar
   ,getNewType
   ,unify
@@ -26,6 +27,8 @@ import Control.Lens
 
 import Control.Monad.Reader
 
+import Debug.Trace
+
 data Equal = TypeName :=: Type
   deriving (Show)
 
@@ -44,17 +47,20 @@ getRepr sigVars v eqs = do
   let unifyEqs = getUnifyEqs lAdts eqs
 
   case lookupVarUnifyEq unifyEqs v of
-    Nothing -> undefined
+    Nothing -> -- TODO: Is this right?
+      pure (TyVar v)
+      --checkError $ text "Cannot find" $$ nest 2 (ppr v) $$ text "in" $$ nest 2 (text (show unifyEqs))
     Just (UnifyEq _ (Just layout)) -> pure $ LayoutId layout
     Just (UnifyEq xs Nothing) ->
       case sigVars `intersect` xs of
         [v'] -> pure $ TyVar v'
         (v':v'':_) -> checkError $ text "Cannot match" $$ nest 2 (ppr v') $$ text "with" $$ nest 2 (ppr v'')
-        _ -> checkError $ text "Ambiguous type variable" $$ nest 2 (ppr v)
+        _ -> checkError $ text "Ambiguous type variable" $$ nest 2 (ppr v) $$ text "eqs:" $$ nest 2 (text (show eqs)) $$ text "xs:" $$ nest 2 (text (show xs)) $$ text "sig vars:" $$ nest 2 (text (show sigVars))
 
 -- | Use the representatives given by getRepr to create a new type
 getNewType :: [TypeName] -> [Equal] -> Type -> Check s Type
-getNewType sigVars eqs = rewriteM go
+getNewType sigVars eqs =
+    trace ("getNewType: eqs = " ++ show eqs) $ rewriteM go
   where
     go (PlaceholderVar v) = do
       t <- getRepr sigVars v eqs
@@ -111,11 +117,21 @@ singleUnifyEq layoutAdts (v :=: TyVar v') = Just $ UnifyEq [v, v'] Nothing
 singleUnifyEq layoutAdts (v :=: PlaceholderVar v') = Just $ UnifyEq [v, v'] Nothing
 singleUnifyEq _ _ = Nothing
 
-unify :: Ppr a => a -> Type -> Type -> Check s [Equal]
-unify here x y = unifyWith here x y []
+unify :: (IsNested a, Ppr a) => a -> Type -> Type -> Check s [Equal]
+unify here x y =
+  -- trace ("unify " ++ show (pprP x) ++ " " ++ show (pprP y)) $
+  unifyWith here x y []
 
-unifyWith :: Ppr a => a -> Type -> Type -> [Equal] -> Check s [Equal]
+unifyVarPlaceholder :: Type -> Type -> Maybe (TypeName, TypeName)
+unifyVarPlaceholder (TyVar v) (PlaceholderVar v') = Just (v, v')
+unifyVarPlaceholder (PlaceholderVar v) (TyVar v') = Just (v', v)
+unifyVarPlaceholder _ _ = Nothing
+
+unifyWith :: (IsNested a, Ppr a) => a -> Type -> Type -> [Equal] -> Check s [Equal]
+-- unifyWith here x y eqs
+--   | trace ("x = " ++ ppr' x ++ ", y = " ++ ppr' y ++ ", eqs = " ++ show eqs) False = undefined
 unifyWith here x y eqs
+  | Just (v, v') <- unifyVarPlaceholder x y = pure ((v' :=: TyVar v) : eqs)
   | x `aeq` y = pure eqs
 unifyWith here x y eqs
   | Just x' <- getUnifyVar x = unifyVar here x' y eqs
@@ -142,9 +158,9 @@ unifyWith here t1@(GhostApp ty1 xs1) t2@(GhostApp ty2 xs2) eqs = do
   if and $ zipWith (==) xs1 xs2
     then unifyWith here ty1 ty2 eqs
     else checkError $ text "Cannot unify" $$ nest 2 (ppr t1) $$ text "with" $$ nest 2 (ppr t2) $$ text "in" $$ nest 2 (ppr here)
-unifyWith here t1 t2 eqs = error $ "unifyWith (" ++ show t1 ++ ") ("  ++ show t2 ++ ")" ++ "\n  " ++ ppr' here
+unifyWith here t1 t2 eqs = error $ "unifyWith " ++ show (pprP t1) ++ " "  ++ show (pprP t2) ++ "\n  " ++ show (pprP here)
 
-unifyVar :: Ppr a => a -> TypeName -> Type -> [Equal] -> Check s [Equal]
+unifyVar :: (IsNested a, Ppr a) => a -> TypeName -> Type -> [Equal] -> Check s [Equal]
 unifyVar here x t eqs
   | Just y <- getUnifyVar t, x `aeq` y = pure eqs
 -- unifyVar x (TyVar y) eqs
@@ -175,4 +191,5 @@ occursIn v (ForAll bnd) eqs = do
     then occursIn v body eqs
     else pure False
 occursIn v (GhostApp t _) eqs = occursIn v t eqs
+occursIn v (PlaceholderVar v') eqs = pure $ v == v'
 

@@ -4,6 +4,8 @@ module PikaC.Syntax.Type.Parser
 import PikaC.Syntax.Type
 import PikaC.Syntax.ParserUtils
 
+import PikaC.Utils
+
 import Text.Megaparsec
 import Text.Megaparsec.Char
 
@@ -15,14 +17,15 @@ import Unbound.Generics.LocallyNameless
 
 import Control.Lens
 
-parseTypeSig :: Parser TypeSig
-parseTypeSig = label "type signature" $ lexeme $ do
+parseTypeSig :: Alpha a => Parser a -> Parser (TypeSig' a)
+parseTypeSig p = label "type signature" $ lexeme $ do
   ctype <- parseConstrainedType
+  x <- p
 
   let typeFVs :: [TypeName]
-      typeFVs = toListOf fv ctype
+      typeFVs = fastNub $ toListOf fv ctype
 
-  pure $ TypeSig $ bind typeFVs ctype
+  pure $ TypeSig $ bind typeFVs (ctype, x)
 
 parseConstrainedType :: Parser ConstrainedType
 parseConstrainedType = label "constrained type" $ lexeme $ do

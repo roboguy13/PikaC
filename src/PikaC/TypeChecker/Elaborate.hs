@@ -63,7 +63,7 @@ etaExpand = go
       | otherwise = do
           fmap (lookup f) (asks _fnEnv) >>= \case
             Just (TypeSig sigBnd) -> do
-              (vs, ConstrainedType cts ty) <- unbind sigBnd
+              (vs, (ConstrainedType cts ty, ())) <- unbind sigBnd
               toLayoutLambdas cts =<< (App f <$> traverse go xs)
 
     go e = plate go e -- TODO: Does this work?
@@ -74,9 +74,9 @@ toLayoutLambdas [] e = pure e
 toLayoutLambdas ((v :~ adt) : rest) e = do
   pv <- fresh v
   ApplyLayout
-    <$> (LayoutLambda adt <$> bind v <$> toLayoutLambdas rest e)
-    <*> pure (TyVar pv)
-    -- <*> pure (PlaceholderVar pv)
+    <$> toLayoutLambdas rest e --(LayoutLambda adt <$> bind v <$> toLayoutLambdas rest e)
+    -- <*> pure (TyVar pv)
+    <*> pure (PlaceholderVar pv)
 
 -- | Eta-expand the layout lambdas of data type constructors, applied to
 -- placeholder variables
@@ -85,42 +85,11 @@ constructorToLayoutLambda c args = do
   cts <- constructorConstraints c
   toLayoutLambdas cts (App c args)
 
--- | NOTE: We assume that every layout is the same for each type. For
--- example, if @Node : Tree -> Tree -> Tree@ is a constructor for a tree,
--- all of the @Tree@s are assumed to use the same layout
 constructorConstraints :: String -> Check s [LayoutConstraint]
 constructorConstraints c = do
   fmap (lookup c) (asks _constructorTypes) >>= \case
     Just ty -> do
-      let (argTys, resultTy) = splitFnType ty
-      (cts, _) <- getTypes (argTys ++ [resultTy])
-      pure cts
-
-  where
-    getTypes :: Fresh m => [Type] -> m ([LayoutConstraint], [Type])
-    getTypes = go []
-      where
-        go cts [] = pure (cts, [])
-        go cts (t:ts) = do
-          (cts', t') <- getCts t cts
-          (cts'', ts') <- go cts' ts
-          pure (cts'', t' : ts')
-
-      -- Keep track of type variables for ADTs, reusing type variables when
-      -- we've already encounted the ADT
-    getCts :: Fresh m => Type -> [LayoutConstraint] -> m ([LayoutConstraint], Type)
-    getCts (LayoutId adt) cts = getCts' (AdtName adt) cts
-      -- NOTE: Even though this is a LayoutId, it is refering to an ADT
-    getCts ty cts = pure (cts, ty)
-
-    getCts' :: Fresh m => AdtName -> [LayoutConstraint] -> m ([LayoutConstraint], Type)
-    getCts' adt cts = do
-      case findAdtConstraint adt cts of
-        Just v -> pure (cts, TyVar v)
-        Nothing -> do
-          v <- fresh $ string2Name "t"
-          let cts' = (v :~ adt) : cts
-          pure (cts', TyVar v)
+      forAllsToCts ty
   
 data Ctx = Ctx { _ctxDelta :: [(TypeName, AdtName)], _ctxGamma :: [(ExprName, Type)] }
   deriving (Show)
@@ -161,7 +130,7 @@ lookupFnType_maybe f
   | otherwise =
       asks (checkEnvLookupFn f) >>= \case
         Nothing -> pure Nothing
-        Just sig -> pure $ Just $ fromTypeSig sig
+        Just sig -> pure $ Just $ typePairType $ fromTypeSig sig
 
 lookupFnType :: String -> Check s Type
 lookupFnType f =
@@ -194,16 +163,18 @@ scopeCheck ctx = \case
 splitTypedExprs :: [TypedExpr] -> ([Expr], [Type])
 splitTypedExprs = unzip . map (\(e ::: t) -> (e, t))
 
-genElaborationConstraints :: Ctx -> Type -> Expr -> Check s [Equal]
-genElaborationConstraints = go
+genElaborationConstraints :: [Equal] -> Ctx -> Type -> Expr -> Check s [Equal]
+genElaborationConstraints eqs = go
   where
     go :: Ctx -> Type -> Expr -> Check s [Equal]
     go ctx ty = \case
       V x -> pure []
       e0@(ApplyLayout body (PlaceholderVar x)) -> do
-        (ForAll bodyBnd) <- inferExpr ctx body
-        ((_v, Embed _adt), bodyTy) <- unbind bodyBnd
-        unify e0 bodyTy ty
+        -- (ForAll bodyBnd) <- inferExpr ctx body
+        bodyTy <- inferExpr ctx body
+        -- ((v, Embed _adt), bodyTy) <- unbind bodyBnd
+        -- trace ("bodyTy = " ++ ppr' bodyTy ++ ", ty = " ++ ppr' ty ++ ", v = " ++ ppr' v)
+        unifyWith e0 bodyTy ty eqs
 
       LayoutLambda adt bnd -> do
         (v, body) <- unbind bnd
@@ -216,39 +187,46 @@ genElaborationConstraints = go
         concat <$> zipWithM (go ctx) cTypes cs
 
 fillInPlaceholders :: [TypeName] -> [Equal] -> Expr -> Check s Expr
-fillInPlaceholders sigTys eqs = go
+fillInPlaceholders sigVars eqs = go
   where
     go (ApplyLayout body ty) =
-      ApplyLayout body <$> getNewType sigTys eqs ty
+      ApplyLayout body <$> getNewType sigVars eqs ty
     go e = plate go e
 
-elaborate :: [TypeName] -> Ctx -> Expr -> Check s TypedExpr
-elaborate sigVars ctx e = do 
+-- TODO: Generate PlaceholderVars
+elaborate :: [TypeName] -> Type -> Ctx -> Expr -> Check s TypedExpr
+elaborate sigVars expectedType ctx e0 = do 
+
+  e <- etaExpand e0
+  e0Ty <- inferExpr ctx e
+  -- ty <- trace (" e0 = " ++ show e ++ ", e0Ty = " ++ ppr' e0Ty) $ inferExpr ctx e
   ty <- inferExpr ctx e
-  eqs <- genElaborationConstraints ctx ty e
+  eqs0 <- unify e0 e0Ty expectedType
+  eqs <- genElaborationConstraints eqs0 ctx ty e
   e' <- fillInPlaceholders sigVars eqs e
   pure (e' ::: ty)
 
-elaborateFnDef :: CheckEnv -> FnDef' TypeSig -> Either String (FnDef' TypeSig)
+elaborateFnDef :: CheckEnv -> FnDef' TypeSig' -> Either String (FnDef' TypeSig')
 elaborateFnDef env fnDef = runCheck env $ do
-  (sigVars, ty) <- unbind $ _typeSigConstrainedType $ fnDefTypeSig fnDef
-  let (argTys, _) = splitFnType $ _ctypeTy ty
+  (sigVars, (ty, branches)) <- unbind $ _typeSigConstrainedType $ fnDefTypedBranches fnDef
+  let (argTys, resultTy) = splitFnType $ _ctypeTy ty
 
-  branches' <- mapM (go sigVars argTys) $ fnDefBranches fnDef
-  pure $ fnDef { fnDefBranches = branches' }
+  branches' <- mapM (go sigVars argTys resultTy) branches
+  pure $ fnDef { fnDefTypedBranches = TypeSig $ bind sigVars (ty, branches') }
   where
 
-    go :: [TypeName] -> [Type] -> FnDefBranch -> Check s FnDefBranch
-    go sigVars argTys (FnDefBranch (PatternMatches bnd)) = do
+    go :: [TypeName] -> [Type] -> Type -> FnDefBranch -> Check s FnDefBranch
+    go sigVars argTys resultTy (FnDefBranch (PatternMatches bnd)) = do
       (pats, body) <- unbind bnd
 
       ctx <- handlePatterns sigVars argTys pats
 
-      FnDefBranch . PatternMatches <$> bind pats <$> go' sigVars ctx body
+      FnDefBranch . PatternMatches <$> bind pats <$> go' sigVars argTys resultTy ctx body 
 
-    go' :: [TypeName] -> Ctx -> GuardedExpr -> Check s GuardedExpr
-    go' sigVars ctx (GuardedExpr cond body) = do
-      body' ::: _ <- elaborate sigVars ctx body
+    go' :: [TypeName] -> [Type] -> Type -> Ctx -> GuardedExpr -> Check s GuardedExpr
+    go' sigVars argTys resultTy ctx (GuardedExpr cond body) = do
+      -- body' ::: _ <- elaborate sigVars (mkFnType (argTys ++ [resultTy])) ctx body
+      body' ::: _ <- elaborate sigVars resultTy ctx body
       pure $ GuardedExpr cond body'
 
 handlePatterns :: [TypeName] -> [Type] -> [Pattern Expr] -> Check s Ctx
@@ -301,9 +279,9 @@ inferExpr = go
       argTys <- traverse (go ctx) args
 
       -- trace ("- e0 = " ++ ppr' e0 ++ ":  fType = " ++ show fType ++ ", fArgTys = " ++ show fArgTys ++ ", argTys = " ++ show argTys)
-      sequence $ zipWith (unify e0) fArgTys argTys
+      eqs <- fmap concat . sequence $ zipWith (unify e0) fArgTys argTys
 
-      pure fResultTy -- TODO: Is this correct?
+      getNewType (toListOf fv (fArgTys ++ [fResultTy])) eqs fResultTy -- TODO: Is this correct?
 
     go ctx (LayoutLambda adt bnd) = do
       (tyVar, body) <- unbind bnd
@@ -325,8 +303,10 @@ inferExpr = go
       -- | Just tyVar <- getUnifyVar appTy =
           go ctx body >>= \case
             ForAll forallBnd -> do
-              (forallV, forallBody) <- unbind forallBnd
-              pure $ instantiate forallBnd [appTy]
+              ((forallV, _), forallBody) <- unbind forallBnd
+              ty' <- go ctx body
+              pure $ subst forallV appTy ty'
+              -- trace ("forallBnd = " ++ show forallBnd ++ ", " ++ show appTy) $ pure $ instantiate forallBnd [appTy]
             ty -> checkError $ text "Expected quantified forall type, found" $$ nest 2 (ppr ty)
 
     go ctx (Div x y) = checkType2 ctx x IntType y IntType *> pure IntType

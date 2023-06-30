@@ -54,7 +54,7 @@ pprFns fns =
 data WhichLang = C | SuSLang
   deriving (Show)
 
-genAndRun :: WhichLang -> SimplifyFuel -> String -> PikaModule' Type -> IO String
+genAndRun :: WhichLang -> SimplifyFuel -> String -> PikaModule' Typed -> IO String
 genAndRun which fuel compiler pikaModule = do
       -- Generate C file
   bracket (openTempFile "temp" "tests.c")

@@ -261,7 +261,7 @@ genBranch fnName outSizes allNames outNames branch = do
     -- trace ("allNames = " ++ show allNames) $
     -- trace ("branchAllocs = " ++ show branchAllocs) $
     SuSLik.PredicateBranch
-    { SuSLik._predBranchPure = foldr mkAnd (boolLit True) zeroes
+    { SuSLik._predBranchPure = mkAnd (mkZeroes outNames asnFVs) $ foldr mkAnd (boolLit True) zeroes
     , SuSLik._predBranchCond =
         SuSLik.andS (computeBranchCondition allNames branchNames)
                     (convertBase (PikaCore._fnDefBranchCondition branch))
@@ -274,6 +274,11 @@ genBranch fnName outSizes allNames outNames branch = do
     inAsns = PikaCore._fnDefBranchInputAssertions branch
     branchNames =
       concatMap (map convertName . inputNames) inAsns
+
+mkZeroes :: [Name SuSLik.Expr] -> [Name SuSLik.Expr] -> SuSLik.Expr
+mkZeroes allNames branchNames = foldr SuSLik.And (SuSLik.BoolLit True) $ map go (allNames \\ branchNames)
+  where
+    go v = SuSLik.Equal (SuSLik.V v) (SuSLik.IntLit 0)
 
 isUsedAlloc :: [Name SuSLik.Expr] -> Allocation SuSLik.Expr -> Bool
 isUsedAlloc usedNames (Alloc n _) = n `elem` usedNames

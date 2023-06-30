@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Syntax.Pika.Parser
   where
@@ -35,6 +36,7 @@ import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NonEmpty
 
 import Unbound.Generics.LocallyNameless (string2Name, bind, Embed (..))
+import Unbound.Generics.LocallyNameless.Unsafe
 
 import Test.QuickCheck hiding (label)
 
@@ -47,27 +49,29 @@ import Control.DeepSeq
 
 import Data.Validity
 
-data PikaModule' a =
+data PikaModule' f =
   PikaModule
   { moduleAdts :: [Adt]
   , moduleLayouts :: [Layout Expr]
-  , moduleFnDefs :: [FnDef' a]
+  , moduleFnDefs :: [FnDef' f]
   , moduleSynths :: [Synth]
   , moduleGenerates :: [String]
   , moduleTests :: [Test Expr]
   }
-  deriving (Show, Generic)
+  deriving (Generic)
 
-type PikaModule = PikaModule' TypeSig
-type PikaModuleElaborated = PikaModule' Type
+deriving instance Show (f [FnDefBranch]) => Show (PikaModule' f)
+
+type PikaModule = PikaModule' TypeSig'
+type PikaModuleElaborated = PikaModule' Typed
 
 toPikaModuleElaborated_unsafe :: PikaModule -> PikaModuleElaborated
 toPikaModuleElaborated_unsafe pikaModule =
-  pikaModule { moduleFnDefs = map (fmap fromTypeSig_unsafe) (moduleFnDefs pikaModule) }
+  pikaModule { moduleFnDefs = map (overTypedBranches fromTypeSig_unsafe) (moduleFnDefs pikaModule) }
 
-instance NFData a => NFData (PikaModule' a)
+instance NFData (f [FnDefBranch]) => NFData (PikaModule' f)
 
-instance Ppr a => Ppr (PikaModule' a) where
+instance (TypePair f, Ppr (TypePairType f)) => Ppr (PikaModule' f) where
   ppr (PikaModule adts layouts fns synths generates tests) =
     text "-- Layouts:"
     $$ vcat (map ppr layouts)
@@ -95,8 +99,8 @@ singleAdt x = mempty { moduleAdts = [x] }
 singleLayout :: Layout Expr -> PikaModule
 singleLayout x = mempty { moduleLayouts = [x] }
 
-singleFnDef :: FnDef' TypeSig -> PikaModule' TypeSig
-singleFnDef x = (mempty :: PikaModule' TypeSig) { moduleFnDefs = [x] }
+singleFnDef :: FnDef' TypeSig' -> PikaModule' TypeSig'
+singleFnDef x = (mempty :: PikaModule' TypeSig') { moduleFnDefs = [x] }
 
 singleSynth :: Synth -> PikaModule
 singleSynth x = mempty { moduleSynths = [x] }
@@ -191,14 +195,15 @@ parseGenerate = label "generate directive" $ lexeme $ do
   keyword "%generate"
   parseFnName
 
-parseFnDef :: Parser (FnDef' TypeSig)
+parseFnDef :: Parser (FnDef' TypeSig')
 parseFnDef = label "function definition" $ lexeme $ do
   fnName <- parseFnName
   symbol ":"
-  sig <- parseTypeSig
-  symbol ";"
+  sig <- parseTypeSig $ do
+    symbol ";"
+    some (parseFnDefBranch fnName)
 
-  FnDef fnName sig <$> some (parseFnDefBranch fnName)
+  pure $ FnDef fnName sig
 
 parseSynth :: Parser Synth
 parseSynth = do
@@ -472,7 +477,7 @@ parsePatternVar = label "pattern variable" $ string2Name <$> lexeme parseLowerca
 -- Property tests --
 --
 
-instance Arbitrary a => Arbitrary (PikaModule' a) where
+instance (TypePair f) => Arbitrary (PikaModule' f) where
   arbitrary = error "Arbitrary PikaModule"
   shrink mod0@(PikaModule x y z w a b) = do
     let y' = map shrink y
@@ -484,6 +489,16 @@ instance Arbitrary a => Arbitrary (PikaModule' a) where
 instance Validity PikaModule where
   validate (PikaModule x y z w _ _) =
     validate y <> validate z
+
+instance Validity (TypeSig' [FnDefBranch]) where
+  validate (TypeSig bnd) =
+    let (_, (_, branches)) = unsafeUnbind bnd
+    in
+    validate branches
+
+instance Validity (Typed [FnDefBranch]) where
+  validate (Typed _ branches) =
+    validate branches
 
 genModule :: Gen PikaModule
 genModule = sized genModule'
@@ -524,7 +539,7 @@ genModule' size = do
   pure $ PikaModule
     { moduleAdts = [] -- TODO: Generate these
     , moduleLayouts = layouts
-    , moduleFnDefs = map (fmap toTypeSig) fns
+    , moduleFnDefs = map (overTypedBranches toTypeSig) fns
     , moduleGenerates = map fnDefName fns
     , moduleSynths = []
     , moduleTests = []

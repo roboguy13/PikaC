@@ -19,7 +19,7 @@ import PikaC.Ppr
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 
-import PikaC.Syntax.Pika.FnDef (getFnTypeSig)
+import PikaC.Syntax.Pika.FnDef (getFnTypeSig, overTypedBranches)
 
 import Test.QuickCheck
 
@@ -70,7 +70,7 @@ prop_basicArgs_toPikaCore =
     discardAfter theTimeout $
   -- forAllShow genModule ppr' $ \pikaModule ->
     let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . fmap fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ fmap fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . overTypedBranches fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ overTypedBranches fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName
     in
     case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprBasicArgs pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False
@@ -103,7 +103,7 @@ prop_simplify_from_Pika =
     -- infinite loop here
     discardAfter theTimeout $
     let (fnName:_) = moduleGenerates pikaModule
-        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . fmap fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ fmap fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName
+        pikaCore = runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . overTypedBranches fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ overTypedBranches fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName
     in
     case pikaModule `deepseq` prettyValidation (validateFnDefWith PikaCore.exprIsSimplified pikaCore) of
       Just msg -> counterexample ("++ Counterexample input:\n" ++ ppr' pikaModule ++ "\n++ Counterexample result:\n" ++ msg) False

@@ -136,7 +136,8 @@ convertExprAndSimplify openedLayouts e = do
 --
 toPikaCore :: forall m. Logger m => SimplifyFuel -> [Layout Pika.Expr] -> [(String, Type)] -> Pika.FnDef -> m PikaCore.FnDef
 toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
-  let (argTypes, resultType) = splitFnType (Pika.fnDefTypeSig fn)
+  let Typed ty branches = Pika.fnDefTypedBranches fn
+  let (argTypes, resultType) = splitFnType ty
 
   layouts <- mapM (runPikaConvert'' layouts0 mempty globalFns . convertLayout) layouts0
   -- outParams <- generateParams layouts resultType
@@ -158,7 +159,7 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
   -- inAsns <- mapM getAssertion 
 
   branches' <- 
-    runPikaConvert'' layouts0 layouts globalFns $ mapM (convertBranch openedArgs) $ Pika.fnDefBranches fn
+    runPikaConvert'' layouts0 layouts globalFns $ mapM (convertBranch openedArgs) branches
 
   let outAllocs =
         case resultLayout of
@@ -173,7 +174,7 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
       { PikaCore._fnDefName = PikaCore.FnName $ Pika.fnDefName fn
       , PikaCore._fnDefOutputSizes =
           map (lookupAllocation outAllocs . modedNameName) outParams
-      , PikaCore._fnDefType = Pika.fnDefTypeSig fn
+      , PikaCore._fnDefType = ty
       , PikaCore._fnDefBranches =
           bind (concat inParams)
             (bind outParams (layouts, branches'))

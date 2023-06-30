@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module PikaC.Syntax.Type
   where
@@ -55,6 +56,21 @@ newtype AdtName = AdtName { unAdtName :: String }
 
 makePrisms ''Type
 
+data Typed a = Typed Type a
+  deriving (Show, Generic)
+
+class TypePair f where
+  type TypePairType f
+  typePairType :: Alpha a => f a -> TypePairType f
+  typePairData :: Alpha a => f a -> a
+  mkTypePair :: Alpha a => TypePairType f -> a -> f a
+
+instance TypePair Typed where
+  type TypePairType Typed = Type
+  typePairType (Typed ty _) = ty
+  typePairData (Typed _ x) = x
+  mkTypePair = Typed
+
 instance Subst Type Type where
   isvar (TyVar v) = Just (SubstName v)
   isvar _ = Nothing
@@ -94,11 +110,13 @@ splitFnType x = ([], x)
 
 -- | Example:
 --     (a :~ layout(Adt2), b :~ layout(Adt2)) => a -> b
-data TypeSig =
+data TypeSig' a =
   TypeSig
-  { _typeSigConstrainedType :: Bind [TypeName] ConstrainedType
+  { _typeSigConstrainedType :: Bind [TypeName] (ConstrainedType, a)
   }
   deriving (Show, Generic)
+
+type TypeSig = TypeSig' ()
 
 data ConstrainedType =
   ConstrainedType
@@ -107,17 +125,31 @@ data ConstrainedType =
   }
   deriving (Show, Generic)
 
-toTypeSig :: Type -> TypeSig
-toTypeSig = TypeSig . bind [] . ConstrainedType []
+instance TypePair TypeSig' where
+  type TypePairType TypeSig' = TypeSig
+  typePairType (TypeSig bnd) =
+    let (vs, (ty, _)) = unsafeUnbind bnd
+    in
+    TypeSig $ bind vs (ty, ())
+  typePairData (TypeSig bnd) =
+    let (vs, (_, body)) = unsafeUnbind bnd
+    in
+    body
+  mkTypePair (TypeSig bnd) x =
+    let (vs, (ty, ())) = unsafeUnbind bnd
+    in
+    TypeSig $ bind vs (ty, x)
+toTypeSig :: Alpha a => Typed a -> TypeSig' a
+toTypeSig (Typed ty x) = TypeSig $ bind [] (ConstrainedType [] ty, x)
 
-fromTypeSig_unsafe :: HasCallStack => TypeSig -> Type
-fromTypeSig_unsafe (TypeSig (B [] (ConstrainedType [] ty))) = ty
+fromTypeSig_unsafe :: HasCallStack => TypeSig' a -> Typed a
+fromTypeSig_unsafe (TypeSig (B [] (ConstrainedType [] ty, x))) = Typed ty x
 
-fromTypeSig :: TypeSig -> Type
+fromTypeSig :: Alpha a => TypeSig' a -> Typed a
 fromTypeSig (TypeSig bnd) =
-  let (vs, ctType) = unsafeUnbind bnd
+  let (vs, (ctType, x)) = unsafeUnbind bnd
   in
-  mkForAlls [ctType]
+  Typed (mkForAlls [ctType]) x
 
 mkForAlls :: [ConstrainedType] -> Type
 mkForAlls [ConstrainedType cts ty] = mkForAllCts cts ty
@@ -128,6 +160,12 @@ mkForAllCts :: [LayoutConstraint] -> Type -> Type
 mkForAllCts = flip $ foldr go
   where
     go (t :~ adt) = ForAll . bind (t, Embed adt)
+
+forAllsToCts :: Fresh m => Type -> m [LayoutConstraint]
+forAllsToCts (ForAll bnd) = do
+  ((v, Embed adt), body) <- unbind bnd
+  fmap ((v :~ adt) :) (forAllsToCts body)
+forAllsToCts _ = pure []
 
 findConstraint :: TypeName -> [LayoutConstraint] -> Maybe AdtName
 findConstraint _ [] = Nothing
@@ -171,7 +209,7 @@ instance Arbitrary LayoutConstraint where
 
 instance Ppr TypeSig where
   ppr (TypeSig bnd) = runFreshM $ do
-    (_, ctype) <- unbind bnd
+    (_, (ctype, ())) <- unbind bnd
     pure $ ppr ctype
 
 instance Ppr ConstrainedType where
@@ -285,12 +323,12 @@ instance IsNested Type where
   isNested (GhostApp {}) = False
   isNested (ForAll {}) = True
 
-makeLenses ''TypeSig
+makeLenses ''TypeSig'
 
 instance NFData AdtName
 
 instance NFData Type
-instance NFData TypeSig
+instance NFData f => NFData (TypeSig' f)
 instance NFData LayoutConstraint
 instance NFData ConstrainedType
 

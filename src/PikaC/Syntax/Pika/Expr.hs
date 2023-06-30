@@ -95,7 +95,7 @@ instance Ppr Expr where
   ppr (IntLit i) = ppr i
   ppr (BoolLit b) = ppr b
   ppr (LayoutLambda a (B v p)) = hsep [text "/\\(" <> ppr v <> text " :~ " <> ppr a <> text ").", ppr p]
-  ppr (ApplyLayout e ty) = hsep [ppr e, text "[" <> ppr ty <> text "]"]
+  ppr (ApplyLayout e ty) = hsep [pprP e, text "[" <> ppr ty <> text "]"]
   ppr (App f xs) = hsep (ppr f : map pprP xs)
   ppr (Mul x y) = hsep [pprP x, text "*", pprP y]
   ppr (Mod x y) = hsep [pprP x, text "%", pprP y]

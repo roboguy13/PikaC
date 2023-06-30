@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module PikaC.Syntax.Pika.FnDef
   where
@@ -31,15 +32,19 @@ import Data.Validity
 
 import Control.DeepSeq
 
-data FnDef' a =
+data FnDef' f =
   FnDef
     { fnDefName :: String
-    , fnDefTypeSig :: a
-    , fnDefBranches :: [FnDefBranch]
+    , fnDefTypedBranches :: f [FnDefBranch]
     }
-  deriving (Show, Generic, Functor)
+  deriving (Generic)
 
-type FnDef = FnDef' Type
+overTypedBranches :: (f [FnDefBranch] -> g [FnDefBranch]) -> FnDef' f -> FnDef' g
+overTypedBranches f (FnDef x y) = FnDef x (f y)
+
+deriving instance Show (f [FnDefBranch]) => Show (FnDef' f)
+
+type FnDef = FnDef' Typed
 
 data GuardedExpr =
   GuardedExpr
@@ -57,7 +62,7 @@ newtype FnDefBranch =
   deriving (Show, Generic)
 
 getFnTypeSig :: FnDef -> (String, Type)
-getFnTypeSig fnDef = (fnDefName fnDef, fnDefTypeSig fnDef)
+getFnTypeSig fnDef = (fnDefName fnDef, typePairType $ fnDefTypedBranches fnDef)
 
 -- | 'synth' directive to use SuSLik to synthesize a function
 data Synth =
@@ -78,12 +83,13 @@ unguardMatches (PatternMatches matches) =
   in
   PatternMatches $ bind vars body
 
-instance NFData a => NFData (FnDef' a)
+instance NFData (f [FnDefBranch]) => NFData (FnDef' f)
 instance NFData GuardedExpr
 instance NFData FnDefBranch
 instance NFData Synth
 
 instance Alpha GuardedExpr
+instance Alpha FnDefBranch
 
 instance Ppr Synth where
   ppr (Synth fnName purePart argTypes resultType) =
@@ -95,7 +101,7 @@ instance Ppr Synth where
 -- land in the right places.
 getFirstPatterns :: FnDef -> [Pattern Expr]
 getFirstPatterns fnDef =
-  let (FnDefBranch (PatternMatches matches):_) = fnDefBranches fnDef
+  let (FnDefBranch (PatternMatches matches):_) = typePairData $ fnDefTypedBranches fnDef
       (pats, _) = unsafeUnbind matches
   in
   pats
@@ -123,12 +129,12 @@ getResultAllocSizeInts layouts ty =
   in
   map allocSize allocs
 
-instance Ppr a => Ppr (FnDef' a) where
+instance (TypePair f, Ppr (TypePairType f)) => Ppr (FnDef' f) where
   ppr fn =
     vcat
-      (hsep [text (fnDefName fn), text ":", ppr (fnDefTypeSig fn)] <> text ";"
+      (hsep [text (fnDefName fn), text ":", ppr (typePairType (fnDefTypedBranches fn))] <> text ";"
         :
-        map (\branch -> text (fnDefName fn) <+> ppr branch) (fnDefBranches fn)
+        map (\branch -> text (fnDefName fn) <+> ppr branch) (typePairData (fnDefTypedBranches fn))
       )
 
 instance Ppr FnDefBranch where
@@ -142,8 +148,8 @@ instance Ppr FnDefBranch where
 -- Property tests
 --
 
-instance Validity a => Validity (FnDef' a) where
-  validate (FnDef _ _ branches) = mconcat (map validate branches)
+instance Validity (f [FnDefBranch]) => Validity (FnDef' f) where
+  validate (FnDef _ branches) = validate branches
 
 instance Validity FnDefBranch where
   validate (FnDefBranch (PatternMatches bnd)) =
@@ -155,12 +161,13 @@ instance Arbitrary FnDefBranch where
   arbitrary = error "Arbitrary FnDefBranch"
   shrink = genericShrink
 
-instance Arbitrary a => Arbitrary (FnDef' a) where
+instance TypePair f => Arbitrary (FnDef' f) where
   arbitrary = error "Arbitrary FnDef"
   shrink fn = do
-    let b = map shrink (fnDefBranches fn)
+    let b = map shrink (typePairData (fnDefTypedBranches fn))
+        typed = mkTypePair (typePairType (fnDefTypedBranches fn))
     branches' <- sequenceA b
-    pure $ fn { fnDefBranches = branches' }
+    pure $ fn { fnDefTypedBranches = typed branches' }
 
 instance Arbitrary GuardedExpr where
   arbitrary = error "Arbitrary GuardedExpr"
@@ -206,12 +213,11 @@ genFnDef fnSigs layouts size (fnName, inLayouts, outLayout) = do
   pure $
       FnDef
       { fnDefName = fnName
-      , fnDefTypeSig = ty
           -- TypeSig
           -- {_typeSigLayoutConstraints = []
           -- ,_typeSigTy = ty 
           -- }
-      , fnDefBranches = branches
+      , fnDefTypedBranches = Typed ty branches
       }
   where
     lookupConstructorList Nothing = error "lookupConstructorList: Nothing" -- TODO: Implement this case

@@ -44,6 +44,10 @@ instance NFData a => NFData (Pattern a)
 
 makeLenses ''Pattern
 
+instance IsNested (Pattern a) where
+  isNested (PatternVar {}) = False
+  isNested (Pattern {}) = True
+
 instance (Typeable a, Alpha a, Typeable b, Alpha b, WellScoped (Name a) b) =>
     WellScoped (Name a) (Bind (Pattern a) b) where
   wellScoped inScopeVars bnd =

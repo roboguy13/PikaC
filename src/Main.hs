@@ -218,13 +218,12 @@ main = do
         -- mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
 
         let checkEnv = mkCheckEnv pikaModule'
-        let (_:firstFnDef:_) = moduleFnDefs pikaModule'
-
         -- print $ moduleAdts pikaModule'
 
-        case elaborateFnDef checkEnv firstFnDef of
-          Left err -> error $ "Elaboration error: " ++ err
-          Right elaborated -> putStrLn $ ppr' elaborated
+        -- let (_:firstFnDef:_) = moduleFnDefs pikaModule'
+        -- case elaborateFnDef checkEnv firstFnDef of
+        --   Left err -> error $ "Elaboration error: " ++ err
+        --   Right elaborated -> putStrLn $ ppr' elaborated
 
         case mapM_ (modeCheck layouts) layouts of
           Left e -> do
@@ -323,7 +322,10 @@ mkCheckEnv pikaModule =
     , _constructorTypes = concatMap goConstructorType $ moduleAdts pikaModule
     }
   where
-    goFnDef fnDef = (fnDefName fnDef, fnDefTypeSig fnDef)
+    goFnDef fnDef =
+      let sig = fnDefTypedBranches fnDef
+      in
+      (fnDefName fnDef, typePairType sig)
     goLayout layout = (_layoutName layout, _layoutAdt layout)
     goConstructorType = map (_constructorName &&& _constructorType) . _adtConstructors
 

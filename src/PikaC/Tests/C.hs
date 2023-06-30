@@ -12,7 +12,7 @@ import PikaC.Syntax.Type
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 
-import PikaC.Syntax.Pika.FnDef (getFnTypeSig)
+import PikaC.Syntax.Pika.FnDef (getFnTypeSig, overTypedBranches)
 
 import PikaC.Ppr
 
@@ -47,7 +47,7 @@ moduleToPikaCore :: PikaModule -> PikaCore.FnDef
 moduleToPikaCore pikaModule = 
   let (fnName:_) = moduleGenerates pikaModule
   in
-  (runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . fmap fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ fmap fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName)
+  (runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map (getFnTypeSig . overTypedBranches fromTypeSig_unsafe) (moduleFnDefs pikaModule)) $ overTypedBranches fromTypeSig_unsafe $ moduleLookupFn pikaModule fnName)
 
 return []
 checkAllProps :: IO Bool
