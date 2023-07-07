@@ -1,3 +1,20 @@
+# How to build the tool
+
+Run:
+
+    % cabal build
+
+If this says there are dependencies missing, try running this first:
+
+    % cabal install --only-dependencies
+
+Then
+
+    % (cd suslik; sbt assembly)
+
+
+# Test statuses
+
 All of the tests work when using the backend that translates directly to C. Most of the tests do not work when translating to SuSLik.
 
 | Test name | Status |
@@ -21,17 +38,17 @@ All of the tests work when using the backend that translates directly to C. Most
 
 To run a test using SuSLik:
 
-    ./pika.sh tests/add1Head.pika --run-suslang-tests
+    % ./pika.sh tests/add1Head.pika --run-suslang-tests
 
 To show the generated SuSLik specification (without showing the C translation from the Pika compiler), run:
 
-    ./pika.sh tests/add1Head.pika --no-c
+    % ./pika.sh tests/add1Head.pika --no-c
 
 To run a test using the generated C code:
 
-    ./pika.sh tests/add1Head.pika --run-tests
+    % ./pika.sh tests/add1Head.pika --run-tests
 
 For further options:
 
-    ./pika --help
+    % ./pika --help
 
