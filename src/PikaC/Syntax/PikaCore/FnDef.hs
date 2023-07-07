@@ -30,6 +30,7 @@ import Data.Validity
 
 import Control.Lens hiding (elements)
 import Data.List
+import Data.Maybe
 
 import Unbound.Generics.LocallyNameless.Unsafe -- Just for implementing QuickCheck shrinking
 
@@ -57,12 +58,26 @@ data FnDef =
   }
   deriving (Show, Generic)
 
-data Input = InputAsn ExprAssertion | InputVar ExprName
+data InputAssertion = ExprAssertion ExprAssertion | LayoutApp String [Expr]
   deriving (Show, Generic)
+
+getLayoutApps :: [InputAssertion] -> [(String, [Expr])]
+getLayoutApps = mapMaybe $ \case
+  LayoutApp f xs -> Just (f, xs)
+  _ -> Nothing
+
+data Input = InputAsn InputAssertion | InputVar ExprName
+  deriving (Show, Generic)
+
+getInputAsns' :: [Input] -> [InputAssertion]
+getInputAsns' = mapMaybe $ \case
+  InputAsn asn -> Just asn
+  _ -> Nothing
 
 getInputAsns :: [Input] -> [ExprAssertion]
 getInputAsns [] = []
-getInputAsns (InputAsn x : xs) = x : getInputAsns xs
+getInputAsns (InputAsn (ExprAssertion x) : xs) = x : getInputAsns xs
+getInputAsns (InputAsn (LayoutApp {}) : xs) = getInputAsns xs
 getInputAsns (InputVar {} : xs) = getInputAsns xs
 
 data FnDefBranch =
@@ -98,7 +113,8 @@ instance WellScoped (Name Expr) (Embed AdtName)
 instance WellScoped (Name Expr) (Name Type)
 
 inputNames :: Input -> [ExprName]
-inputNames (InputAsn asn) = map (getV . locBase . pointsToLhs) asn
+inputNames (InputAsn (ExprAssertion asn)) = map (getV . locBase . pointsToLhs) asn
+inputNames (InputAsn (LayoutApp _ args)) = map getV args
 inputNames (InputVar v) = [v]
 
 inputBaseNames :: [Input] -> [ExprName]
@@ -112,7 +128,15 @@ instance Ppr Input where
 
 instance Alpha Input
 
+instance Alpha InputAssertion
+
+instance Subst a Expr => Subst a InputAssertion
+
 instance Subst a Expr => Subst a Input
+
+instance Ppr InputAssertion where
+  ppr (ExprAssertion asn) = ppr asn
+  ppr (LayoutApp f xs) = text "[[" <> text f <> text "(" <> hsep (punctuate (text ",") (map ppr xs)) <> text ")" <> text "]]"
 
 instance Ppr FnDef where
   ppr def = runFreshM $ do
@@ -200,6 +224,10 @@ instance WellScoped ExprName FnDefBranch where
 instance Arbitrary FnDefBranch where
   arbitrary = error "Arbitrary FnDefBranch"
   -- arbitrary = genValidBranch [] [] -- NOTE: Only closed FnDefBranch's
+  shrink = genericShrink
+
+instance Arbitrary InputAssertion where
+  arbitrary = error "Arbitrary InputAssertion"
   shrink = genericShrink
 
 --   shrink fnDef = do
@@ -299,7 +327,7 @@ genValidBranch' outVars modedBvs size = do
       --   else genValidExpr' bvs (size `div` 2)
     allocs <- genValidAllocations $ concat inAsns
     -- TODO: Generate the Boolean guard condition
-    pure $ FnDefBranch (map InputAsn inAsns) allocs (BoolLit True) e
+    pure $ FnDefBranch (map (InputAsn . ExprAssertion) inAsns) allocs (BoolLit True) e
   where
     bvs = map modedNameName modedBvs
     asnName = newName bvs

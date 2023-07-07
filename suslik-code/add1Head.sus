@@ -1,0 +1,23 @@
+predicate Sll(loc x)
+{
+| x == 0 => { emp }
+| not (x == 0) => { [x,2] **
+                    x :-> head2 **
+                    (x + 1) :-> nxt3 **
+                    Sll(nxt3) }
+}
+predicate add1Head(loc x, loc x1)
+{
+| x == 0 => { x1 == 0 ; emp }
+| not (x == 0) => { [x1,2] **
+                    [x,2] **
+                    Sll(nxt14) **
+                    x :-> h **
+                    (x + 1) :-> nxt14 **
+                    x1 :-> h + 1 **
+                    (x1 + 1) :-> nxt14 }
+}
+void add1Head(loc x, loc x1)
+  {Sll(x) ** x1 :-> x2}
+  {add1Head(x, x3) ** x1 :-> x3}
+{ ?? }

@@ -59,8 +59,7 @@ instance IsBase Expr where
   boolLit = BoolLit
   mkNot = Not
   mkEqual = Equal
-  mkAnd x (BoolLit True) = x
-  mkAnd x y = And x y
+  mkAnd = andS
 
 data InductivePredicate
   = InductivePredicate

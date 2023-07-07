@@ -185,10 +185,14 @@ getArgLayout IntType vs = Nothing
 getArgLayout BoolType vs = Nothing
 getArgLayout (LayoutId n) vs = Just $ PikaCore.ArgLayout n vs
 
-mkInputs :: [OpenedArg] -> [PikaCore.ExprAssertion] -> [PikaCore.Input]
+mkInputs :: [OpenedArg] -> [LayoutBody PikaCore.Expr] -> [PikaCore.Input]
 mkInputs [] [] = []
 mkInputs (BaseArg () x : args) (asns) = PikaCore.InputVar x : mkInputs args asns
-mkInputs (LayoutArg {} : args) (asn : asns) = PikaCore.InputAsn asn : mkInputs args asns
+mkInputs (LayoutArg a : args) (asn : asns) =
+  PikaCore.InputAsn (PikaCore.ExprAssertion (getPointsTos asn))
+    : map (\(f, _ghosts, _e, vs) -> PikaCore.InputAsn (PikaCore.LayoutApp f vs))
+          (getLApplies asn)
+    ++ mkInputs args asns
 
 -- | Use the PatternVars from the pattern list to give names to the base
 -- typed arguments in the OpenedArgs
@@ -222,7 +226,8 @@ convertBranch openedArgLayouts (Pika.FnDefBranch matches0) = do
 
   -- inAsns <- zipWithM getAssertion openedArgLayouts $ patternMatchesPats matches
   layouts <- asks _layoutEnv
-  let inAsns = map getPointsTos $ getArgLayouts openedLayoutBodies
+  let --inAsns = map getPointsTos $ getArgLayouts openedLayoutBodies
+      inAsns = getArgLayouts openedLayoutBodies
       allocs = layoutLAppliesMaxAllocs layouts $ getArgLayouts openedLayoutBodies
 
   pure $ PikaCore.FnDefBranch

@@ -270,8 +270,9 @@ genBranch fnName outSizes allNames outNames branch = do
                     (convertBase (PikaCore._fnDefBranchCondition branch))
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
-          -- map convertAlloc (filter (isUsedAlloc asnFVs) (outAllocs ++ branchAllocs)) ++
-          map convertAlloc (outAllocs ++ branchAllocs) ++
+          map convertAlloc (filter (isUsedAlloc asnFVs) (outAllocs ++ branchAllocs)) ++
+          -- map convertAlloc (outAllocs ++ branchAllocs) ++
+          map (\(f, xs) -> RecApply f (map convertBase xs)) (PikaCore.getLayoutApps (PikaCore.getInputAsns' inAsns)) ++
           branchAsn
     }
   where
@@ -285,7 +286,7 @@ toPointsTo (ReadOnlyPointsToS p) = Just (mapPointsTo (mkVar . convertName' . SuS
 toPointsTo _ = Nothing
 
 mkZeroes :: [Name SuSLik.Expr] -> [Name SuSLik.Expr] -> SuSLik.Expr
-mkZeroes allNames branchNames = foldr SuSLik.And (SuSLik.BoolLit True) $ map go (allNames \\ branchNames)
+mkZeroes allNames branchNames = foldr mkAnd (SuSLik.BoolLit True) $ map go (allNames \\ branchNames)
   where
     go v = SuSLik.Equal (SuSLik.V v) (SuSLik.IntLit 0)
 
@@ -395,7 +396,7 @@ convertBase (PikaCore.Add x y) = SuSLik.Add (convertBase x) (convertBase y)
 convertBase (PikaCore.Mul x y) = SuSLik.Mul (convertBase x) (convertBase y)
 convertBase (PikaCore.Sub x y) = SuSLik.Sub (convertBase x) (convertBase y)
 convertBase (PikaCore.Equal x y) = SuSLik.Equal (convertBase x) (convertBase y)
-convertBase (PikaCore.And x y) = SuSLik.And (convertBase x) (convertBase y)
+convertBase (PikaCore.And x y) = mkAnd (convertBase x) (convertBase y)
 convertBase (PikaCore.Not x) = SuSLik.Not (convertBase x)
 convertBase (PikaCore.Lt x y) = SuSLik.Lt (convertBase x) (convertBase y)
 convertBase (PikaCore.Le x y) = SuSLik.Le (convertBase x) (convertBase y)
