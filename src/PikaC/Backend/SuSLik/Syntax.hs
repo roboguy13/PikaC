@@ -150,8 +150,8 @@ instance Subst a Expr => Subst a HeapletS
 instance Ppr Expr where
   ppr (V x) = ppr x
   ppr (IntLit i) = ppr i
-  ppr (BoolLit True) = text "true"
-  ppr (BoolLit False) = text "false"
+  ppr (BoolLit True) = text "1"
+  ppr (BoolLit False) = text "0"
   ppr (Add x y) = sep [pprP x, text "+", pprP y]
   ppr (Mul x y) = sep [pprP x, text "*", pprP y]
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
