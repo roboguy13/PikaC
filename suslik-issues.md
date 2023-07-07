@@ -48,7 +48,15 @@ To run a test using the generated C code:
 
     % ./pika.sh tests/add1Head.pika --run-tests
 
+To run all golden tests on the straight-to-C translation and automatically check to see if the output is correct, run: 
+
+    % cabal test --test-show-detail=streaming
+
+To run all the built-in randomized property tests, which test some internal properties of the translator implementation, run:
+
+    % ./pika.sh --self-test
+
 For further options:
 
-    % ./pika --help
+    % ./pika.sh --help
 
