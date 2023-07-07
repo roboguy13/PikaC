@@ -1,0 +1,57 @@
+predicate Sll(loc x)
+{
+| x == 0 => { emp }
+| not (x == 0) => { [x,2] **
+                    x :-> head2 **
+                    (x + 1) :-> nxt3 **
+                    Sll(nxt3) }
+}
+predicate revcat(loc x1, loc x, loc x2)
+{
+| (x1 == 0) && (x == 0) => { (x2 == 0) && true ; emp }
+| (x1 == 0) && (not (x == 0)) => { [x2,2] **
+
+                                   [x,2] **
+
+                                   x :-> h **
+                                   (x + 1) :-> nxt21 **
+
+                                   Sll(nxt21) **
+
+                                   x2 :-> h **
+                                   (x2 + 1) :-> nxt21 }
+
+| (not (x1 == 0)) && (x == 0) => { [x2,2] **
+                                   [x1, 2] **
+                                   x1 :-> h **
+                                   (x1 + 1) :-> nxt38 **
+
+                                   // Sll(nxt38) **
+
+                                   // x7 :-> h **
+                                   // (x7 + 1) :-> 0 **
+
+                                   revcat(nxt38, x7, x2) }
+
+| (not (x1 == 0)) && (not (x == 0)) => { // [x2,2] **
+
+                                         Sll(x) **
+
+                                         x1 :-> h1 **
+                                         (x1 + 1) :-> nxt61 **
+
+                                         temploc nxt61 **
+
+                                          Sll(nxt61) **
+
+//                                         Sll(nxt9) **
+//
+//                                         x11 :-> h1 **
+//                                         (x11 + 1) :-> nxt9 **
+
+                                         revcat(nxt61, x11, x2) }
+}
+void revcat(loc x1, loc x, loc x2)
+  {Sll(x1) ** Sll(x) ** x2 :-> x3}
+  {revcat(x1, x, x4) ** x2 :-> x4}
+{ ?? }
