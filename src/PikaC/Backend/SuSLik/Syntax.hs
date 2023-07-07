@@ -15,6 +15,7 @@ import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Unsafe
 
 import GHC.Generics
+import GHC.Stack
 
 import Data.Validity
 
@@ -40,6 +41,9 @@ data Expr
   | SingletonSet Expr
   | SetUnion Expr Expr
   deriving (Show, Generic)
+
+getV :: HasCallStack => Expr -> ExprName
+getV (V x) = x
 
 instance HasVar Expr where mkVar = V
 

@@ -251,12 +251,15 @@ genBranch fnName outSizes allNames outNames branch = do
     toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
   let heaplets = asn
 
-  let branchAllocs = map (overAllocName convertName) $ findAllocations (map (string2Name . name2String) allNames) $ concat $ getInputAsns $ PikaCore._fnDefBranchInputAssertions branch
+  -- let branchAllocs = map (overAllocName convertName) $ findAllocations (map (string2Name . name2String) allNames) $ concat $ getInputAsns $ PikaCore._fnDefBranchInputAssertions branch
+  let branchAsn = map convertPointsTo (concat (getInputAsns inAsns)) ++ heaplets
+      inputAsn = concat $ getInputAsns $ PikaCore._fnDefBranchInputAssertions branch
+  let branchAllocs = map (overAllocName convertName) $ findAllocations (map convertName' allNames) (mapMaybe toPointsTo asn ++ inputAsn)
   let outAllocs = zipWith Alloc outNames outSizes
-      branchAsn = map convertPointsTo (concat (getInputAsns inAsns)) ++ heaplets
       asnFVs = toListOf fv branchAsn :: [Name SuSLik.Expr]
 
   pure $
+    -- trace ("inputAsn = " ++ show inputAsn ++ ", branchAllocs = " ++ show branchAllocs) $
     -- trace ("branchNames = " ++ show branchNames) $
     -- trace ("allNames = " ++ show allNames) $
     -- trace ("branchAllocs = " ++ show branchAllocs) $
@@ -267,13 +270,19 @@ genBranch fnName outSizes allNames outNames branch = do
                     (convertBase (PikaCore._fnDefBranchCondition branch))
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
-          map convertAlloc (filter (isUsedAlloc asnFVs) (outAllocs ++ branchAllocs)) ++
+          -- map convertAlloc (filter (isUsedAlloc asnFVs) (outAllocs ++ branchAllocs)) ++
+          map convertAlloc (outAllocs ++ branchAllocs) ++
           branchAsn
     }
   where
     inAsns = PikaCore._fnDefBranchInputAssertions branch
     branchNames =
       concatMap (map convertName . inputNames) inAsns
+
+toPointsTo :: HeapletS -> Maybe (PointsTo PikaCore.Expr)
+toPointsTo (PointsToS p) = Just (mapPointsTo (mkVar . convertName' . SuSLik.getV) p)
+toPointsTo (ReadOnlyPointsToS p) = Just (mapPointsTo (mkVar . convertName' . SuSLik.getV) p)
+toPointsTo _ = Nothing
 
 mkZeroes :: [Name SuSLik.Expr] -> [Name SuSLik.Expr] -> SuSLik.Expr
 mkZeroes allNames branchNames = foldr SuSLik.And (SuSLik.BoolLit True) $ map go (allNames \\ branchNames)
