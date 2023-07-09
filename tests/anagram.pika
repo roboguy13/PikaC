@@ -1,7 +1,7 @@
 %generate equal
-%generate revcat
-%generate reverse
-%generate isAnagram
+-- %generate revcat
+-- %generate reverse
+-- %generate isAnagram
 
 data List := Nil | Cons Int List;
 
@@ -15,8 +15,7 @@ Sll (Cons head tail) :=
 
 equal : Sll -> Sll -> Bool;
 equal Nil Nil := True;
-equal (Cons a as) (Cons b bs) | (a == b) := (equal as bs);
-equal (Cons a as) (Cons b bs) | not (a == b) := False;
+equal (Cons a as) (Cons b bs) := (a == b) && (equal as bs);
 equal Nil (Cons b bs) := False;
 equal (Cons a as) Nil := False;
 
@@ -44,6 +43,6 @@ isAnagram (Cons a as) := equal (Cons a as [Sll]) (reverse (Cons a as [Sll]));
 %test "equal2" Bool: equal (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) (Nil [Sll]);
 %test "equal3" Bool: equal (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]);
 
-%test "isAnagram1" Bool: isAnagram (Cons 1 (Cons 2 (Cons 1 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
-%test "isAnagram1" Bool: isAnagram (Cons 1 (Cons 2 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
+-- %test "isAnagram1" Bool: isAnagram (Cons 1 (Cons 2 (Cons 1 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
+-- %test "isAnagram1" Bool: isAnagram (Cons 1 (Cons 2 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
 

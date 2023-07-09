@@ -44,10 +44,6 @@ withOfWith :: Logger m => Expr -> SimplifyM m Expr
 withOfWith =
   step "withOfWith" $ rewriteM withOfWithOne
 
--- withOfWithBranch :: Fresh m => FnDefBranch -> m FnDefBranch
--- withOfWithBranch =
---   fnDefBranchBody %%~ rewriteM withOfWithOne
-
 withOfWithOne :: Fresh m => Expr -> m (Maybe Expr)
 withOfWithOne orig@(WithIn (WithIn e1 bnd1) bnd2) = do
   (vars1, e2) <- unbind bnd1 
@@ -57,45 +53,19 @@ withOfWithOne orig@(WithIn (WithIn e1 bnd1) bnd2) = do
   vars1' <- mapM (fresh . modedNameName) vars1
   let modedVars1' = zipWith Moded (map getMode vars1) vars1'
 
-      renameIt = --rename (zip (map modedNameName vars2) vars2' ++ zip (map modedNameName vars1) vars1')
+      renameIt =
         substs (zip (map modedNameName vars2) (map V vars2') ++ zip (map modedNameName vars1) (map V vars1'))
 
   let e3' = renameIt e3
-        -- TODO: Try replacing rename with substs, for speed
-
-
   let e2' = renameIt e2
 
   let modedVars2' = zipWith Moded (map getMode vars2) vars2'
-
-  -- let e2' = rename (zip (map modedNameName vars1) vars1') e2
 
   let r = WithIn e1
                   $ bind modedVars1'
                       $ WithIn e2' (bind modedVars2' e3')
 
   pure $ Just r
-  -- pure $ Just $ trace ("***** original = " ++ show orig ++ "\n===== new = " ++ show r ++ "\n") r
-  
-  
-  -- unbind bnd >>= \case
-  --   (vars2, WithIn e1 bnd1) -> do
-  --     (vars1, e3) <- unbind bnd1
-  --     vars2' <- mapM (fresh . modedNameName) vars2
-  --     let e3' = rename (zip (map modedNameName vars2) vars2') e3
-  --
-  --     let modedVars2' = zipWith Moded (map getMode vars2) vars2'
-  --
-  --     pure $ Just $ WithIn e1
-  --                     $ bind vars1
-  --                         $ WithIn e2 (bind modedVars2' e3')
-  -- _ -> pure Nothing
--- withOfWithOne (WithIn (WithIn e1 vars1 e2) vars2 e3) = do
---   vars2' <- mapM fresh vars2
---   let e3' = rename (zip vars2 vars2') e3
---
---   pure $ Just $ WithIn e1 vars1
---               $ WithIn e2 vars2' e3'
 
 withOfWithOne _ = pure Nothing
 

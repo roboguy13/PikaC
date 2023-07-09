@@ -1,0 +1,39 @@
+predicate Sll(loc x)
+{
+| x == 0 => { emp }
+| not (x == 0) => { [x,2] **
+                    x :-> head2 **
+                    (x + 1) :-> nxt3 **
+                    Sll(nxt3) }
+}
+predicate equal(loc x1, loc x, loc b2)
+{
+| (x1 == 0) && (x == 0) => { b2 == 1 ; emp }
+| (not (x1 == 0)) && (not (x == 0)) => { ((zz4 == nxt17)
+                                          &&
+                                          (zz5 == nxt18))
+                                         &&
+                                         (((xx8 == a) && ((yy9 == b) && (xx6 == (xx8 == yy9 ? 1 : 0))))
+                                          &&
+                                          ((yy7 == b3) && (b2 == (xx6 * yy7)))) ; [x1,2] **
+                                                                                  [x,2] **
+                                                                                  Sll(nxt17) **
+                                                                                  Sll(nxt18) **
+                                                                                  x1 :-> a **
+                                                                                  (x1 + 1) :-> nxt17 **
+                                                                                  x :-> b **
+                                                                                  (x + 1) :-> nxt18 **
+                                                                                  equal(zz4, zz5, b3) }
+| (x1 == 0) && (not (x == 0)) => { b2 == 0 ; [x,2] **
+                                             Sll(nxt35) **
+                                             x :-> b **
+                                             (x + 1) :-> nxt35 }
+| (not (x1 == 0)) && (x == 0) => { b2 == 0 ; [x1,2] **
+                                             Sll(nxt46) **
+                                             x1 :-> a **
+                                             (x1 + 1) :-> nxt46 }
+}
+void equal(loc x1, loc x, loc b2)
+  {Sll(x1) ** Sll(x) ** b2 :-> b3}
+  {equal(x1, x, b4) ** b2 :-> b4}
+{ ?? }

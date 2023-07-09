@@ -16,7 +16,8 @@ suslikStdinOpt :: [String]
 suslikStdinOpt = ["--stdin", "true"]
 
 defaultSuslikOpts :: [String]
-defaultSuslikOpts = suslikStdinOpt ++ ["--printSpecs","false","-b","true", "-c", "2", "-o","2"]
+defaultSuslikOpts = suslikStdinOpt ++ ["--printSpecs","false","-b","true", "-o","2"]
+-- defaultSuslikOpts = suslikStdinOpt ++ ["--printSpecs","false","-b","true", "-c", "2", "-o","2"]
 -- defaultSuslikOpts = suslikStdinOpt ++ ["-b","true", "-c", "2", "-o","2"]
 
 suslikCmd :: String
@@ -39,7 +40,7 @@ invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
 
   case exitCode of
     ExitSuccess -> do
-      -- putStrLn suslikOut
+      putStrLn suslikOut
       pure $ Right $ parse' (some parseFunction) suslikOut
     ExitFailure n -> pure $ Left stderrOut
 

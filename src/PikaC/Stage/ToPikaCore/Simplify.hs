@@ -29,6 +29,8 @@ import PikaC.Stage.ToPikaCore.ReplaceClosedAssertions
 import PikaC.Stage.ToPikaCore.CallOfCall
 import PikaC.Stage.ToPikaCore.AssertionOfCall
 import PikaC.Stage.ToPikaCore.AssertionOfAssertion
+import PikaC.Stage.ToPikaCore.BaseAppToWith
+import PikaC.Stage.ToPikaCore.FloatWith
 
 import PikaC.Stage.ToPikaCore.SimplifyM
 
@@ -61,6 +63,8 @@ simplifyExpr = fixedPoint simplifyExprStep
 
 simplifyExprStep :: Logger m => Expr -> SimplifyM m Expr
 simplifyExprStep =
+    -- floatWith <=<
+    -- baseAppToWith <=<
     assertionOfAssertion <=<
     assertionOfCall <=<
     replaceClosedAssertions <=<

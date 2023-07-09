@@ -518,6 +518,7 @@ isBasic (And x y) = True
 isBasic EmptySet = True
 isBasic (SingletonSet {}) = True
 isBasic (SetUnion {}) = True
+isBasic (App _ [0] _) = True
 isBasic _ = False
 
 getV :: (HasCallStack, Ppr (Expr' s)) => Expr' s -> Name (Expr' s)

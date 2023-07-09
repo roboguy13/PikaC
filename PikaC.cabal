@@ -72,6 +72,8 @@ executable PikaC
       PikaC.Stage.ToPikaCore.CallOfCall
       PikaC.Stage.ToPikaCore.AssertionOfCall
       PikaC.Stage.ToPikaCore.AssertionOfAssertion
+      PikaC.Stage.ToPikaCore.BaseAppToWith
+      PikaC.Stage.ToPikaCore.FloatWith
       PikaC.Stage.ToPikaCore.Monad
       PikaC.Stage.ToPikaCore.Utils
       PikaC.Stage.ToPikaCore.SimplifyM
@@ -167,6 +169,8 @@ test-suite PikaC-golden-tests
      PikaC.Stage.ToPikaCore.CallOfCall
      PikaC.Stage.ToPikaCore.AssertionOfCall
      PikaC.Stage.ToPikaCore.AssertionOfAssertion
+     PikaC.Stage.ToPikaCore.BaseAppToWith
+     PikaC.Stage.ToPikaCore.FloatWith
      PikaC.Stage.ToPikaCore.Monad
      PikaC.Stage.ToPikaCore.Utils
      PikaC.Stage.ToPikaCore.SimplifyM

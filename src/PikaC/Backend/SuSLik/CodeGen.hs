@@ -16,22 +16,30 @@ import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.FnDef
 
 import qualified PikaC.Stage.ToPikaCore as ToPikaCore
+import PikaC.Stage.ToPikaCore.SimplifyM (runSimplifyQuiet, SimplifyFuel (..), fixedPoint)
+import PikaC.Stage.ToPikaCore.Utils
+import PikaC.Stage.ToPikaCore.BaseAppToWith
+import PikaC.Stage.ToPikaCore.FloatWith
 
 import PikaC.Ppr
 import PikaC.Utils
 import PikaC.Backend.Utils
 
 import qualified PikaC.Backend.SuSLik.Syntax as SuSLik
-import PikaC.Backend.SuSLik.Syntax (HeapletS (..))
+import PikaC.Backend.SuSLik.Syntax (HeapletS (..), CompoundAsn (..), mkPurePart, mkSpatialPart, mkPredicateBranch, spatialPart, purePart, _RecApply)
 
 import Unbound.Generics.LocallyNameless
 
 import Control.Lens
 import Control.Monad
 
+import Data.Equivalence.Monad
+
 import Data.List
 
 import Data.Maybe
+
+import GHC.Stack
 
 import Debug.Trace
 
@@ -218,7 +226,13 @@ mkLayoutApps = map go . catMaybes
       RecApply n (map (mkVar . convertName) vs)  -- Not actually recursive, but this generates the correct kind of predicate application
 
 codeGenIndPred :: PikaCore.FnDef -> SuSLik.InductivePredicate
-codeGenIndPred fnDef = runFreshM $ do
+codeGenIndPred fnDef0 = runFreshM $ do
+    -- Some preprocessing on the PikaCore:
+  let fnDef =
+        runSimplifyQuiet Unlimited
+          (fixedPoint (onFnDef (floatWith <=< baseAppToWith)))
+          fnDef0
+
   let PikaCore.FnName fnName = PikaCore._fnDefName fnDef
 
   (inParams, bnd1) <- unbind $ PikaCore._fnDefBranches fnDef
@@ -235,7 +249,9 @@ codeGenIndPred fnDef = runFreshM $ do
   branches' <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
 
 
-  pure $ SuSLik.InductivePredicate
+  pure 
+    -- $ trace ("---\n" ++ ppr' fnDef)
+    $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
     , SuSLik._indPredArgTypes = argTypes ++ [LayoutId "Unused"] -- TODO: We need a way to deal with layouts that have multiple parameters
     , SuSLik._indPredResultType = resultType
@@ -246,17 +262,20 @@ codeGenIndPred fnDef = runFreshM $ do
 
 genBranch :: Fresh m => String -> [Int] -> [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
 genBranch fnName outSizes allNames outNames branch = do
-  (zeroes, asn) <-
-    getZeroes outNames =<<
-    toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
-  let heaplets = asn
+  asn <- toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
+  (zeroes0, heaplets) <- getZeroes outNames (view spatialPart asn)
+  let zeroes = map snd . filter ((> 0) . fst) $ zip outSizes zeroes0
+  -- let heaplets = getSpatialPart asn
 
   -- let branchAllocs = map (overAllocName convertName) $ findAllocations (map (string2Name . name2String) allNames) $ concat $ getInputAsns $ PikaCore._fnDefBranchInputAssertions branch
   let branchAsn = map convertPointsTo (concat (getInputAsns inAsns)) ++ heaplets
       inputAsn = concat $ getInputAsns $ PikaCore._fnDefBranchInputAssertions branch
-  let branchAllocs = map (overAllocName convertName) $ findAllocations (map convertName' allNames) (mapMaybe toPointsTo asn ++ inputAsn)
+  let branchAllocs = map (overAllocName convertName) $ findAllocations (map convertName' allNames) (mapMaybe toPointsTo heaplets ++ inputAsn)
   let outAllocs = zipWith Alloc outNames outSizes
       asnFVs = toListOf fv branchAsn :: [Name SuSLik.Expr]
+      namesUsedInApps = appParameters branchAsn
+
+      branchPurePart = mkAnd (mkAnd (mkZeroes outSizes outNames asnFVs) $ foldr mkAnd (boolLit True) zeroes) (view purePart asn)
 
   pure $
     -- trace ("inputAsn = " ++ show inputAsn ++ ", branchAllocs = " ++ show branchAllocs) $
@@ -264,7 +283,7 @@ genBranch fnName outSizes allNames outNames branch = do
     -- trace ("allNames = " ++ show allNames) $
     -- trace ("branchAllocs = " ++ show branchAllocs) $
     SuSLik.PredicateBranch
-    { SuSLik._predBranchPure = mkAnd (mkZeroes outNames asnFVs) $ foldr mkAnd (boolLit True) zeroes
+    { SuSLik._predBranchPure = branchPurePart
     , SuSLik._predBranchCond =
         SuSLik.andS (computeBranchCondition allNames branchNames)
                     (convertBase (PikaCore._fnDefBranchCondition branch))
@@ -272,7 +291,7 @@ genBranch fnName outSizes allNames outNames branch = do
         -- bind asnVars $
           map convertAlloc (filter (isUsedAlloc asnFVs) (outAllocs ++ branchAllocs)) ++
           -- map convertAlloc (outAllocs ++ branchAllocs) ++
-          map (\(f, xs) -> RecApply f (map convertBase xs)) (PikaCore.getLayoutApps (PikaCore.getInputAsns' inAsns)) ++
+          mapMaybe (\(f, xs) -> mkRecApplyMaybe f (map SuSLik.V (filter (not . any (`elem` namesUsedInApps) . (`getEquals` branchPurePart) ) (map (SuSLik.getV . convertBase) xs)))) (PikaCore.getLayoutApps (PikaCore.getInputAsns' inAsns)) ++
           branchAsn
     }
   where
@@ -280,14 +299,21 @@ genBranch fnName outSizes allNames outNames branch = do
     branchNames =
       concatMap (map convertName . inputNames) inAsns
 
+mkRecApplyMaybe :: String -> [SuSLik.Expr] -> Maybe HeapletS
+mkRecApplyMaybe _ [] = Nothing
+mkRecApplyMaybe f xs = Just $ RecApply f xs
+
 toPointsTo :: HeapletS -> Maybe (PointsTo PikaCore.Expr)
 toPointsTo (PointsToS p) = Just (mapPointsTo (mkVar . convertName' . SuSLik.getV) p)
 toPointsTo (ReadOnlyPointsToS p) = Just (mapPointsTo (mkVar . convertName' . SuSLik.getV) p)
 toPointsTo _ = Nothing
 
-mkZeroes :: [Name SuSLik.Expr] -> [Name SuSLik.Expr] -> SuSLik.Expr
-mkZeroes allNames branchNames = foldr mkAnd (SuSLik.BoolLit True) $ map go (allNames \\ branchNames)
+mkZeroes :: [Int] -> [Name SuSLik.Expr] -> [Name SuSLik.Expr] -> SuSLik.Expr
+mkZeroes outSizes allNames0 branchNames =
+  foldr mkAnd (SuSLik.BoolLit True)
+    $ map go (allNames \\ branchNames)
   where
+    allNames = map snd . filter ((> 0) . fst) $ zip outSizes allNames0
     go v = SuSLik.Equal (SuSLik.V v) (SuSLik.IntLit 0)
 
 isUsedAlloc :: [Name SuSLik.Expr] -> Allocation SuSLik.Expr -> Bool
@@ -297,7 +323,7 @@ convertAlloc :: Allocation SuSLik.Expr -> SuSLik.HeapletS
 convertAlloc (Alloc n 0) = BlockS n 1
 convertAlloc (Alloc n sz) = BlockS n sz
 
-toAssertion :: Fresh m => String -> [SuSLik.ExprName] -> PikaCore.Expr -> m SuSLik.Assertion
+toAssertion :: Fresh m => String -> [SuSLik.ExprName] -> PikaCore.Expr -> m CompoundAsn
 toAssertion = collectAssertions
 
 getZeroes :: Fresh m => [SuSLik.ExprName] -> SuSLik.Assertion -> m ([SuSLik.Expr], SuSLik.Assertion)
@@ -320,14 +346,22 @@ getZeroes outVars bnd = do
 collectAssertions :: Fresh m =>
   String ->
   [SuSLik.ExprName] -> PikaCore.Expr ->
-  m (--Bind [SuSLik.ExistVar]
-        [HeapletS])
+  m CompoundAsn
 collectAssertions fnName outVars e
   | PikaCore.isBasic e =
       case outVars of
         [v] ->
-          pure [PointsToS ((SuSLik.V v :+ 0) :-> convertBase e)]
+          convertBaseAsn v e
+          -- pure $ mkSpatialPart [PointsToS ((SuSLik.V v :+ 0) :-> convertBase e)]
         _ -> error "Expected exactly one output parameter when translating a top-level basic expression"
+-- collectAssertions fnName outVars (PikaCore.WithIn (App f [0] args) bnd) = do
+--   ([v], body) <- unbind bnd
+--   let unmodedV = modedNameName v
+--
+--   let argAsns = map convertBase args
+--
+--   let asn = (Equal (V v) (convertBase app)) :& 
+
 collectAssertions fnName outVars (PikaCore.WithIn e bnd) = do
   (vars, body) <- unbind bnd
   let unmodedVars = map modedNameName vars
@@ -335,21 +369,20 @@ collectAssertions fnName outVars (PikaCore.WithIn e bnd) = do
 
   bodyAsns <- collectAssertions fnName outVars body
 
-  case eAsns0 of
+  case view spatialPart eAsns0 of
     [] ->
       pure $
-        -- bind bodyVars $
-        substs (zip (map convertName unmodedVars) (repeat (SuSLik.IntLit 0))) bodyAsns
+        bodyAsns &
+          spatialPart %~ substs (zip (map convertName unmodedVars) (repeat (SuSLik.IntLit 0)))
     _ ->
-      pure $
-        -- bind (eVars ++ bodyVars)
-          (eAsns0 ++ bodyAsns)
+      pure (eAsns0 <> bodyAsns)
 collectAssertions fnName outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?
   let app = if f == fnName then RecApply else ApplyS
   in
   pure -- $ bind []
+    $ mkSpatialPart
       [app f (map convertBase args ++ map SuSLik.V outVars)
       ]
 collectAssertions fnName outVars (PikaCore.SslAssertion bnd) = do
@@ -357,7 +390,7 @@ collectAssertions fnName outVars (PikaCore.SslAssertion bnd) = do
   let unmodedVars = map (convertName . modedNameName) vars
   let asn' = map convertPointsTo asn
   let asn'' = rename (zip unmodedVars outVars) asn'
-  pure $ asn'' -- TODO: Bind existentials
+  pure $ mkSpatialPart asn'' -- TODO: Bind existentials
 collectAssertions fnName _ e = error $ "collectAssertions: " ++ ppr' e
 
 convertPointsTo :: PointsTo PikaCore.Expr -> HeapletS
@@ -386,24 +419,89 @@ sequenceAssertions (x:xs) = do
 
 -- extendAssertionBind :: [ExprN
 
-convertBase :: PikaCore.Expr -> SuSLik.Expr
-convertBase (PikaCore.V x) = SuSLik.V $ convertName x
-convertBase (PikaCore.LayoutV [x]) = convertBase x
-convertBase (PikaCore.LayoutV []) = SuSLik.IntLit 0 -- TODO: Is this correct?
-convertBase (PikaCore.IntLit i) = SuSLik.IntLit i
-convertBase (PikaCore.BoolLit b) = SuSLik.BoolLit b
-convertBase (PikaCore.Add x y) = SuSLik.Add (convertBase x) (convertBase y)
-convertBase (PikaCore.Mul x y) = SuSLik.Mul (convertBase x) (convertBase y)
-convertBase (PikaCore.Sub x y) = SuSLik.Sub (convertBase x) (convertBase y)
-convertBase (PikaCore.Equal x y) = SuSLik.Equal (convertBase x) (convertBase y)
-convertBase (PikaCore.And x y) = mkAnd (convertBase x) (convertBase y)
-convertBase (PikaCore.Not x) = SuSLik.Not (convertBase x)
-convertBase (PikaCore.Lt x y) = SuSLik.Lt (convertBase x) (convertBase y)
-convertBase (PikaCore.Le x y) = SuSLik.Le (convertBase x) (convertBase y)
-convertBase PikaCore.EmptySet = SuSLik.EmptySet
-convertBase (PikaCore.SingletonSet x) = SuSLik.SingletonSet $ convertBase x
-convertBase (PikaCore.SetUnion x y) = SuSLik.SetUnion (convertBase x) (convertBase y)
-convertBase e = error $ "convertBase: " ++ ppr' e
+convertBaseAsn :: Fresh m => SuSLik.ExprName -> PikaCore.Expr -> m CompoundAsn
+-- convertBaseAsn outVar e
+--   | Just r <- convertBaseMaybe e =
+--       pure $ mkPurePart (SuSLik.Equal (SuSLik.V outVar) r)
+convertBaseAsn outVar (PikaCore.V x) =
+  pure $ mkPurePart (SuSLik.Equal (SuSLik.V outVar) (SuSLik.V (convertName x)))
+convertBaseAsn outVar (PikaCore.LayoutV [x]) = convertBaseAsn outVar x
+convertBaseAsn outVar (PikaCore.IntLit i) =
+  pure $ mkPurePart (SuSLik.Equal (SuSLik.V outVar) (SuSLik.IntLit i))
+convertBaseAsn outVar (PikaCore.BoolLit b) =
+  pure $ mkPurePart (SuSLik.Equal (SuSLik.V outVar) (SuSLik.BoolLit b))
+convertBaseAsn outVar (PikaCore.Add x y) = convertBin SuSLik.Add outVar x y
+convertBaseAsn outVar (PikaCore.Mul x y) = convertBin SuSLik.Mul outVar x y
+convertBaseAsn outVar (PikaCore.Sub x y) = convertBin SuSLik.Sub outVar x y
+convertBaseAsn outVar (PikaCore.Equal x y) = convertBin mkEqual outVar x y
+convertBaseAsn outVar (PikaCore.And x y) = convertBin SuSLik.Mul outVar x y
+convertBaseAsn outVar (PikaCore.Lt x y) = convertBin SuSLik.Lt outVar x y
+convertBaseAsn outVar (PikaCore.Le x y) = convertBin SuSLik.Le outVar x y
+convertBaseAsn outVar (PikaCore.App (PikaCore.FnName f) [0] xs) = do
+    -- TODO: Check to see if this is recursive call?
+  vars <- mapM (fresh . string2Name . const "zz") xs
+  xsAsns <- zipWithM convertBaseAsn vars xs
+  let resultSpatial = [SuSLik.RecApply f (map SuSLik.V vars ++ [SuSLik.V outVar])]
+  pure $ mconcat xsAsns <> mkSpatialPart resultSpatial
+convertBaseAsn outVar e =
+    error $ "convertBaseAsn: " ++ ppr' e
+
+convertBin :: Fresh m =>
+  (SuSLik.Expr -> SuSLik.Expr -> SuSLik.Expr) ->
+  SuSLik.ExprName ->
+  PikaCore.Expr ->
+  PikaCore.Expr ->
+  m CompoundAsn
+convertBin f outVar x y = do
+  varX <- fresh (string2Name "xx" :: SuSLik.ExprName)
+  varY <- fresh (string2Name "yy" :: SuSLik.ExprName)
+  asnX <- convertBaseAsn varX x
+  asnY <- convertBaseAsn varY y
+
+  let newEq = mkEqual (SuSLik.V outVar) (f (SuSLik.V varX) (SuSLik.V varY))
+  pure $ asnX <> asnY <> mkPurePart newEq
+
+convertBaseMaybe :: PikaCore.Expr -> Maybe SuSLik.Expr
+convertBaseMaybe (PikaCore.V x) = Just $ SuSLik.V $ convertName x
+convertBaseMaybe (PikaCore.LayoutV [x]) = convertBaseMaybe x
+convertBaseMaybe (PikaCore.LayoutV []) = Just $ SuSLik.IntLit 0 -- TODO: Is this correct?
+convertBaseMaybe (PikaCore.IntLit i) = Just $ SuSLik.IntLit i
+convertBaseMaybe (PikaCore.BoolLit b) = Just $ SuSLik.BoolLit b
+convertBaseMaybe (PikaCore.Add x y) = liftA2 SuSLik.Add (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe (PikaCore.Mul x y) = liftA2 SuSLik.Mul (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe (PikaCore.Sub x y) = liftA2 SuSLik.Sub (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe (PikaCore.Equal x y) = liftA2 mkEqual (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe (PikaCore.And x y) = liftA2 mkAnd (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe (PikaCore.Not x) = fmap SuSLik.Not (convertBaseMaybe x)
+convertBaseMaybe (PikaCore.Lt x y) = liftA2 SuSLik.Lt (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe (PikaCore.Le x y) = liftA2 SuSLik.Le (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe PikaCore.EmptySet = Just SuSLik.EmptySet
+convertBaseMaybe (PikaCore.SingletonSet x) = fmap SuSLik.SingletonSet $ convertBaseMaybe x
+convertBaseMaybe (PikaCore.SetUnion x y) = liftA2 SuSLik.SetUnion (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe _ = Nothing
+
+convertBase :: HasCallStack => PikaCore.Expr -> SuSLik.Expr
+convertBase e =
+  case convertBaseMaybe e of
+    Just r -> r
+    Nothing -> error $ "convertBase: " ++ ppr' e
+
+-- | Get parameters of predicate applications so that we don't apply a layout
+-- predicate to them
+appParameters :: SuSLik.Assertion -> [SuSLik.ExprName]
+appParameters = toListOf (traversed . _RecApply . _2 . traversed . SuSLik._V)
+
+getEquals :: SuSLik.ExprName -> SuSLik.Expr -> [SuSLik.ExprName]
+getEquals v e = filter (/= v) eqNames
+  where
+    eqNames :: [SuSLik.ExprName]
+    eqNames = runEquivM (:[]) (++) $ do
+      go e
+      desc =<< getClass v
+
+    go (SuSLik.And x y) = go x *> go y
+    go (SuSLik.Equal (SuSLik.V x) (SuSLik.V y)) = equate x y
+    go _ = pure ()
 
 splitAssertions :: Fresh m =>
   [SuSLik.Assertion] -> m ([HeapletS])

@@ -1,0 +1,54 @@
+predicate Sll(loc x)
+{
+| x == 0 => { emp }
+| not (x == 0) => { [x,2] **
+                    x :-> head2 **
+                    (x + 1) :-> nxt3 **
+                    Sll(nxt3) }
+}
+predicate revcat(loc x1, loc x, loc x2)
+{
+| (x1 == 0) && (x == 0) => { x2 == 0 ; emp }
+| (x1 == 0) && (not (x == 0)) => { [x2,2] **
+                                   [x,2] **
+                                   Sll(nxt21) **
+                                   x :-> h **
+                                   (x + 1) :-> nxt21 **
+                                   x2 :-> h **
+                                   (x2 + 1) :-> nxt21 }
+| (not (x1 == 0)) && (x == 0) => { [x2,2] **
+                                   [x1,2] **
+                                   // Sll(nxt38) **
+                                   x1 :-> h **
+                                   (x1 + 1) :-> nxt38 **
+
+                                   // x7 :-> h **
+                                   // (x7 + 1) :-> 0 **
+
+                                   func cons(h, 0, x7) **
+                                   temploc x7 **
+
+                                   revcat(nxt38, x7, x2) }
+| (not (x1 == 0)) && (not (x == 0)) => { [x2,2] **
+                                         [x1,2] **
+                                         [x,2] **
+                                         // Sll(nxt61) **
+                                         Sll(nxt62) **
+                                         x1 :-> h1 **
+                                         (x1 + 1) :-> nxt61 **
+                                         x :-> h2 **
+                                         (x + 1) :-> nxt62 **
+                                         nxt9 :-> h2 **
+                                         (nxt9 + 1) :-> nxt62 **
+
+                                         // x11 :-> h1 **
+                                         // (x11 + 1) :-> nxt9 **
+
+                                         func cons(h1, nxt9, x11) **
+                                         temploc x11 **
+                                         revcat(nxt61, x11, x2) }
+}
+void revcat(loc x1, loc x, loc x2)
+  {Sll(x1) ** Sll(x) ** x2 :-> x3}
+  {revcat(x1, x, x4) ** x2 :-> x4}
+{ ?? }

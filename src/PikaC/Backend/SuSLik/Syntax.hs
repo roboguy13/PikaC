@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PikaC.Backend.SuSLik.Syntax
   where
@@ -19,6 +21,8 @@ import GHC.Stack
 
 import Data.Validity
 
+import Control.Lens
+
 import Debug.Trace
 
 type ExprName = Name Expr
@@ -35,6 +39,7 @@ data Expr
   | Le Expr Expr
   | And Expr Expr
   | Not Expr
+  | IfThenElse Expr Expr Expr
 
   -- For the ghost language:
   | EmptySet
@@ -58,8 +63,18 @@ instance IsBase Expr where
   intLit = IntLit
   boolLit = BoolLit
   mkNot = Not
-  mkEqual = Equal
+  mkEqual x y =
+    case y of
+      Equal {} -> Equal x (toBool y)
+      Lt {} -> Equal x (toBool y)
+      Le {} -> Equal x (toBool y)
+      Not {} -> Equal x (toBool y)
+      _ -> Equal x y
+
   mkAnd = andS
+
+toBool :: Expr -> Expr
+toBool e = IfThenElse e (BoolLit True) (BoolLit False)
 
 data InductivePredicate
   = InductivePredicate
@@ -159,6 +174,8 @@ instance Ppr Expr where
   ppr (Le x y) = sep [pprP x, text "<=", pprP y]
   ppr (Not x) = text "not " <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
+  ppr (IfThenElse c t f) =
+    hsep [ppr c, text "?", ppr t, text ":", ppr f]
   ppr EmptySet = text "{}"
   ppr (SingletonSet x) = text "{" <> ppr x <> text "}"
   ppr (SetUnion x y) = pprP x <+> text "++" <+> pprP y
@@ -259,4 +276,32 @@ andS :: Expr -> Expr -> Expr
 andS (BoolLit True) x = x
 andS x (BoolLit True) = x
 andS x y = And x y
+
+-- | Assertion with a pure part and a spatial part
+data CompoundAsn = CompoundAsn { _purePart :: Expr, _spatialPart :: Assertion }
+  deriving (Show, Generic)
+
+makeLenses ''CompoundAsn
+
+pattern xs :& ys = CompoundAsn xs ys
+
+instance Semigroup CompoundAsn where
+  (xs1 :& ys1) <> (xs2 :& ys2) =
+    (mkAnd xs1 xs2) :& (ys1 <> ys2)
+
+instance Monoid CompoundAsn where
+  mempty = BoolLit True :& mempty
+
+mkPredicateBranch :: Expr -> CompoundAsn -> PredicateBranch
+mkPredicateBranch cond (purePart :& asn) =
+  PredicateBranch cond purePart asn
+
+mkPurePart :: Expr -> CompoundAsn
+mkPurePart e = e :& mempty
+
+mkSpatialPart :: Assertion -> CompoundAsn
+mkSpatialPart asn = BoolLit True :& asn
+
+makePrisms ''HeapletS
+makePrisms ''Expr
 
