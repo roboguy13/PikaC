@@ -492,7 +492,7 @@ appParameters :: SuSLik.Assertion -> [SuSLik.ExprName]
 appParameters = toListOf (traversed . _RecApply . _2 . traversed . SuSLik._V)
 
 getEquals :: SuSLik.ExprName -> SuSLik.Expr -> [SuSLik.ExprName]
-getEquals v e = filter (/= v) eqNames
+getEquals v e = v : eqNames
   where
     eqNames :: [SuSLik.ExprName]
     eqNames = runEquivM (:[]) (++) $ do

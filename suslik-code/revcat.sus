@@ -21,18 +21,15 @@ predicate revcat(loc x1, loc x, loc x2)
                                    // Sll(nxt38) **
                                    x1 :-> h **
                                    (x1 + 1) :-> nxt38 **
-
                                    // x7 :-> h **
                                    // (x7 + 1) :-> 0 **
-
                                    func cons(h, 0, x7) **
                                    temploc x7 **
-
                                    revcat(nxt38, x7, x2) }
 | (not (x1 == 0)) && (not (x == 0)) => { [x2,2] **
                                          [x1,2] **
                                          [x,2] **
-                                         // Sll(nxt61) **
+                                         Sll(nxt61) **
                                          Sll(nxt62) **
                                          x1 :-> h1 **
                                          (x1 + 1) :-> nxt61 **
@@ -40,10 +37,8 @@ predicate revcat(loc x1, loc x, loc x2)
                                          (x + 1) :-> nxt62 **
                                          nxt9 :-> h2 **
                                          (nxt9 + 1) :-> nxt62 **
-
                                          // x11 :-> h1 **
                                          // (x11 + 1) :-> nxt9 **
-
                                          func cons(h1, nxt9, x11) **
                                          temploc x11 **
                                          revcat(nxt61, x11, x2) }
