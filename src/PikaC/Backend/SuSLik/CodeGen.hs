@@ -276,6 +276,7 @@ genBranch fnName outSizes allNames outNames branch = do
       namesUsedInApps = appParameters branchAsn
 
       branchPurePart = mkAnd (mkAnd (mkZeroes outSizes outNames asnFVs) $ foldr mkAnd (boolLit True) zeroes) (view purePart asn)
+      notUsedInApp = (not . any (`elem` namesUsedInApps) . (`getEquals` branchPurePart) ) 
 
   pure $
     -- trace ("inputAsn = " ++ show inputAsn ++ ", branchAllocs = " ++ show branchAllocs) $
@@ -289,9 +290,9 @@ genBranch fnName outSizes allNames outNames branch = do
                     (convertBase (PikaCore._fnDefBranchCondition branch))
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
-          map convertAlloc (filter (isUsedAlloc asnFVs) (outAllocs ++ branchAllocs)) ++
+          map convertAlloc (filter (liftA2 (&&) (notUsedInApp . allocName) (isUsedAlloc asnFVs)) (outAllocs ++ branchAllocs)) ++
           -- map convertAlloc (outAllocs ++ branchAllocs) ++
-          mapMaybe (\(f, xs) -> mkRecApplyMaybe f (map SuSLik.V (filter (not . any (`elem` namesUsedInApps) . (`getEquals` branchPurePart) ) (map (SuSLik.getV . convertBase) xs)))) (PikaCore.getLayoutApps (PikaCore.getInputAsns' inAsns)) ++
+          mapMaybe (\(f, xs) -> mkRecApplyMaybe f (map SuSLik.V (filter notUsedInApp (map (SuSLik.getV . convertBase) xs)))) (PikaCore.getLayoutApps (PikaCore.getInputAsns' inAsns)) ++
           branchAsn
     }
   where
