@@ -26,7 +26,7 @@ import PikaC.Utils
 import PikaC.Backend.Utils
 
 import qualified PikaC.Backend.SuSLik.Syntax as SuSLik
-import PikaC.Backend.SuSLik.Syntax (HeapletS (..), CompoundAsn (..), mkPurePart, mkSpatialPart, mkPredicateBranch, spatialPart, purePart, _RecApply)
+import PikaC.Backend.SuSLik.Syntax (HeapletS (..), CompoundAsn (..), mkPurePart, mkSpatialPart, mkPredicateBranch, spatialPart, purePart, _RecApply, _ApplyS)
 
 import Unbound.Generics.LocallyNameless
 
@@ -325,7 +325,7 @@ convertAlloc (Alloc n 0) = BlockS n 1
 convertAlloc (Alloc n sz) = BlockS n sz
 
 toAssertion :: Fresh m => String -> [SuSLik.ExprName] -> PikaCore.Expr -> m CompoundAsn
-toAssertion = collectAssertions
+toAssertion = collectAssertions []
 
 getZeroes :: Fresh m => [SuSLik.ExprName] -> SuSLik.Assertion -> m ([SuSLik.Expr], SuSLik.Assertion)
 getZeroes outVars bnd = do
@@ -345,10 +345,11 @@ getZeroes outVars bnd = do
           pure (restExprs, h : restHs)
 
 collectAssertions :: Fresh m =>
+  [PikaCore.ExprName] ->   -- | Application result names, for use in determining temploc's
   String ->
   [SuSLik.ExprName] -> PikaCore.Expr ->
   m CompoundAsn
-collectAssertions fnName outVars e
+collectAssertions appOutNames fnName outVars e
   | PikaCore.isBasic e =
       case outVars of
         [v] ->
@@ -363,21 +364,38 @@ collectAssertions fnName outVars e
 --
 --   let asn = (Equal (V v) (convertBase app)) :& 
 
-collectAssertions fnName outVars (PikaCore.WithIn e bnd) = do
+collectAssertions appOutNames0 fnName outVars (PikaCore.WithIn e bnd) = do
   (vars, body) <- unbind bnd
   let unmodedVars = map modedNameName vars
-  eAsns0 <- collectAssertions fnName (map convertModedName vars) e
 
-  bodyAsns <- collectAssertions fnName outVars body
+      appOutNames = case e of
+                      PikaCore.App {} -> unmodedVars ++ appOutNames0
+                      _ -> appOutNames0
+
+  eAsns0 <- collectAssertions appOutNames0 fnName (map convertModedName vars) e
+
+  bodyAsns <- collectAssertions appOutNames fnName outVars body
+
+  let appOutUsages =
+        filter (`elem` appOutNames) (toListOf (traversed . PikaCore._V) (children body))
+          ++
+        filter (`elem` appOutNames) (toListOf (traversed . PikaCore._LayoutV . traversed . PikaCore._V) (children body))
+      tempLocs = map (TempLoc . convertName) appOutUsages
+      tempLocAsn =
+        case body of
+          PikaCore.App {} -> mkSpatialPart tempLocs
+          _ -> mempty
 
   case view spatialPart eAsns0 of
     [] ->
       pure $
-        bodyAsns &
-          spatialPart %~ substs (zip (map convertName unmodedVars) (repeat (SuSLik.IntLit 0)))
+        tempLocAsn
+          <>
+        (bodyAsns &
+          spatialPart %~ substs (zip (map convertName unmodedVars) (repeat (SuSLik.IntLit 0))))
     _ ->
-      pure (eAsns0 <> bodyAsns)
-collectAssertions fnName outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
+      pure (tempLocAsn <> eAsns0 <> bodyAsns)
+collectAssertions appOutNames fnName outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?
   let app = if f == fnName then RecApply else ApplyS
@@ -386,13 +404,13 @@ collectAssertions fnName outVars (PikaCore.App (PikaCore.FnName f) _sizes args) 
     $ mkSpatialPart
       [app f (map convertBase args ++ map SuSLik.V outVars)
       ]
-collectAssertions fnName outVars (PikaCore.SslAssertion bnd) = do
+collectAssertions appOutNames fnName outVars (PikaCore.SslAssertion bnd) = do
   (vars, asn) <- unbind bnd
   let unmodedVars = map (convertName . modedNameName) vars
   let asn' = map convertPointsTo asn
   let asn'' = rename (zip unmodedVars outVars) asn'
   pure $ mkSpatialPart asn'' -- TODO: Bind existentials
-collectAssertions fnName _ e = error $ "collectAssertions: " ++ ppr' e
+collectAssertions appOutNames fnName _ e = error $ "collectAssertions: " ++ ppr' e
 
 convertPointsTo :: PointsTo PikaCore.Expr -> HeapletS
 convertPointsTo (x :-> y) =
@@ -490,7 +508,10 @@ convertBase e =
 -- | Get parameters of predicate applications so that we don't apply a layout
 -- predicate to them
 appParameters :: SuSLik.Assertion -> [SuSLik.ExprName]
-appParameters = toListOf (traversed . _RecApply . _2 . traversed . SuSLik._V)
+appParameters =
+  liftA2 (++)
+    (toListOf (traversed . _RecApply . _2 . traversed . SuSLik._V))
+    (toListOf (traversed . _ApplyS . _2 . traversed . SuSLik._V))
 
 getEquals :: SuSLik.ExprName -> SuSLik.Expr -> [SuSLik.ExprName]
 getEquals v e = v : eqNames
@@ -503,6 +524,17 @@ getEquals v e = v : eqNames
     go (SuSLik.And x y) = go x *> go y
     go (SuSLik.Equal (SuSLik.V x) (SuSLik.V y)) = equate x y
     go _ = pure ()
+
+-- -- Get the x's such that there's
+-- --      with {x} := f e ...
+-- --      in
+-- --      ...
+-- getAppResultVars :: PikaCore.Expr -> [PikaCore.ExprName]
+-- getAppResultVars = concatMap go . universe
+--   where
+--     go (WithIn (App {}) bnd) = undefined
+
+-- genTempLocs :: 
 
 splitAssertions :: Fresh m =>
   [SuSLik.Assertion] -> m ([HeapletS])

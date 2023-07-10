@@ -1,0 +1,22 @@
+predicate Sll(loc x)
+{
+| x == 0 => { emp }
+| not (x == 0) => { [x,2] **
+                    x :=> head2 **
+                    (x + 1) :=> nxt3 **
+                    Sll(nxt3) }
+}
+predicate reverse(int i1, loc x, loc x2)
+{
+| x == 0 => { [x2,2] ** x2 :-> i1 ** (x2 + 1) :-> 0 }
+| not (x == 0) => { [x,2] **
+                    x :-> a **
+                    (x + 1) :-> nxt23 **
+                    temploc ww6 **
+                    reverse(i1, nxt23, ww6) **
+                    func snoc(ww6, x, x2) }
+}
+void reverse(loc i1, loc x, loc x2)
+  {x :-> x0 ** Sll(x0) ** x2 :-> x3 ** i1 :-> i2}
+  {x :-> x0 ** reverse(i2, x0, x2) ** i1 :-> i2}
+{ ?? }

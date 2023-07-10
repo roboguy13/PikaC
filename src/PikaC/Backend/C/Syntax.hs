@@ -34,6 +34,7 @@ data CExpr
   | Not CExpr
   | Deref CLoc
   | AsInt CExpr
+  | If CExpr CExpr CExpr
   deriving (Show, Eq, Ord, Generic)
 
 data Command
@@ -189,6 +190,7 @@ instance Ppr CExpr where
   ppr (Not x) = text "!" <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
   ppr (Deref x) = text "*" <> ppr x
+  ppr (If c t f) = ppr c <+> text "?" <+> ppr t <+> text ":" <+> ppr f
 
 intCast :: Doc -> Doc
 intCast d = text "(long)" <> d
@@ -211,6 +213,7 @@ instance IsNested CExpr where
   isNested (Not {}) = True
   isNested (And {}) = True
   isNested (Deref {}) = False
+  isNested (If {}) = True
 
 whenTrue :: CExpr -> [Command] -> [Command]
 whenTrue (BoolLit True) cmds = cmds

@@ -70,6 +70,7 @@ exprToC (SuSLang.Lt x y) = C.Lt (exprToC x) (exprToC y)
 exprToC (SuSLang.Le x y) = C.Le (exprToC x) (exprToC y)
 exprToC (SuSLang.And x y) = C.And (exprToC x) (exprToC y)
 exprToC (SuSLang.LocVal loc) = C.LocValue (convertLoc loc)
+exprToC (SuSLang.If c t f) = C.If (exprToC c) (exprToC t) (exprToC f)
 
 convertLoc :: Loc SuSLang.Expr -> Loc CExpr
 convertLoc (x :+ i) = exprToC x :+ i

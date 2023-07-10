@@ -29,6 +29,7 @@ data Expr
   | Le Expr Expr
   | Not Expr
   | And Expr Expr
+  | If Expr Expr Expr
   deriving (Show, Generic)
 
 data Command

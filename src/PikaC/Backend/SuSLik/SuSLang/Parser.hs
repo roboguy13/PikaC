@@ -158,6 +158,11 @@ parseLoc = label "dereferenced location" $ lexeme $
 
 parseExpr :: Parser Expr
 parseExpr = label "expression" $ lexeme $
+  try parseIf <|>
+  try parseExprOp
+
+parseExprOp :: Parser Expr
+parseExprOp = label "expression" $ lexeme $
   makeExprParser
     parseExpr'
     [ [ binaryN "==" Equal
@@ -193,6 +198,15 @@ parseExpr' = label "expression" $ lexeme $
   try (keyword "false" $> BoolLit False) <|>
   try (keyword "true" $> BoolLit True) <|>
   try (V <$> parseExprName)
+
+parseIf :: Parser Expr
+parseIf = label "ternary operator" $ lexeme $ do
+  c <- parseExprOp
+  symbol "?"
+  t <- parseExprOp
+  symbol ":"
+  f <- parseExprOp
+  pure $ If c t f
 
 parseExprName :: Parser ExprName
 parseExprName = string2Name <$> parseName

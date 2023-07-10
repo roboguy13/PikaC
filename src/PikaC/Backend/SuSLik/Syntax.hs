@@ -94,6 +94,7 @@ data HeapletS
   | ApplyS String [Expr]
   | RecApply String [Expr]
   | BlockS (Name Expr) Int
+  | TempLoc (Name Expr)
   deriving (Show, Generic)
 
 newtype ExistVar = ExistVar { getExistVar :: ExprName }
@@ -199,6 +200,7 @@ instance Ppr HeapletS where
     text f <> text "(" <> hsep (punctuate (text ",") (map ppr args))  <> text ")"
   ppr (ApplyS f args) =
     text "func " <> text f <> text "(" <> hsep (punctuate (text ",") (map ppr args))  <> text ")"
+  ppr (TempLoc x) = text "temploc" <+> ppr x
 
 instance Ppr PredicateBranch where
   ppr branch =

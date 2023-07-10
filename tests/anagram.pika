@@ -1,5 +1,8 @@
 %generate equal
-%generate revcat
+%generate snoc
+%generate reverse1
+-- %generate reverse
+-- %generate revcat
 -- %generate reverse
 -- %generate isAnagram
 
@@ -19,21 +22,23 @@ equal (Cons a as) (Cons b bs) := (a == b) && (equal as bs);
 equal Nil (Cons b bs) := False;
 equal (Cons a as) Nil := False;
 
-revcat_ : (a :~ List) => a -> a -> a;
-revcat_ Nil Nil := Nil [Sll];
-revcat_ Nil (Cons h t) := Cons h t;
-revcat_ (Cons h t) Nil := revcat_ t (Cons h (Nil [Sll]) [Sll]);
-revcat_ (Cons h1 t1) (Cons h2 t2) := revcat_ t1 (Cons h1 (Cons h2 t2 [Sll]) [Sll]);
+snoc : Sll -> Int -> Sll;
+snoc Nil i := Cons i (Nil [Sll]) [Sll];
+snoc (Cons a as) i := Cons a (snoc as i) [Sll];
 
-revcat : Sll -> Sll -> Sll;
-revcat Nil Nil := Nil [Sll];
-revcat Nil (Cons h t) := Cons h t [Sll];
-revcat (Cons h t) Nil := revcat t (Cons h (Nil [Sll]) [Sll]);
-revcat (Cons h1 t1) (Cons h2 t2) := revcat t1 (Cons h1 (Cons h2 t2 [Sll]) [Sll]);
+-- revcat : Sll -> Sll -> Sll;
+-- revcat Nil Nil := Nil [Sll];
+-- revcat Nil (Cons h t) := Cons h t [Sll];
+-- revcat (Cons h t) Nil := revcat t (Cons h (Nil [Sll]) [Sll]);
+-- revcat (Cons h1 t1) (Cons h2 t2) := revcat t1 (Cons h1 (Cons h2 t2 [Sll]) [Sll]);
+
+reverse1 : Int -> Sll -> Sll;
+reverse1 i Nil := Cons i (Nil [Sll]) [Sll];
+reverse1 i (Cons a as) := snoc (reverse1 i as) a;
 
 reverse : Sll -> Sll;
 reverse Nil := Nil [Sll];
-reverse (Cons h t) := revcat (Cons h t [Sll]) (Nil [Sll]);
+reverse (Cons h t) := snoc (reverse t) h;
 
 isAnagram : Sll -> Bool;
 isAnagram Nil := True;
