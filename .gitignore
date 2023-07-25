@@ -9,6 +9,8 @@ PikaC.prof
 **/*~
 **/*.agdai
 
+temp/*
+
 **/*.gch
 
 **/a.out.dSYM
