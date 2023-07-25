@@ -1,5 +1,7 @@
 %generate sum
 %generate mapSum
+%generate append
+%generate summary
 
 Sll : layout[-x](List);
 Sll Nil := emp;
@@ -12,7 +14,7 @@ Sll (Cons head tail) :=
 ListOfListsLayout : layout[-x](ListOfLists);
 ListOfListsLayout LNil := emp;
 ListOfListsLayout (LCons h t) :=
-  exists +nxt, +z.
+  exists +z, +nxt. -- TODO: Fix the bug that causes the binding order to matter here
   x :-> z ** (x+1) :-> nxt **
   Sll h [z] **
   ListOfListsLayout t [nxt];
@@ -28,11 +30,36 @@ mapSum (LCons xs xss) :=
        (mapSum xss)
        [Sll];
 
+append : Sll -> Sll -> Sll;
+append Nil Nil := Nil [Sll];
+append Nil (Cons h t) := Cons h t [Sll];
+append (Cons h t) Nil := Cons h t [Sll];
+append (Cons h t) (Cons h2 t2) :=
+  Cons h (append t (Cons h2 t2 [Sll])) [Sll];
+
+
+summary : ListOfListsLayout -> Sll;
+summary LNil := Nil [Sll];
+summary (LCons a as) :=
+  append
+    (mapSum (LCons a as [ListOfListsLayout]))
+    (mapSum (LCons a as [ListOfListsLayout]));
+
 %test "sum_1" Int:
   sum (Cons 1 (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
 
 %test "mapSum_1" Sll:
   mapSum
+    (LCons 
+      (Cons 1 (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) [Sll])
+      (LCons
+        (Cons 10 (Cons 20 (Nil [Sll]) [Sll]) [Sll])
+        (LNil [ListOfListsLayout])
+        [ListOfListsLayout])
+      [ListOfListsLayout]);
+
+%test "summary1" Sll:
+  summary
     (LCons 
       (Cons 1 (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) [Sll])
       (LCons
