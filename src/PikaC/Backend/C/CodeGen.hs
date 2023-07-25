@@ -361,6 +361,11 @@ convertBaseInto outVar (PikaCore.Le x y) = convertBaseBin outVar C.Le x y
 convertBaseInto outVar (PikaCore.Not x) = do
   (name, cmds) <- convertBaseIntoFresh x
   pure $ cmds ++ [assignValue outVar (C.Not (C.V name))]
+convertBaseInto outVar (PikaCore.WithIn (PikaCore.SslAssertion (B _ [])) bnd) = do
+    (vs, body) <- unbind bnd
+    let [v] = vs
+    rest <- convertBaseInto outVar body
+    pure $ C.Decl (convertName (modedNameName v)) : rest
 convertBaseInto _ e = error $ "convertBaseInto: " ++ ppr' e
 -- convertBaseInto outVar e = 
 --   pure [assignValue outVar (convertBase e)]

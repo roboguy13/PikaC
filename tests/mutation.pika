@@ -1,0 +1,43 @@
+%generate sum
+%generate mapSum
+
+Sll : layout[-x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  exists +nxt.
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+ListOfListsLayout : layout[-x](ListOfLists);
+ListOfListsLayout LNil := emp;
+ListOfListsLayout (LCons h t) :=
+  exists +nxt, +z.
+  x :-> z ** (x+1) :-> nxt **
+  Sll h [z] **
+  ListOfListsLayout t [nxt];
+
+sum : Sll -> Int;
+sum Nil := 0;
+sum (Cons head tail) := head + (sum tail);
+
+mapSum : ListOfListsLayout -> Sll;
+mapSum LNil := Nil [Sll];
+mapSum (LCons xs xss) :=
+  Cons (sum xs)
+       (mapSum xss)
+       [Sll];
+
+%test "sum_1" Int:
+  sum (Cons 1 (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
+
+%test "mapSum_1" Sll:
+  mapSum
+    (LCons 
+      (Cons 1 (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) [Sll])
+      (LCons
+        (Cons 10 (Cons 20 (Nil [Sll]) [Sll]) [Sll])
+        (LNil [ListOfListsLayout])
+        [ListOfListsLayout])
+      [ListOfListsLayout]);
+

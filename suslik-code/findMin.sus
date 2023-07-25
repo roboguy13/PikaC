@@ -1,0 +1,38 @@
+predicate Sll(loc x1)
+{
+| x1 == 0 => { emp }
+| not (x1 == 0) => { [x1,2] **
+                     x1 :-> h3 **
+                     (x1 + 1) :-> nxt4 **
+                     Sll(nxt4) }
+}
+predicate HeapLayout(loc x1)
+{
+| x1 == 0 => { emp }
+| not (x1 == 0) => { [x1,2] **
+                     x1 :-> a3 **
+                     (x1 + 1) :-> nxt4 **
+                     ForestLayout(nxt4) }
+}
+predicate ForestLayout(loc x1)
+{
+| x1 == 0 => { emp }
+| not (x1 == 0) => { [x1,2] **
+                     x1 :-> p5 **
+                     (x1 + 1) :-> nxt4 **
+                     HeapLayout(p5) **
+                     ForestLayout(nxt4) }
+}
+predicate findMin(loc x, loc i1)
+{
+| x == 0 => { i1 == 0 ; emp }
+| not (x == 0) => { i1 == a ; [x,2] **
+                              ForestLayout(nxt15) **
+                              x :-> a **
+                              (x + 1) :-> nxt15 }
+}
+void findMin(loc x, loc i1)
+  {[x, 2] ** x :-> a ** (x+1) :-> nxt ** HeapLayout(nxt) ** i1 :-> i2}
+  {[x, 2] ** x :-> a ** (x+1) :-> nxt ** HeapLayout(nxt) ** i1 :-> a}
+  // {findMin(x, i3) ** i1 :-> i3}
+{ ?? }

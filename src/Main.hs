@@ -81,6 +81,7 @@ data Options =
     , _optRunPikaTests :: Bool
     , _optCompCert :: Bool
     , _optRunSuSLangTests :: Bool
+    , _optDebugSuSLangTests :: Bool
     }
   deriving (Show)
 
@@ -88,7 +89,7 @@ makeLenses ''Options
 
 defaultOpts :: Options
 defaultOpts =
-  Options False False False False Unlimited False False False False False False False
+  Options False False False False Unlimited False False False False False False False False
 
 type OptionUpdate = ([String], Options) -> ([String], Options)
 
@@ -152,6 +153,9 @@ optHandlers =
 
   ,option "--run-pika-tests" Nothing "Run .pika tests from the test directory by generatingg C code and running it" $ nullaryOpt $
       optRunPikaTests .~ True
+
+  ,option "--debug-suslang-tests" Nothing "Compile based on SuSLik synthesis and run a debugger on the result (uses lldb)" $ nullaryOpt $
+      ((optRunTests .~ True) . (optRunSuSLangTests .~ True) . (optDebugSuSLangTests .~ True))
 
   ,option "--simplifier-fuel" (Just "<n>") "Run <n> simplifier steps" $ withOptParameter $ \n ->
       optSimplifierFuel .~ Fuel (read n)
@@ -241,7 +245,7 @@ genAndRunTests opts pikaModule = do
                  then "ccomp"
                  else "gcc"
   let which = if _optRunSuSLangTests opts then SuSLang else C
-  putStrLn =<< genAndRun which (_optSimplifierFuel opts) compiler pikaModule
+  putStrLn =<< genAndRun which (_optSimplifierFuel opts) (_optDebugSuSLangTests opts) compiler pikaModule
 
 withModule :: Options -> PikaModuleElaborated -> IO ()
 withModule opts pikaModule = do
@@ -303,7 +307,7 @@ withModule opts pikaModule = do
                 Left err -> error $ "SuSLik error: " ++ err
                 Right susLangFn -> do
                   -- putStrLn susLang
-                  putStrLn $ render $ pprFns $ map functionToC susLangFn
+                  putStrLn $ render $ pprFns $ concatMap functionToC susLangFn
 
     fuel = _optSimplifierFuel opts
 

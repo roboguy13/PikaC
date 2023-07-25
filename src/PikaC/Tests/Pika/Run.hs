@@ -54,8 +54,8 @@ pprFns fns =
 data WhichLang = C | SuSLang
   deriving (Show)
 
-genAndRun :: WhichLang -> SimplifyFuel -> String -> PikaModule' Typed -> IO String
-genAndRun which fuel compiler pikaModule = do
+genAndRun :: WhichLang -> SimplifyFuel -> Bool -> String -> PikaModule' Typed -> IO String
+genAndRun which fuel debug compiler pikaModule = do
       -- Generate C file
   bracket (openTempFile "temp" "tests.c")
       (\(fileName, handle) -> do
@@ -95,10 +95,14 @@ genAndRun which fuel compiler pikaModule = do
         $ \(execFile, execHandle) -> do 
         hClose execHandle
 
-        system $ compiler ++ " -w " ++ fileName ++ " -o " ++ execFile
+        let debugOption = if debug then " -g " else ""
+
+        system $ compiler ++ debugOption ++ " -w " ++ fileName ++ " -o " ++ execFile
 
         -- callProcess execFile []
-        readProcess execFile [] ""
+        if debug
+          then spawnProcess "lldb" [execFile] >>= waitForProcess >>= (pure . show)
+          else readProcess execFile [] ""
   where
     fnDefs = moduleFnDefs pikaModule
     layouts = moduleLayouts pikaModule
@@ -121,7 +125,7 @@ genAndRun which fuel compiler pikaModule = do
       invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
         Left err -> error $ "SuSLik error: " ++ err
         Right susLang ->
-          pure $ map functionToC susLang
+          pure $ concatMap functionToC susLang
 
     getPikaCore :: [(String, Type)] -> FnDef -> IO PikaCore.FnDef
     getPikaCore fnSigs fnDef
@@ -150,6 +154,6 @@ genAndRun which fuel compiler pikaModule = do
               ,"Got the error: " ++ err
               ]
         Right susLang ->
-          pure $ map functionToC susLang
+          pure $ concatMap functionToC susLang
 
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module PikaC.Backend.SuSLik.SuSLang.ToC
   where
 
@@ -11,15 +13,55 @@ import PikaC.Syntax.Heaplet
 
 import Unbound.Generics.LocallyNameless
 
-functionToC :: Function -> CFunction
+import Control.Lens
+
+functionToC :: Function -> [CFunction]
 functionToC fn = runFreshM $ do
   (params, body) <- unbind $ functionBody fn
   body' <- traverse commandToC body
-  pure $ CFunction
-    { cfunctionName = functionName fn
-    , cfunctionBody = body'
-    , cfunctionParams = map convertName params
-    }
+  pure 
+    [CFunction
+          { cfunctionName = functionName fn
+          , cfunctionBody = body' -- map replaceCalls body'
+          , cfunctionParams = map convertName params
+          }
+       -- ,wrapperFn fn
+       ]
+
+replaceCalls :: C.Command -> C.Command
+replaceCalls = rewrite $ \case
+  e@(C.Call ('_':_) _ _) -> Nothing
+  C.Call f args1 args2 -> Just $ C.Call ('_' : f) args1 args2
+  _ -> Nothing
+
+-- TODO: Handle multiple result parameters
+wrapperFn :: Function -> CFunction
+wrapperFn fn = runFreshM $ do
+  (params, body) <- unbind $ functionBody fn
+  body' <- traverse commandToC body
+
+  outParam <- convertName <$> fresh (last params)
+  wrappedOut <- convertName <$> fresh (string2Name ("_" <> name2String outParam))
+  wrappedInParams <- map convertName <$> mapM (fresh . string2Name . ("_" <>) . name2String) (init params)
+  inParams <- map convertName <$> mapM fresh (init params)
+
+  pure $
+    CFunction
+      { cfunctionName = functionName fn
+      , cfunctionParams = inParams ++ [outParam]
+      , cfunctionBody =
+          [IntoMalloc 1 wrappedOut
+            $ map Decl wrappedInParams
+            ++ zipWith (\x y -> C.Assign (C.V x :+ 0) (C.V y)) wrappedInParams inParams
+            ++
+            [C.Call ("_" <> functionName fn)
+              (map C.V wrappedInParams ++ [C.V wrappedOut])
+              []
+            -- ,C.SimpleAssign (C.V wrappedOut) (C.V wrappedOut)
+            ,C.Assign (C.V outParam :+ 0) (C.V wrappedOut)
+            ]
+          ]
+      }
 
 commandToC :: Fresh m => SuSLang.Command -> m C.Command
 commandToC (LetMalloc sz bnd) = do

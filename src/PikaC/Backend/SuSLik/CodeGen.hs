@@ -32,6 +32,7 @@ import Unbound.Generics.LocallyNameless
 
 import Control.Lens
 import Control.Monad
+import Control.Applicative
 
 import Data.Equivalence.Monad
 

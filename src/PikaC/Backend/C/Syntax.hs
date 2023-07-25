@@ -14,6 +14,8 @@ import GHC.Generics
 
 import Data.Validity
 
+import Control.Lens.Plated
+
 type CName = Name CExpr
 type CLoc = Loc CExpr
 
@@ -33,6 +35,7 @@ data CExpr
   | Div CExpr CExpr
   | Not CExpr
   | Deref CLoc
+  | DerefLocType CLoc
   | AsInt CExpr
   | If CExpr CExpr CExpr
   deriving (Show, Eq, Ord, Generic)
@@ -57,6 +60,21 @@ data Command
   | ToInt CName
   | Nop
   deriving (Show, Generic)
+
+instance Plated Command where
+  plate _ cmd@(Assign {}) = pure cmd
+  plate _ cmd@(SimpleAssign {}) = pure cmd
+  plate _ cmd@(SetToNull {}) = pure cmd
+  plate f (IfThenElse c x y) = IfThenElse c <$> traverse f x <*> traverse f y
+  plate f (Assert e cmds) = Assert e <$> traverse f cmds
+  plate f cmd@(Call {}) = pure cmd
+  plate f (IntoMalloc sz v cmds) = IntoMalloc sz v <$> traverse f cmds
+  plate f (Let loc v cmds) = Let loc v <$> traverse f cmds
+  plate f cmd@(Free {}) = pure cmd
+  plate f cmd@(Decl {}) = pure cmd
+  plate f cmd@(Printf {}) = pure cmd
+  plate f cmd@(ToInt {}) = pure cmd
+  plate f Nop = pure Nop
 
 data CFunction =
   CFunction
@@ -190,6 +208,7 @@ instance Ppr CExpr where
   ppr (Not x) = text "!" <> pprP x
   ppr (And x y) = sep [pprP x, text "&&", pprP y]
   ppr (Deref x) = text "*" <> ppr x
+  ppr (DerefLocType x) = text "*(loc*)" <> ppr x
   ppr (If c t f) = ppr c <+> text "?" <+> ppr t <+> text ":" <+> ppr f
 
 intCast :: Doc -> Doc
@@ -213,6 +232,7 @@ instance IsNested CExpr where
   isNested (Not {}) = True
   isNested (And {}) = True
   isNested (Deref {}) = False
+  isNested (DerefLocType {}) = False
   isNested (If {}) = True
 
 whenTrue :: CExpr -> [Command] -> [Command]

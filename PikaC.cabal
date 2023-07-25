@@ -76,6 +76,7 @@ executable PikaC
       PikaC.Stage.ToPikaCore.FloatWith
       PikaC.Stage.ToPikaCore.Monad
       PikaC.Stage.ToPikaCore.Utils
+      PikaC.Stage.ToPikaCore.LayoutVOne
       PikaC.Stage.ToPikaCore.SimplifyM
       PikaC.Stage
       PikaC.Tests.Module
@@ -183,7 +184,7 @@ test-suite PikaC-golden-tests
      PikaC.Utils
      PikaC.Subst
      PikaC.FreshGen
-
+     PikaC.Stage.ToPikaCore.LayoutVOne
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
