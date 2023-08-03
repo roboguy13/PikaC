@@ -1,0 +1,69 @@
+\documentclass[runningheads]{llncs}
+
+\usepackage{graphicx}
+\usepackage{proof}
+\usepackage{stmaryrd}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{syntax}
+\usepackage{listings}
+
+\lstset{basicstyle=\ttfamily, mathescape=true, literate={~} {$\sim$}{1}}
+
+\input{defs.tex}
+
+\begin{document}
+
+\title{Reflections on Pika}
+\maketitle
+
+\section{Introduction}
+
+There is a tool called \SuSLik{} that will take separation logic specification and generate
+a program in a C-like language. While working with this tool, it became clear that there is a strong
+connection between the form of separation logic used by \SuSLik{} and functional programming languages such as Haskell and Standard ML.
+
+In particular, we made the following observation. The SuSLik specification language has \textit{inductive predicates}. These are
+allow the programmer to define the heap layout of various inductively defined data structures, such as singly-linked lists and binary trees.
+However, we noticed that inductive predicates could also encode function definitions!
+
+Using this fact, functions written in a functional programming language can be translated into inductive predicates. The translation
+of a function definition into an inductive predicate is very similar to translation into ANF. However, this also gives us easy
+interoperability with the rest of the SuSLik specification language. For example, not only can we define data structures as inductive
+predicates, we can also dictate the heap layout of our data structures.
+
+Finally, this enables us to implement a program synthesis feature at the level of the functional programming language.
+
+\section{Examples}
+
+
+
+\section{Type System}
+
+\section{Intermediate Representation}
+
+\section{Translation to SSL}
+
+\section{Translation to C}
+
+\section{\texttt{synth} keyword}
+
+\section{Formal Semantics}
+
+% \input{introduction.tex}
+% \input{language.tex}
+% \input{types.tex}
+% \input{elaboration.tex}
+% \input{semantics.tex}
+% \input{codegen.tex}
+% \input{related-work.tex}
+
+\bibliographystyle{splncs04}
+\bibliography{outline}
+
+\end{document}
+
