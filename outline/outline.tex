@@ -22,6 +22,7 @@
 \maketitle
 
 \section{Introduction}
+\label{sec:introduction}
 
 There is a tool called \SuSLik{} that will take separation logic specification and generate
 a program in a C-like language. While working with this tool, it became clear that there is a strong
@@ -34,25 +35,40 @@ However, we noticed that inductive predicates could also encode function definit
 Using this fact, functions written in a functional programming language can be translated into inductive predicates. The translation
 of a function definition into an inductive predicate is very similar to translation into ANF. However, this also gives us easy
 interoperability with the rest of the SuSLik specification language. For example, not only can we define data structures as inductive
-predicates, we can also dictate the heap layout of our data structures.
+predicates, we can also dictate the heap layout of our data structures (similar to \Dargent\cite{Dargent}). These ideas are explored
+with examples in Section~\ref{sec:examples}. The representation of data types as inductive predicates are explored in more formal detail
+in Section~\ref{sec:types}.
 
-Finally, this enables us to implement a program synthesis feature at the level of the functional programming language.
+We develop an ANF-like intermediate language. This also enables a straightforward translation into C (Section~\ref{sec:IR}).
+In Section~\ref{sec:to-ssl} and Section~\ref{sec:to-c} we describe the two translations from this intermediate representation.
+
+Finally, this enables us to implement a program synthesis feature at the level of the functional programming language (Section~\ref{sec:synth}).
+The form this takes is similar to synthesis tools based on refinement types (such as \Synquid), but based on separation logic.
 
 \section{Examples}
-
+\label{sec:examples}
 
 
 \section{Type System}
+\label{sec:types}
 
 \section{Intermediate Representation}
+\label{sec:IR}
 
 \section{Translation to SSL}
+\label{sec:to-ssl}
 
 \section{Translation to C}
+\label{sec:to-c}
 
 \section{\texttt{synth} keyword}
+\label{sec:synth}
 
 \section{Formal Semantics}
+\label{sec:semantics}
+
+\section{Conclusion}
+\label{sec:conclusion}
 
 % \input{introduction.tex}
 % \input{language.tex}
@@ -63,7 +79,7 @@ Finally, this enables us to implement a program synthesis feature at the level o
 % \input{related-work.tex}
 
 \bibliographystyle{splncs04}
-\bibliography{outline}
+\bibliography{refs}
 
 \end{document}
 
