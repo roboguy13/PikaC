@@ -18,7 +18,7 @@
 
 \begin{document}
 
-\title{Reflections On Synthesis With Separation Logic}
+\title{Reflections On Compilation With Separation Logic-Based Synthesis}
 \maketitle
 
 \section{Introduction}
@@ -44,6 +44,12 @@ In Section~\ref{sec:to-ssl} and Section~\ref{sec:to-c} we describe the two trans
 
 Finally, this enables us to implement a program synthesis feature at the level of the functional programming language (Section~\ref{sec:synth}).
 The form this takes is similar to synthesis tools based on refinement types (such as \Synquid), but based on separation logic.
+
+\begin{figure}
+  \input{pipeline.tex}
+  \caption{Translation pipeline}
+  \label{fig:pipeline}
+\end{figure}
 
 \section{Examples}
 \label{sec:examples}
