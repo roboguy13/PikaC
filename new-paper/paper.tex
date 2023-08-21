@@ -358,7 +358,8 @@ This extension to layouts is best explain by way of example. First, consider the
 Sll : layout(List)
 Sll Nil := emp;
 Sll (Cons head tail) :=
-  x :-> head ** (x+1) :-> nxt ** Sll tail [nxt];
+  x :-> head ** (x+1) :-> nxt
+    ** Sll tail [nxt];
 \end{lstlisting}
 
 \noindent
@@ -370,7 +371,8 @@ Sll Nil := s == {} ;; emp;
 Sll (Cons head tail) :=
   s == {head} ++ s1
     ;;
-  x :-> head ** (x+1) :-> nxt ** Sll tail @s1 [nxt];
+  x :-> head ** (x+1) :-> nxt
+    ** Sll tail @s1 [nxt];
 \end{lstlisting}
 
 \noindent
