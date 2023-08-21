@@ -1,0 +1,155 @@
+% From https://tex.stackexchange.com/questions/235118/making-a-thicker-cdot-for-dot-product-that-is-thinner-than-bullet
+\makeatletter
+\newcommand*\bigcdot{\mathpalette\bigcdot@{.5}}
+\newcommand*\bigcdot@[2]{\mathbin{\vcenter{\hbox{\scalebox{#2}{$\m@th#1\bullet$}}}}}
+\makeatother
+
+\newcommand {\Pika} {\textsf{Pika}}
+\newcommand {\PikaCore} {\textsf{PikaCore}}
+
+\newcommand {\instExpr} {\keyword{inst}}
+
+\newcommand {\labinfer} [3] [] {\infer[{\textsc{#1}}]{#2}{#3}}
+
+% \newcommand {\keyword} [1] {\textsf{#1}}
+\newcommand {\keyword} [1] {\textbf{#1}}
+
+\newcommand {\Int} {\keyword{Int}}
+\newcommand {\Bool} {\keyword{Bool}}
+\newcommand {\Type} {\keyword{Type}}
+\newcommand {\layout} [1] {\keyword{layout}(#1)}
+
+\newcommand {\data} {\keyword{data}}
+
+\newcommand {\inL} {\keyword{inL}}
+\newcommand {\inR} {\keyword{inR}}
+\newcommand {\fold} {\keyword{fold}}
+\newcommand {\unfold} {\keyword{unfold}}
+\newcommand {\fst} {\keyword{fst}}
+\newcommand {\snd} {\keyword{snd}}
+\newcommand {\either} {\keyword{either}}
+
+\newcommand {\outs} {\longrightarrow}
+
+\newcommand {\Pair} {\otimes}
+\newcommand {\Either} {\oplus}
+\newcommand {\RecTy} {\mu}
+
+\newcommand {\monic} {\rightarrowtail}
+
+\newcommand {\type} {\textsf{type}}
+\newcommand {\ctype} {\textsf{ctype}}
+\newcommand {\adt} {\textsf{adt}}
+
+\newcommand {\LayoutDefs} {\mathcal{L}}
+
+\newcommand {\matchWith} [1] {\keyword{case}\,#1\,\keyword{of}\,}
+\newcommand {\layoutmatch} [1] {\keyword{layoutcase}\,#1\,\keyword{of}\,}
+
+\newcommand {\withIn} [1] {\keyword{with}\,#1\,\keyword{in}\,}
+\newcommand {\letPure} [1] {\keyword{letpure}\,#1\,\keyword{in}\,}
+
+% Based on https://tex.stackexchange.com/questions/451786/how-do-i-put-a-circle-around-a-symbol
+\makeatletter
+\newcommand {\osep}{\mathbin{\mathpalette\make@circled\ast}}
+\newcommand{\make@circled}[2]{%
+  \ooalign{$\m@th#1\smallbigcirc{#1}$\cr\hidewidth$\m@th#1#2$\hidewidth\cr}%
+}
+\newcommand{\smallbigcirc}[1]{%
+  \vcenter{\hbox{\scalebox{0.77778}{$\m@th#1\bigcirc$}}}%
+}
+\makeatother
+
+% \newcommand {\lowerExpr} {\keyword{lower}}
+% \newcommand {\liftExpr} {\keyword{lift}}
+\newcommand {\instantiate} {\keyword{instantiate}}
+\newcommand {\apply} {\keyword{apply}}
+
+\newcommand {\liftExpr} {\keyword{lift}}
+
+\newcommand {\tyApply} {\mathbin{@}}
+
+\newcommand {\isA} {\sim}
+
+\newcommand {\ra} {\rightarrow}
+\newcommand {\Ra} {\Rightarrow}
+
+\newcommand {\Dargent} {{\sc Dargent}}
+
+\newcommand {\highlight} [1] {\begin{tcolorbox}[hbox] #1 \end{tcolorbox}}
+
+\newcommand {\tyLambda} {\mathrm{\Lambda}}
+
+\newcommand {\sem} [1] {\llbracket #1 \rrbracket}
+
+\newcommand {\argCount} [1] {N\sem{#1}}
+\newcommand {\namesem} [1] {\Var^{\argCount{#1}}}
+
+\newcommand {\pcsubscript} {\textsf{PC}}
+\newcommand {\step} {\longrightarrow}
+\newcommand {\steps} {\longrightarrow^{*}}
+\newcommand {\pcstep} {\step_{\pcsubscript}}
+\newcommand {\pcsteps} {\steps_{\pcsubscript}}
+\newcommand {\pcNotionStep} {\rightsquigarrow_{\pcsubscript}}
+
+\newcommand {\FV} {\textsf{FV}}
+
+\newcommand {\bigstep} {\Downarrow}
+\newcommand {\pcStep} {\bigstep_{\pcsubscript}}
+
+\newcommand {\defStep} {\bigstep_{\pcsubscript}}
+
+\newcommand {\val} {\textsf{value}}
+
+\newcommand {\fresh} [1] {#1 \textrm{ fresh}}
+
+\newcommand {\recspec} [1] {\langle #1 \rangle}
+
+\newcommand {\Layout} [1] {\keyword{Layout}(#1)}
+
+\newcommand {\todo} [1] {\text{{\color{red}TODO}: #1}}
+
+\newcommand {\dom} {\textsf{dom}}
+\newcommand {\range} {\textsf{range}}
+
+% \newcommand {\ssl} [2] {\keyword{ssl}(#1) \{ #2 \}}
+% \newcommand {\ssl} [1] {\keyword{ssl} \{ #1 \}}
+\newcommand {\sslmath} [3] {\ssl\{ #1 \}\{ #2 \}\{ #3 \}}
+\newcommand {\ssl} {\keyword{layout}}
+\newcommand {\SSL} {\keyword{SSL}}
+
+\newcommand {\SuSLik} {SuSLik}
+\newcommand {\SuSLang} {SuSLang}
+
+\newcommand {\Var} {\textsf{Var}}
+
+\newcommand {\Heap} {\textsf{Heap}}
+
+\newcommand {\lifted} [1] {#1_{\bot}}
+
+\newcommand {\eq} {\stackrel{\bigcdot}{=}}
+\newcommand {\defeq} {:=}
+\newcommand {\ok} [1] {\;\textsf{ok}_{#1}}
+
+\newcommand {\typesem} [1] {\mathcal{A}_{#1}}
+
+\newcommand {\True} {\keyword{True}}
+\newcommand {\False} {\keyword{False}}
+
+\newcommand {\generate} {\keyword{generate}}
+
+\newcommand {\vdashpc} {\vdash_{\textsf{PC}}}
+
+\newcommand {\fboxNewlines} {\\\\\\}
+
+\newcommand {\layoutParams} {\textsf{params}}
+
+% From https://tex.stackexchange.com/questions/502652/define-tcolorbox-in-math-mode
+\newtcbox{\boxtext}{on line,colback=white,colframe=black,size=fbox,arc=3pt,boxrule=0.8pt}
+\newcommand{\boxmath}[1]{\boxtext{$#1$}}
+
+% https://tex.stackexchange.com/questions/24132/overline-outside-of-math-mode
+\makeatletter
+\newcommand*{\textoverline}[1]{$\overline{\hbox{#1}}\m@th$}
+\makeatother
+
