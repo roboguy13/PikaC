@@ -1,0 +1,5 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have seen a technique for generating an SSL specification from a functional program, such that this translation is sound with respect to the standard semantics. In order to do this, we built the notion of a \textit{layout} of an algebraic datatype on top of separation logic. Then we observed that \SuSLik, the tool we use to synthesize programs from SSL, has notable limitations in its ability to synthesize the SSL specifications we generate. This motivated the creation of the \synth{} keyword. This new keyword allows us to have direct access to the synthesis features of \SuSLik{} from inside the \Pika{} programming language.
+

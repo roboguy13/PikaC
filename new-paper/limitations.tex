@@ -1,0 +1,9 @@
+\section{Synthesis Limitations And Solutions}
+\label{sec:limitations}
+
+There is a significant limitation to our approach so far: \SuSLik will often fail to synthesize code from valid specifications. One instance of this problem is the following: In a certain class of functions, \SuSLik{} requires a different number of pointer indirections than it will with other functions. We have not found a way to perfectly characterize such functions and, since this will change the way the functions will need to be called, this represents a major impediment to our approach. It is worth noting that this is also not the \textit{only} situation in which \SuSLik{} fails to synthesize a program.
+
+From this, we draw the conclusion that \SuSLik{} is not well-suited to this task. In fact, this task is very different from the original goals of \SuSLik, which could be stated: \textit{Given a potentially ambiguous specification, generate any program that satisfies this specification.} However, in our case, we already know which specific program we want to generate. This is fully specified by the abstract machine semantics for \Pika.
+
+With this in mind, we take a new approach. What if we compile \Pika{} directly to C, but we add a \textit{new} feature that allows us to express synthesis problems at the level of \Pika{} code? This takes the form of the \verb|synth| keyword, which we explain in detail in Section~\ref{sec:synth}. In this case, we can get the advantages of a traditional compiler while also exploiting the synthesis capabilities of \SuSLik. Furthermore, due to \Pika's design, we already have easy interoperability with \SuSLik. Also, recall that \SuSLik's target language, \SuSLang, can be straightforwardly translated directly to C. This allows us to easily bring all of these things together in our new implementation with the new \Pika{} synthesis feature.
+

@@ -1,0 +1,21 @@
+\section{Future Work}
+\label{sec:future-work}
+
+One direction for future work is the extension of \Pika{} 2 to include support for higher-order functions and finishing the implementation of layout polymorphic type checking.
+
+The reverse transformation deserves further investigation: if we go from
+an SSL specification to \Pika{} program and then compile to, \eg, C, can
+we synthesise additional programs that a traditional SSL synthesisers
+would struggle with? What are the limitations of this approach?
+
+Finally, is it possible to derive translations for languages such as \Pika{}
+from abstract machine semantics? In this paper, we have given a
+language with abstract machine semantics. We then give a translation
+of that language into SSL. We then show that the final states given by
+the abstract machine semantics are models for the SSL propositions
+produced by our translation. But is it possible to begin by specifying the
+abstract machine semantics and then mathematically (or automatically)
+\textit{derive} an appropriate translation into SSL, with the
+requirement that the translation satisfies the soundness theorem?
+
+

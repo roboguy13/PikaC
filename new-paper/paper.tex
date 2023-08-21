@@ -1,50 +1,3 @@
-%%
-%% This is file `sample-acmsmall.tex',
-%% generated with the docstrip utility.
-%%
-%% The original source files were:
-%%
-%% samples.dtx  (with options: `acmsmall')
-%% 
-%% IMPORTANT NOTICE:
-%% 
-%% For the copyright see the source file.
-%% 
-%% Any modified versions of this file must be renamed
-%% with new filenames distinct from sample-acmsmall.tex.
-%% 
-%% For distribution of the original source see the terms
-%% for copying and modification in the file samples.dtx.
-%% 
-%% This generated file may be distributed as long as the
-%% original source files, as listed above, are part of the
-%% same distribution. (The sources need not necessarily be
-%% in the same archive or directory.)
-%%
-%%
-%% Commands for TeXCount
-%TC:macro \cite [option:text,text]
-%TC:macro \citep [option:text,text]
-%TC:macro \citet [option:text,text]
-%TC:envir table 0 1
-%TC:envir table* 0 1
-%TC:envir tabular [ignore] word
-%TC:envir displaymath 0 word
-%TC:envir math 0 word
-%TC:envir comment 0 0
-%%
-%%
-%% The first command in your LaTeX source must be the \documentclass
-%% command.
-%%
-%% For submission and review of your manuscript please change the
-%% command to \documentclass[manuscript, screen, review]{acmart}.
-%%
-%% When submitting camera ready or to TAPS, please change the command
-%% to \documentclass[sigconf]{acmart} or whichever template is required
-%% for your publication.
-%%
-%%
 \documentclass[acmsmall]{acmart}
 \usepackage{graphicx}
 \usepackage{proof}
@@ -284,124 +237,17 @@
 %% information and builds the first part of the formatted document.
 \maketitle
 
-\section{Introduction}
-
-Synthetic separation logic (SSL) is the specification language for the \SuSLik{} program synthesizer. \SuSLik{} will take a precondition and postcondition pair together
-with a function prototype and use these to synthesize a function that satisfies that specification in a C-like language called \SuSLang.
-
-We have developed a first-order functional programming language, \Pika, which will compile to SSL specifications. \SuSLik{} can then take these SSL specifications and generate \SuSLang. Finally, the resulting \SuSLang{} code can be converted to C and then run. In addition to this translational semantics, we also provide a standard abstract machine semantics for \Pika{} and use this to show correctness of the translation into SSL.
-
-\paragraph{Contributions} In this paper, we make the following contributions:
-\begin{itemize}
-  \item We explore the connection between SSL and functional programming using a pair of formal semantics for \Pika: A standard abstract machine semantics and a
-    semantics that translates \Pika{} into SSL specifications. The second semantics is shown to be sound relative to the first semantics. (Section~\ref{sec:semantics})
-
-  \item In order to provide seamless interoperability between SSL and \Pika, we provide a separation between algebraic datatypes and their representation in memory.
-    At a type-level, we track this representation in memory. Furthermore, we describe a kind of polymorphism over memory layouts of an algebraic datatype. (Section~\ref{sec:layouts})
-
-  \item We address the limitations of this approach. In particular, we develop an extension of \Pika{} that allows \SuSLik's synthesis capabilities to be exposed more naturally inside the \Pika{} language. (Section~\ref{sec:synth})
-
-  \item A comparison of examples that work on the first version of \Pika{} is compared with examples that are enabled by the new feature in the second version of \Pika. This new version of \Pika{} is not backwards compatible with the first version, so we also examine which examples in the old version no longer work in the new version. (Section~\ref{sec:examples})
-\end{itemize}
-
-\section{Overview}
-\label{sec:overview}
-
-\subsection{Syntax}
-\label{sec:syntax}
-
-\subsection{Layouts}
-\label{sec:layouts}
-
-\section{Formal Semantics}
-\label{sec:semantics}
-
-\section{Synthesis Limitations And Solutions}
-\label{sec:limitations}
-
-There is a significant limitation to our approach so far: \SuSLik will often fail to synthesize code from valid specifications. One instance of this problem is the following: In a certain class of functions, \SuSLik{} requires a different number of pointer indirections than it will with other functions. We have not found a way to perfectly characterize such functions and, since this will change the way the functions will need to be called, this represents a major impediment to our approach. It is worth noting that this is also not the \textit{only} situation in which \SuSLik{} fails to synthesize a program.
-
-From this, we draw the conclusion that \SuSLik{} is not well-suited to this task. In fact, this task is very different from the original goals of \SuSLik, which could be stated: \textit{Given a potentially ambiguous specification, generate any program that satisfies this specification.} However, in our case, we already know which specific program we want to generate. This is fully specified by the abstract machine semantics for \Pika.
-
-With this in mind, we take a new approach. What if we compile \Pika{} directly to C, but we add a \textit{new} feature that allows us to express synthesis problems at the level of \Pika{} code? This takes the form of the \verb|synth| keyword, which we explain in detail in Section~\ref{sec:synth}. In this case, we can get the advantages of a traditional compiler while also exploiting the synthesis capabilities of \SuSLik. Furthermore, due to \Pika's design, we already have easy interoperability with \SuSLik. Also, recall that \SuSLik's target language, \SuSLang, can be straightforwardly translated directly to C. This allows us to easily bring all of these things together in our new implementation with the new \Pika{} synthesis feature.
-
-\section{\synth{} Keyword: Synthesis Inside \Pika}
-\label{sec:synth}
-
-Next, we introduce a feature that allows us to synthesize a program from a special kind of \Pika{} type signature. This special kind of type signature allows us to directly access \SuSLik's pure propositions. These type signatures are called \synth-signatures and the syntax for invoking the \Pika{} synthesis on a \synth-signature is:
-\[
-  \synth\; f : \sigma
-\]
-\noindent
-where $\sigma$ is a \synth-signature. The syntax of a \synth-signature is given in Figure~\ref{fig:synth-sig-syntax}.
-
-\begin{figure}
-\[
-\begin{aligned}
-  \textit{\synth-signatures}\;\; \sigma &::= p \synthsep \tau'\\
-  \textit{Pure propositions}\;\; p &::= x \mid i \mid b \mid p \mathbin{\&\&} p \mid p \mathbin{||} p
-    \mid \Not(p) \mid p == p \mid \{\} \mid \{p\} \mid p \app p \mid p + p \mid p - p\\
-  \textit{Extended types}\;\; \tau' &::= ... \mid A\; \overline{G}\\
-  \textit{Ghost variables}\;\; G &::= @x
-\end{aligned}
-\]
-  \caption{\synth-signature syntax}
-  \label{fig:synth-sig-syntax}
-\end{figure}
-
-\noindent
-We also need to extend layout definitions so that they can include "ghost parameters." These parameters will directly correspond to ghost variable parameters in the resulting \SuSLik{} specification.
-
-This extension to layouts is best explain by way of example. First, consider the original definition of the singly-linked list type:
-
-\begin{lstlisting}
-Sll : layout[x](List)
-Sll Nil := emp;
-Sll (Cons head tail) :=
-  x :-> head ** (x+1) :-> nxt
-    ** Sll tail [nxt];
-\end{lstlisting}
-
-\noindent
-This does not use any ghost variables in \Pika{} or in the resulting \SuSLik{} specification. A common pattern in \SuSLik{} specifications is to use a \verb|set| type ghost variable to keep track of the elements in a data structure. Then, we can require that the elements are preserved or that new elements be added when using this in specifications. The feature we add to layouts allows us to use this feature directly:
-
-\begin{lstlisting}
-Sll : @(s : set) layout[x](List);
-Sll Nil := s == {} ;; emp;
-Sll (Cons head tail) :=
-  s == {head} ++ s1
-    ;;
-  x :-> head ** (x+1) :-> nxt
-    ** Sll tail @s1 [nxt];
-\end{lstlisting}
-
-\noindent
-Putting this all together, we can use this new kind of parameter together with the \synth{} keyword to specify a list append function:
-
-\begin{lstlisting}
-synth append :
-  s == s1 ++ s2
-    ;;
-  Sll @s1 -> Sll @s2 -> Sll @s;
-\end{lstlisting}
-
-\noindent
-Using this feature, we can use \SuSLik{} specifically for \textit{synthesis} tasks inside \Pika. That is, we are able to directly use \SuSLik{} for its intended purpose.
-
-\section{Examples}
-\label{sec:examples}
-
-\subsection{Version 1}
-
-\subsection{Version 2}
-
-\section{Future Work}
-\label{sec:future-work}
-
-\section{Conclusion}
-\label{sec:conclusion}
+\input{introduction}
+\input{overview}
+\input{syntax}
+\input{layouts}
+\input{semantics}
+\input{limitations}
+\input{synth}
+\input{examples}
+\input{future-work}
+\input{conclusion}
 
 \end{document}
 \endinput
 %%
-%% End of file `sample-acmsmall.tex'.

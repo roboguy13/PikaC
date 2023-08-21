@@ -1,0 +1,21 @@
+\section{Introduction}
+
+Synthetic separation logic (SSL) is the specification language for the \SuSLik{} program synthesizer. \SuSLik{} will take a precondition and postcondition pair together
+with a function prototype and use these to synthesize a function that satisfies that specification in a C-like language called \SuSLang.
+
+We have developed a first-order functional programming language, \Pika, which will compile to SSL specifications. \SuSLik{} can then take these SSL specifications and generate \SuSLang. Finally, the resulting \SuSLang{} code can be converted to C and then run. In addition to this translational semantics, we also provide a standard abstract machine semantics for \Pika{} and use this to show correctness of the translation into SSL.
+
+\paragraph{Contributions} In this paper, we make the following contributions:
+\begin{itemize}
+  \item We explore the connection between SSL and functional programming using a pair of formal semantics for \Pika: A standard abstract machine semantics and a
+    semantics that translates \Pika{} into SSL specifications. The second semantics is shown to be sound relative to the first semantics. (Section~\ref{sec:semantics})
+
+  \item In order to provide seamless interoperability between SSL and \Pika, we provide a separation between algebraic datatypes and their representation in memory.
+    At a type-level, we track this representation in memory. Furthermore, we describe a kind of polymorphism over memory layouts of an algebraic datatype. (Section~\ref{sec:layouts})
+
+  \item We address the limitations of this approach. In particular, we develop an extension of \Pika{} that allows \SuSLik's synthesis capabilities to be exposed more naturally inside the \Pika{} language. (Section~\ref{sec:synth})
+
+  \item A comparison of examples that work on the first version of \Pika{} is compared with examples that are enabled by the new feature in the second version of \Pika. This new version of \Pika{} is not backwards compatible with the first version, so we also examine which examples in the old version no longer work in the new version. (Section~\ref{sec:examples})
+\end{itemize}
+
+
