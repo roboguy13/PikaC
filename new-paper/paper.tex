@@ -355,7 +355,7 @@ We also need to extend layout definitions so that they can include "ghost parame
 This extension to layouts is best explain by way of example. First, consider the original definition of the singly-linked list type:
 
 \begin{lstlisting}
-Sll : layout(List)
+Sll : layout[x](List)
 Sll Nil := emp;
 Sll (Cons head tail) :=
   x :-> head ** (x+1) :-> nxt
@@ -366,7 +366,7 @@ Sll (Cons head tail) :=
 This does not use any ghost variables in \Pika{} or in the resulting \SuSLik{} specification. A common pattern in \SuSLik{} specifications is to use a \verb|set| type ghost variable to keep track of the elements in a data structure. Then, we can require that the elements are preserved or that new elements be added when using this in specifications. The feature we add to layouts allows us to use this feature directly:
 
 \begin{lstlisting}
-Sll : @(s : set) layout(List);
+Sll : @(s : set) layout[x](List);
 Sll Nil := s == {} ;; emp;
 Sll (Cons head tail) :=
   s == {head} ++ s1
