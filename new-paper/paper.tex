@@ -328,20 +328,60 @@ With this in mind, we take a new approach. What if we compile \Pika{} directly t
 \section{\synth{} Keyword: Synthesis Inside \Pika}
 \label{sec:synth}
 
-Next, we introduce a feature that allows us to synthesize a program from a special kind of \Pika{} type signature. This special kind of type signature allows us to directly access \SuSLik's pure propositions. These type signatures are called \synth-signatures and the syntax for them is
+Next, we introduce a feature that allows us to synthesize a program from a special kind of \Pika{} type signature. This special kind of type signature allows us to directly access \SuSLik's pure propositions. These type signatures are called \synth-signatures and the syntax for invoking the \Pika{} synthesis on a \synth-signature is:
 \[
   \synth\; f : \sigma
 \]
 \noindent
-where $\sigma$ is a \synth-signature. The syntax of a \synth-signature is as follows.
+where $\sigma$ is a \synth-signature. The syntax of a \synth-signature is given in Figure~\ref{fig:synth-sig-syntax}.
+
+\begin{figure}
 \[
 \begin{aligned}
-  \sigma &::= p \synthsep \tau\\
-  p &::= x \mid i \mid b \mid p \mathbin{\&\&} p \mid p \mathbin{||} p
-    \mid \Not(p) \mid p == p \mid \{\} \mid \{p\} \mid p \app p \mid p + p \mid p - p
+  \textit{\synth-signatures}\;\; \sigma &::= p \synthsep \tau'\\
+  \textit{Pure propositions}\;\; p &::= x \mid i \mid b \mid p \mathbin{\&\&} p \mid p \mathbin{||} p
+    \mid \Not(p) \mid p == p \mid \{\} \mid \{p\} \mid p \app p \mid p + p \mid p - p\\
+  \textit{Extended types}\;\; \tau' &::= ... \mid A\; \overline{G}\\
+  \textit{Ghost variables}\;\; G &::= @x
 \end{aligned}
 \]
+  \caption{\synth-signature syntax}
+  \label{fig:synth-sig-syntax}
+\end{figure}
 
+\noindent
+We also need to extend layout definitions so that they can include "ghost parameters." These parameters will directly correspond to ghost variable parameters in the resulting \SuSLik{} specification.
+
+This extension to layouts is best explain by way of example. First, consider the original definition of the singly-linked list type:
+
+\begin{lstlisting}
+Sll : layout(List)
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  x :-> head ** (x+1) :-> nxt ** Sll tail [nxt];
+\end{lstlisting}
+
+\noindent
+This does not use any ghost variables in \Pika{} or in the resulting \SuSLik{} specification. A common pattern in \SuSLik{} specifications is to use a \verb|set| type ghost variable to keep track of the elements in a data structure. Then, we can require that the elements are preserved or that new elements be added when using this in specifications. The feature we add to layouts allows us to use this feature directly:
+
+\begin{lstlisting}
+Sll : @(s : set) layout(List);
+Sll Nil := s == {} ;; emp;
+Sll (Cons head tail) :=
+  s == {head} ++ s1
+    ;;
+  x :-> head ** (x+1) :-> nxt ** Sll tail @s1 [nxt];
+\end{lstlisting}
+
+\noindent
+Putting this all together, we can use this new kind of parameter together with the \synth{} keyword to specify a list append function:
+
+\begin{lstlisting}
+synth append :
+  (s == (s1 ++ s2))
+    ;;
+  Sll @s1 -> Sll @s2 -> Sll @s
+\end{lstlisting}
 
 \section{Examples}
 \label{sec:examples}
