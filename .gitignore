@@ -24,6 +24,8 @@ temp/*
 **/*.out
 **/*.toc
 **/*.vtc
+**/*.blg
+**/*.bbl
 
 **/*.pdf
 
