@@ -1,0 +1,65 @@
+\section{Related Work}
+\label{sec:related-work}
+
+\tool is built upon the \suslik synthesis framework. \suslik provides
+a synthesis mechanism for heap-manipulating programs using a variant
+of separation logic.~\cite{polikarpova:2019:suslik} However, it does
+not have any high-level abstractions. In particular, writing \suslik
+specifications directly involves a significant amount of pointer
+manipulation. Further, it does not provide abstraction over specific
+memory layouts. As described in \autoref{sec:language}, \tool
+addresses these limitations.
+
+The \tname{Dargent} language~\cite{chen:2023:dargent} also includes a
+notion of layouts and layout polymorphism for a class of algebraic
+data types, which differs from our treatment of layouts in two primary
+ways:
+
+\begin{enumerate}
+
+\item In \tool, abstract memory locations (with offsets) are used. In
+  contrast, \tname{Dargent} uses offsets that are all
+  relative to a single ``beginning'' memory location. The \tool
+  approach is more amenable to heap allocation, though
+  this requires a separate memory manager of some kind. This is
+  exposed in the generated language with \verb|malloc| and
+  \verb|free|.
+  On the other hand, the technique taken by \tname{Dargent} allows
+  for greater control over memory management. This makes
+  dealing with memory more complex for the programmer, but it is no
+  longer necessary to have a separate memory manager.
+
+  \item Algebraic data types in the present language include
+    \emph{recursive} types and,
+    as a result, \tool has recursive layouts for these ADTs. This
+    feature is not currently available in \tname{Dargent}.
+  \end{enumerate}
+
+Furthermore, layout polymorphism also works differently. While
+\tname{Dargent} tracks layout instantiations at a type-level with type
+variables, in the present work we simply only check to see if a layout
+is valid for a given type when type-checking. In particular, we cannot
+write type signatures that \textit{require} the same layout in
+multiple parts of the type (for instance, in a function type
+\verb|List -> List| we have no way at the type-level of requiring that
+the argument \verb|List| layout and the result \verb|List| layout are
+the same). \Pika{} 2 makes progress towards eliminating this restriction but, as of now, it is layout monomorphic. This more rudimentary approach that \tool currently takes
+could be extended in future work.
+%
+Overall, the examples in the \tname{Dargent} paper tend to focus on
+the manipulation of integer values. In contrast, we have focused
+largely on data structure manipulation, which follow the primary
+motivation of \suslik.
+
+\tname{Synquid} is another synthesis framework with a functional
+surface language. While \tname{Synquid} allows an even higher-level
+program specification than \tool through its liquid types, it does not
+provide any access to low-level data structure
+representation.~\cite{polikarpova:2016:synquid} In contrast, \tool's
+level of abstraction is similar to that of a traditional functional
+language but, similar to \tname{Dargent}, it also allows control over
+the data structure representation in memory. The \synth{} feature
+has similarities to \tname{Synquid}'s approach to program synthesis, but
+\Pika{} 2's \synth{} allows lower level constraints to be expressed.
+
+

@@ -197,7 +197,7 @@ data List := Nil | Cons Int List;
 
 Sll : List >-> layout[x];
 Sll (Nil) := emp;
-Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+Sll (Cons head tail) := x :-> head ** (x+1) :-> tail ** Sll tail;
 \end{lstlisting}
   \caption{\lstinline{List} algebraic data type together with its singly-linked list layout \lstinline{Sll}}
   \label{fig:List-def}
@@ -345,7 +345,7 @@ data List := Nil | Cons Int List;
 
 Sll : List >-> layout[x];
 Sll (Nil) := emp;
-Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+Sll (Cons head tail) := x :-> head ** (x+1) :-> tail ** Sll tail;
 
 map : (Int -> Int) -> List -> List;
 map f (Nil) := Nil;
@@ -482,10 +482,10 @@ data Tree := Leaf | Node Int Tree Tree;
 TreeLayout : Tree >-> layout[x];
 TreeLayout (Leaf) := emp;
 TreeLayout (Node payload left right) :=
-  x :-> payload,
-  (x+1) :-> left,
-  (x+2) :-> right,
-  TreeLayout left,
+  x :-> payload **
+  (x+1) :-> left **
+  (x+2) :-> right **
+  TreeLayout left **
   TreeLayout right;
 
 leftList : Tree -> List;
