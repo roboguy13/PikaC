@@ -11,11 +11,11 @@ where $\sigma$ is a \synth-signature. The syntax of a \synth-signature is given 
 \begin{figure}
 \[
 \begin{aligned}
-  \textit{\synth-signatures}\;\; \sigma &::= p \synthsep \tau'\\
-  \textit{Pure propositions}\;\; p &::= x \mid i \mid b \mid p \mathbin{\&\&} p \mid p \mathbin{||} p
-    \mid \Not(p) \mid p == p \mid \{\} \mid \{p\} \mid p \app p \mid p + p \mid p - p\\
-  \textit{Extended types}\;\; \tau' &::= ... \mid A\; \overline{G}\\
-  \textit{Ghost variables}\;\; G &::= @x
+  \textnormal{\synth-signatures}\;\; &\sigma ::= p \synthsep \tau'\\
+  \textnormal{Pure propositions}\;\; &p ::= x \mid i \mid b \mid p \mathbin{\&\&} p \mid p \mathbin{||} p
+    \mid \Not(p) \mid p == p \mid \{\} \mid \{p\} \mid p \app p \mid p + p\\
+  \textnormal{Extended types}\;\; &\tau' ::= ... \mid A\; \overline{G}\\
+  \textnormal{Ghost variables}\;\; &G ::= @x
 \end{aligned}
 \]
   \caption{\synth-signature syntax}
@@ -23,7 +23,7 @@ where $\sigma$ is a \synth-signature. The syntax of a \synth-signature is given 
 \end{figure}
 
 \noindent
-We also need to extend layout definitions so that they can include "ghost parameters." These parameters will directly correspond to ghost variable parameters in the resulting \SuSLik{} specification.
+We also need to extend layout definitions so that they can include ``ghost parameters.'' These parameters will directly correspond to ghost variable parameters in the resulting \SuSLik{} specification.
 
 This extension to layouts is best explain by way of example. First, consider the original definition of the singly-linked list type:
 

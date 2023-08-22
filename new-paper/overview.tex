@@ -1,3 +1,539 @@
 \section{Overview}
 \label{sec:overview}
 
+\subsection{Background}
+The \Pika{} language is translated into
+\SuSLik~\cite{polikarpova:2019:suslik}, which is a program synthesis
+tool that uses Synthetic Separation Logic (SSL)-a variant of
+Hoare-style~\cite{hoare:1969:axiomatic} Separation Logic
+(SL)~\cite{ohearn:2001:seplogic}.
+
+% SSL is a variant of separation
+% logic that works particularly well for program
+% synthesis.~\cite{polikarpova:2019:suslik}
+
+A synthesis task specification in \SuSLik{} is given as a function
+signature together with a pair of pre- and post-conditions, which are
+both SL assertions~\cite{polikarpova:2019:suslik}.
+%
+The synthesiser generates code that satisfies the given specification,
+along with the SL \emph{proof} of its correctnees by performing the
+search in a space of proofs that can be derived by using the rules of
+the underlying logic~\cite{WatanabeGPPS21}.
+%
+A distinguishing feature of \textit{Synthetic} Separation Logic is the
+format of its assertions. An SSL assertion consists of two parts: a
+\textit{pure part} and a \textit{spatial part}. The pure part is a
+Boolean expression constraining the variables of the specification
+using a few basic relations, like equality and the less-than relation
+for integers. The spatial part is a \textit{symbolic heap}. This
+consists of a list of heaplets. The list separator for the list of
+heaplets is the $\sep$ symbol. Each heaplet takes on one of the
+following forms~\cite{polikarpova:2019:suslik}:
+
+\begin{itemize}
+  \item \texttt{emp}: This represents the empty heap. It is also the left and right identity for $\sep$.
+  \item $\ell \mapsto a$: This asserts that memory location $\ell$ points to the value $a$.
+  \item $[\ell, \iota]$: At memory location $\ell$, there is a block of size $\iota$.
+  \item $p(\overline{\phi})$: This is an application of the
+    \textbf{\textit{inductive predicate}} $p$ to the arguments
+    $\overline{\phi}$. An inductive predicate has a collection of
+    branches, guarded by Boolean expressions (conditions) on the
+    parameters. The body of each branch is an SSL assertion. The
+    assertion associated with the first branch condition that is
+    satisfied is used in place of the application. Note that inductive
+    predicates can be (and often are) recursively defined.
+\end{itemize}
+
+\noindent
+The general form of an SSL assertion is
+$(p; h_1 \sep h_2 \sep \cdots \sep h_n)$, where $p$ is the pure part
+and $h_1, h_2, \cdots, h_n$ are the heaplets which are the conjuncts
+that make up the separating conjunction of the spatial part. A syntax
+definition for SSL is given in \autoref{fig:SSL-syntax}, which is
+adapted from \textit{Cyclic Program Synthesis} by Itzhaky
+\etal~\cite{itzhaky:2021:cyclic-synth}.
+
+\begin{figure}[t]
+\setlength{\abovecaptionskip}{5pt}
+%\setlength{\belowcaptionskip}{-15pt}
+{\small{
+\[
+  \begin{array}[t]{ l l }
+    \text{Variable} &x, y\;\; \text{Alpha-numeric identifiers $\in$ \textnormal{Var}}\\
+    \text{Size, offset} &n, \iota\;\; \text{Non-negative integers}\\
+    \text{Expression} &e ::= 0\; \mid \texttt{true} \mid x \mid e = e \mid e \land e \mid \neg e \mid d\\
+    \text{$\mathcal{T}$-expr.} &d ::= n \mid x \mid d + d \mid n \cdot d \mid \{\} \mid {d} \mid \cdots\\
+    \text{Command} &c ::= \begin{aligned}[t] &\texttt{let x = *(x + }\iota\texttt{)} \mid \texttt{*(x + }\iota\texttt{) = e} \mid
+      \\
+      &\texttt{let x = malloc(n)} \mid \texttt{free(x)} \mid \texttt{error}\newline
+      \mid \texttt{f(}\overline{e_i}\texttt{)}
+      \end{aligned}\\
+    \text{Program} &\Pi ::= \overline{f(\overline{x_i})\; \{\; c\; \}\; ;}\; c\\
+    \text{Logical variable} &\nu, \omega\\
+    \text{Cardinality variable} &\alpha\\
+    \text{$\mathcal{T}$-term} &\kappa ::= \nu \mid e \mid \cdots\\
+    \text{Pure logic term} &\phi, \psi, \chi ::= \kappa \mid \phi = \phi \mid \phi \land \phi \mid \neg \phi\\
+    \text{Symbolic heap} &P, Q, R ::= \texttt{emp} \mid \mbox{$\langle e, \iota \rangle \mapsto e \mid [e, \iota]$} \mid p^{\alpha}(\overline{\phi_i})
+      \mid \mbox{$P * Q$}\\
+    \text{Heap predicate} &\mathcal{D} ::= p^{\alpha}(\overline{x_i}) : \overline{e_j \Ra \exists \overline{y}.\{\chi_j;R_j\}}\\
+    \text{Assertion} &\mathcal{P},\mathcal{Q} ::= \{\phi; P\}\\
+    \text{Environment} &\Gamma ::= \forall\overline{x_i}.\exists\overline{y_j}.\\
+    \text{Context} &\Sigma ::= \overline{\mathcal{D}}\\
+    \text{Synthesis goal} &\mathcal{G} ::= P \leadsto Q
+  \end{array}
+\]
+}}
+\caption{Syntax of Synthetic Separation Logic}
+  \label{fig:SSL-syntax}
+\end{figure}
+
+\begin{figure}
+  \ruleSAdd
+  \caption{{\sc S-Add} rule}
+  \label{fig:ruleSAdd}
+\end{figure}
+
+As the specification language of \SuSLik, SSL serves as the
+compilation target for the \Pika{} language. From there, executable
+programs are generated through \SuSLik's program synthesis. Consider a
+program that takes an integer $x$ and a result in location $r$ and
+stores $x+1$ at location $r$. This can be written as the \SuSLik{}
+specification:
+
+\begin{lstlisting}
+void add1Proc(int x, loc r)
+  { r :-> 0 }
+  { y == x+1 ; r :-> y }
+{ ?? }
+\end{lstlisting}
+
+\noindent
+In contrast, this example can be written as follows in \Pika:
+
+\begin{lstlisting}
+add1Proc : Int -> Int;
+add1Proc x := x + 1;
+\end{lstlisting}
+
+\noindent
+In constrast with \SuSLik{} specs, the one below features no direct
+manipulation with pointers.
+%
+This program is translated using the {\sc S-Add} rule shown in
+\autoref{fig:ruleSAdd}. 
+
+\subsection{The \Pika{} Language}
+\label{sec:language}
+
+While SSL provides a specification language that allows tools like
+\SuSLik{} to synthesise code, it is only able to express specifications
+as pointers. This is useful for some applications, such as embedded
+systems, but it does not provide any high-level abstractions. As a
+result, every part of a specification is tailored to a specific memory
+representation of each data structure involved.
+%
+To addresss this shortcoming, we introduce a language with algebraic
+data types that gets translated into SSL specifications. Additionally,
+we introduce a language construct that allows the programmer to
+specify a memory representation of an algebraic data type. This is
+called a \textit{layout}. This distinction between algebraic data
+types and layouts allows the separation of concerns between the low
+level representation of a data structure and code that manipulates it
+at a high level.
+
+Syntactically, \Pika{} resembles a functional programming language
+of the Miranda~\cite{turner:1986:miranda} and
+Haskell~\cite{hudak:2007:haskell} lineage. It supports algebraic data
+types, pattern matching at top-level function definitions (though not
+inside expressions) and Boolean guards. The primary difference arises
+due to the existence of layouts and the fact that the language is
+compiled to an SSL specification rather than executable code.
+
+Functions in \Pika{} are only defined by their operations on algebraic
+data types. Thus, all function definitions are ``layout polymorphic''
+over the particular choices of layouts for their arguments and result.
+Giving a layout-polymorphic function, a particular choice of layouts
+is called ``instantiation''. Specifying the layout of a non-function
+value is called ``lowering.''
+
+There is a subtlety here: The layout of a subexpression inside of a
+function definition might not be determined by the layouts that the
+function definition is instantiated at. In this case, we must
+explicitly specify a layout. This is done using the \verb|instantiate|
+and \verb|lower| constructs. The former is for function calls, while
+the latter is for all other types of values. These operations are
+performed with the \verb|instantiate| and \verb|lower| language
+constructs, respectively. For example, \verb|instantiate [A] B f x|
+calls $f$ with the argument $x$, where the layout $A$ is used for the
+argument and the layout $B$ is used for the result of the function
+application. This is also written $\instantiateS{A,B}{f}(x)$. The
+latter is primarily used in \autoref{sec:formal}.
+
+The code generator is instructed to generate a \SuSLik{} specification
+for a certain function at a certain instantiation by using a
+\generate{} directive. For example, if there is a function definition
+with the type signature \verb|mapAdd1 : List -> List|, a line reading
+\verb|%generate mapAdd1 [Sll] Sll| would instruct the
+\Pika{} compiler to generate the \SuSLik{} inductive predicate
+corresponding to \verb|mapAdd1| instantiated to the \verb|Sll| layout
+for both its argument and its result.
+
+An example of an ADT definition and a corresponding layout definition
+is given in \autoref{fig:List-def}. There is one unusual part of
+the syntax in particular which requires further explanation: layout
+type signatures. A layout definition consists a \textit{layout type
+  signature} and a pattern match (much like a function definition),
+with lists of SSL heaplets on the right-hand sides. A layout type
+signature has a special form $A : \alpha \monic \layout[x]$. This says
+that the layout $A$ is for the algebraic data type $\alpha$ and the
+SSL output variable is named $x$. The full \Pika{} grammar is given in
+the Appendices. %x~\ref{sec:grammar}.
+
+\begin{figure}[t]
+\begin{lstlisting}
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+\end{lstlisting}
+  \caption{\lstinline{List} algebraic data type together with its singly-linked list layout \lstinline{Sll}}
+  \label{fig:List-def}
+\end{figure}
+
+\subsection{\Pika{} by Example}
+
+We demonstrate the characteristic usages of \Pika{} on a series of
+examples.
+%
+In these examples, we will often make use of the \verb|List| algebraic
+data type and its \verb|Sll| layout from~\autoref{fig:List-def}. A
+simple example of \Pika{} code that illustrates algebraic data types and
+layouts is a function which creates a singleton list out of the given
+integer argument:
+
+\begin{lstlisting}
+%generate singleton [Int] Sll
+
+singleton : Int -> List;
+singleton x := Cons x (Nil);
+\end{lstlisting}
+
+\noindent
+This gets compiled to the following \SuSLik{} specification, with generated names simplified for greater clarity:
+
+\begin{lstlisting}
+predicate singleton(int p, loc r) {
+| true => { r :-> p ** (r+1) :-> 0 ** [r,2] }
+}
+\end{lstlisting}
+
+\noindent
+A slightly more complicated example comes from trying to write a
+functional-style \verb|map| function directly in \SuSLik. Consider a
+function which adds 1 to each integer in a list of integers.
+Considering the list implementation to be a singly-linked list with a
+fixed layout, one way to express this in \SuSLik{} is shown in \autoref{fig:sllx}
+
+\begin{figure}[t]
+\begin{lstlisting}
+predicate sll(loc x) {
+| x == 0 => { emp }
+| not (x == 0) => { [x, 2] ** x :-> v ** (x+1) :-> nxt ** sll(nxt) }
+}
+
+predicate mapAdd1(loc x, loc r) {
+| x == 0 => { emp }
+| not (x == 0) => {
+    [x, 2] ** x :-> v ** (x+1) :-> xNxt **
+    [r, 2] ** r :-> (v+1) ** (r+1) :-> rNxt **
+    mapAdd1(xNxt, rNxt)
+  }
+}
+
+void mapAdd1_fn(loc x, loc y)
+  { sll(x) ** y :-> 0 }
+  { y :-> r ** mapAdd1(x, r) }
+{ ?? }
+\end{lstlisting}
+\caption{Specifying a function that adds one to each element of a
+  singly-linked list in \SuSLik.}
+\label{fig:sllx}
+\end{figure}
+
+\noindent
+Note that inductive predicates are used for \textit{two} different purposes: the \verb|sll| inductive
+predicate describes a singly-linked list data structure, while the \verb|mapAdd1| inductive predicate 
+describes how the input list relates to the output list. Both are used in the specification of
+\verb|mapAdd1_fn|: \verb|sll| in the precondition and \verb|mapAdd1| in the postcondition.
+
+Using the \verb|mapAdd1| inductive predicate gives us two advantages over attempting to
+put the SSL propositions directly into the postcondition of \verb|mapAdd1_fn|:
+%
+\begin{enumerate}
+  \item We are able to express a conditional on the shape of the list. This is much like pattern
+    matching in a language with algebraic data types, but we are examining the pointer involved directly.
+  \item We are able to express \textit{recursion} part of the postcondition: the \verb|mapAdd1| inductive
+    predicate refers to itself in the \verb|not (x == 0)| branch.
+\end{enumerate}
+%
+These two features are both reminiscent of features common in
+functional programming languages: pattern matching and recursion.
+However, there are still some significant differences:
+
+\begin{itemize}
+  \item In traditional pattern matching, the underlying memory representation of the data structure is not exposed.
+  \item Compared to a functional programming language, the meaning of the specification is more obscured. It is
+    necessary to think about the structure of the linked data structure to determine what the specification is saying. This
+    is related to the first point: The memory representation is front-and-center.
+  \item In many functional languages, mutation is either restricted or generally discouraged. In \SuSLik, mutation is commonplace.
+\end{itemize}
+
+Say we want to write the functional program that corresponds to this specification. One way to do this in a Haskell-like language
+is the following, using the \verb|List| type from \autoref{fig:List-def}.
+
+\begin{lstlisting}
+mapAdd1_fn : List -> List;
+mapAdd1_fn (Nil) := 0;
+mapAdd1_fn (Cons head tail) := Cons (head + 1) (mapAdd1_fn tail);
+\end{lstlisting}
+
+\noindent
+The only missing information is the memory representation of the \verb|List| data structure. We do not want the
+\verb|mapAdd1_fn| implementation to deal with this directly, however. We want to separate the more abstract notions
+of pattern matching and constructors from the concrete memory layout that the data structure has.
+
+To accomplish this, we now extend the code with the definition of
+\verb|Sll| from \autoref{fig:List-def}. \verb|Sll| is a
+\textit{layout} for the algebraic data type \verb|List|.
+%
+Now we have all of the information of the original specification but
+rearranged so that the low-level memory layout is separated from the
+rest of the code. This separation brings us to an important
+observation about the language, manifested throughout these examples:
+none of the function definitions need to \emph{directly} perform any
+pointer manipulations. This is relegated entirely to the reusable
+layout definitions for the ADTs. The examples are written entirely as
+recursive functions that pattern match on, and construct, ADTs.
+
+All that is left is to connect these two parts: the layouts and the
+function definitions. We instruct a \SuSLik{} specification generator to
+generate a \SuSLik{} specification from the \verb|mapAdd1_fn| function
+using the \verb|Sll| layout:
+%
+\begin{lstlisting}
+%generate mapAdd1_fn [Sll] Sll
+\end{lstlisting}
+%
+The \verb|[Sll]| part of the directive tells the generator which
+layouts are used for the arguments. In this case, the function only
+has one argument and the \verb|Sll| layout is used. The \verb|Sll| at
+the end specifies the layout for the result.
+
+\subsubsection{map}
+
+We can generalise our \verb|mapAdd1| to map arbitrary \verb|Int|
+functions over a list and then redefine \verb|mapAdd1| using the new
+\verb|map|.
+
+\begin{lstlisting}
+%generate mapAdd1 [Sll] Sll
+
+data List := Nil | Cons Int List;
+
+Sll : List >-> layout[x];
+Sll (Nil) := emp;
+Sll (Cons head tail) := x :-> head, (x+1) :-> tail, Sll tail;
+
+map : (Int -> Int) -> List -> List;
+map f (Nil) := Nil;
+map f (Cons x xs) := Cons (instantiate [Int] Int f x) (map f xs);
+
+add1 : Int -> Int;
+add1 x := x + 1;
+
+mapAdd1 : List -> List;
+mapAdd1 xs :=
+  instantiate [Int -> Int, Sll] Sll map add1 xs;
+\end{lstlisting}
+
+This example makes use of \lstinline{instantiate} in two places. In the first case where we have the call
+\lstinline{instantiate [Int] Int f x}, the builtin \verb|Int| layout is used for both the input
+and output. In this special case, the \verb|Int| layout shares a name with the \verb|Int| type
+that it represents. This is necessary since \lstinline{instantiate} is used for all non-recursive calls that are not constructor applications.
+
+In the second use, \lstinline{instantiate [Int -> Int, Sll] Sll map add1 xs}, we specify that
+the second argument uses the \verb|Sll| layout for the \verb|List| type from \autoref{fig:List-def}. We also give \verb|Sll| as
+the layout for the result of the call. Note that it is not necessary to use \verb|instantiate| for the recursive call to \verb|map|. This is because the appropriate layout
+is inferred for recursive calls.
+
+It might be surprising that \verb|instantiate| is required in the body of \verb|mapAdd1| since the type signature
+of \verb|mapAdd1| suggests that it is layout polymorphic and yet we must pick a specific \verb|List| layout when
+we use \verb|instantiate| to call \verb|map|. This is because, in general, a call inside the body of some function \verb|fn| might use
+any layout, even layouts that have no relation to the layouts that \verb|fn| is instantiated to.
+
+It is possible to do inference of some layouts, for example in
+\verb|mapAdd1| we would usually want to use the same layout as the
+argument layout, but we leave this for future work. Another approach
+is to introduce type variables that correspond to layouts, as done in
+the series of works on the \tname{Dargent}{}
+tool~\cite{chen:2023:dargent}.
+%
+We leave this approach for future work as well.
+
+\subsubsection{Guards}
+
+While we have a pattern-matching construct at the top level of a function definition, we
+have not seen a way to branch on a Boolean value so far. This is a feature that is
+readily available at the level of \SuSLik, since the same conditional construct we
+use to implement pattern matching can also use other Boolean expressions.
+
+We can expose this in the functional language using a \textit{guard},
+much like Haskell's guards. Say, we want to write a specialised
+filter-like function. Specifically, we want a function that filters
+out all elements of a list that are less than 9. This is a specific
+example where the \SuSLik{} specification is noticeably more difficult
+to read. For a \SuSLik{} specification of this example, see
+\autoref{fig:SuSLik-filter}
+
+\begin{figure}
+  \begin{lstlisting}
+predicate filterLt9(loc x, loc r) {
+| (x == 0) => { r == 0 ; emp }
+| not (x == 0) && head < 9 =>
+    { x :-> head ** (x+1) :-> tail ** [x,2] ** filterLt9(tail, r) }
+| not (x == 0) && not (head < 9) =>
+    { x :-> head ** (x+1) :-> tail ** [x,2] ** filterLt9(tail, y)
+      ** r :-> head ** (r+1) :-> y ** [r,2] }
+}
+
+void filterLt9(loc x1, loc r)
+  { Sll(x1) ** r :-> 0 }
+  { filterLt9(x1, r0) ** r :-> r0 }
+{ ?? }
+  \end{lstlisting}
+  \caption{\SuSLik{} specification of \lstinline{filterLt9}, excluding \lstinline{Sll} which is given in \autoref{fig:List-def}}
+  \label{fig:suslik-filter}
+\end{figure}
+
+On the other hand, an implementation of this in \Pika{} is:
+
+\begin{lstlisting}
+%generate filterLt9 [Sll] Sll
+
+filterLt9 : List -> List;
+filterLt9 (Nil) := Nil;
+filterLt9 (Cons head tail)
+  | head < 9       := filterLt9 tail;
+  | not (head < 9) := Cons head (filterLt9 tail);
+\end{lstlisting}
+
+\noindent
+When translating a guarded function body, the translator takes the conjunction of the Boolean guard condition with
+the condition for the pattern match.
+
+\subsubsection{\texttt{let} bindings and \texttt{if-then-else}}
+
+Two more features that are common in functional languages are \verb|let| bindings and
+\verb|if-then-else| expressions. Both of these have straightforward translations into
+\SuSLik. A \verb|let| binding corresponds to introducing a new variable with an equality
+constraint corresponding to the equality in the \verb|let| binding in the pure part of a \SuSLik{} assertion.
+
+The \verb|if-then-else| construct corresponds to \SuSLik's C-like ternary operator. We can use these features together to implement a \verb|maximum| function:
+
+\begin{lstlisting}
+%generate maximum [Sll] Int
+
+maximum : List -> Int;
+maximum (Nil) := 0;
+maximum (Cons x xs) :=
+  let i := maximum xs
+  in
+  if i < x
+    then x
+    else i;
+\end{lstlisting}
+
+\noindent
+The \verb|let| binding is required here. This is because the recursive predicate
+application must use an additional variable, beyond the argument and output
+parameters, to store the intermediate result \verb|i| and this is introduced in
+\Pika{} using a \verb|let|. It is possible to extend the translator to
+automatically introduce these \verb|let| bindings, but we relegate this to future work.
+
+Furthermore, since the \verb|let| is required and the variable introduced by the \verb|let| is used
+in the \verb|if| condition, we cannot replace the \verb|if| with a guard. Guards can only occur
+at the top-level of a function definition, so it could not occur after a \verb|let|.
+
+\subsubsection{Using multiple layouts}
+
+To show the interaction between multiple algebraic data types, we write a
+function that follows the left branches of a binary tree and collects the values
+stored in those nodes into a list. This example demonstrates a binary tree
+algebraic data type and a layout that corresponds to it.
+
+\begin{lstlisting}
+%generate leftList [TreeLayout] Sll
+
+data Tree := Leaf | Node Int Tree Tree;
+
+TreeLayout : Tree >-> layout[x];
+TreeLayout (Leaf) := emp;
+TreeLayout (Node payload left right) :=
+  x :-> payload,
+  (x+1) :-> left,
+  (x+2) :-> right,
+  TreeLayout left,
+  TreeLayout right;
+
+leftList : Tree -> List;
+leftList (Leaf) := Nil;
+leftList (Node a b c) := Cons a (leftList b);
+\end{lstlisting}
+
+
+\subsubsection{fold}
+\label{sec:examples-fold}
+
+A fold is a common kind of operation on a data structure in functional programming, where a binary function
+is applied the elements of a data structure to create a summary value. For example, if the binary function
+is the addition function, it will give the sum of all the elements of the data structure. The
+classic example of such a fold is a fold on a list. In this example, we will write a
+right fold over a \verb|List|.
+
+We also demonstrate \verb|Ptr| types and the \verb|addr| builtin operation. This is somewhat similar to an \verb|@| pattern in Haskell,
+but it is a low-level construct, indictating how pointers should be used, rather than a high-level construct.
+Given a base type $\alpha$ (such as \verb|Int|), \verb|Ptr Int| is a type. This type is
+passed around differently in the generated code. In particular, it is passed by reference.
+\verb|addr| is the corresponding value-level introduction operation.
+\begin{lstlisting}
+%generate fold_List [Int, Sll] (Ptr Int)
+
+fold_List : Int -> List -> Ptr Int;
+fold_List z (Nil) := z;
+fold_List z (Cons x xs) :=
+  instantiate
+    [Ptr Int, Ptr Int]
+    (Ptr Int)
+    f
+    (addr x)
+    (fold_List z xs);
+\end{lstlisting}
+
+\noindent
+The compiler produces the following \SuSLik{} specification for \verb|fold_List|:
+
+\begin{lstlisting}
+predicate fold_List(int i, loc p_x ,loc __r) {
+| (p_x == 0) => { __r :-> i }
+| (not (p_x == 0)) => {
+  p_x :-> x ** (p_x+1) :-> xs ** [p_x,2] **
+  func f(p_x, __p_2, __r) **
+  fold_List(i, xs, __p_2) **
+  temploc __p_2 }
+}
+\end{lstlisting}
+%
+In the generated code, \verb|f| is applied to \verb|p_x| rather than
+\verb|x| as a result of using \verb|Ptr| and \verb|addr|.

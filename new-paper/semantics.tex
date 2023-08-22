@@ -1,3 +1,598 @@
 \section{Formal Semantics}
 \label{sec:semantics}
 
+
+\subsection{Formal Semantics of \tool}
+\label{sec:formal}
+
+In this section, we have the following plan:
+
+\begin{itemize}
+  \item We define abstract machine semantics for executing a subset of \tool programs. This semantics
+    is given by the big-step relation $\step$ which we define later.
+  \item We define the translation from that subset of \tool into SSL. This translation is given by the
+    function $\Tsem{e}{V,r}$ from \tool expressions into SSL propositions. The $r$ is a variable name to
+    be used in the resulting proposition and $V$ is a collection of fresh names.
+  \item We prove a soundness theorem. Given any well-typed expression $e$ and an abstract machine reduction producing
+    the store-heap pair $\EndPair$, the SSL translation of $e$ should be satisfied by SSL model $\EndPair$. This is stated formally, and proven,
+    in \autoref{thm:gen-soundness}.
+  % \item We prove a soundness theorem. In particular, we first look at the heap-store pair that results from executing the abstract
+  % machine on an arbitrary function application expression \verb|f e| (omitting the \verb|instantiate| for brevity).
+  % We then show that the heap-store pair we got from the abstract machine is a model for the 
+  % SSL proposition given by translating \verb|f e| into SSL.
+\end{itemize}
+
+This subset of \tool does not have guards or \verb|if then else| expressions, but it does have pattern
+matching. It also has the requirement that functions can only have one argument. Unlike the implementation, there
+is no elaboration. As a result, every algebraic data type value must be lowered to a specific layout at every usage
+and every function application must be explicitly instantiated with a layout for the argument and a layout for the result. We
+also limit the available integer and Boolean operations for brevity.
+
+The grammar for this subset is given in \autoref{fig:subset-grammar}. The grammar for types, layout definitions and algebraic data type definitions remain the same
+as before and are therefore omitted from the following grammar.
+
+
+\begin{figure}
+\begin{grammar}
+  <i> ::= $\cdots$ $\mid$ -2 $\mid$ -1 $\mid$ 0 $\mid$ 1 $\mid$ 2 $\mid$ $\cdots$
+
+  <b> ::= \texttt{true} $\mid$ \texttt{false}
+
+  <e> ::= <var> \alt <i> \alt <b> \alt <e> + <e> \alt C $\overline{\langle e \rangle}$ \alt $\instantiateS{A,B}{f}(\langle \textit{e} \rangle)$ \alt $\lowerS{A}{\langle \textit{e} \rangle}$
+
+  <fn-def> ::= $\overline{\langle \textit{fn-case} \rangle}$
+
+  <fn-case> ::= f <pattern> := <e>
+\end{grammar}
+  \caption{Grammar for restricted \tool subset}
+  \label{fig:subset-grammar}
+\end{figure}
+
+\noindent
+The semantics for SSL are largely derived~\cite{polikarpova:2019:suslik} from standard separation logic semantics.~\cite{rowe:2017:auto-cyclic-term}
+
+\subsubsection{Overview of the Two Interpretations}
+
+The soundness theorem will link the abstract machine semantics to the translation. In fact, the abstract machine
+semantics and the translation are similar to each other. For the abstract machine we manipulate \textit{concrete} heaps, while
+for the translation we generate \textit{symbolic} heaps.
+
+Comparing the two further, there are two main points (beyond what we've already mentioned) where these two interpretations of \tool differ:
+
+% \tbox{
+    % \begin{center} \textbf{Two main differences between interpretations} \end{center}
+
+      \begin{enumerate}
+        \item When we need to unfold a layout, how do we know which layout branch to choose?
+        \item How do we translate function applications (including, but not limited to, recursive applications)?
+      \end{enumerate}
+  % }
+% \\
+
+% \subsubsection{Abstract Machine}
+First, consider the abstract machine semantics. In this case, we are able to choose which branch of a layout to use by evaluating the expression we are applying it
+          to until the expression is reduced to a constructor value (where a ``constructor value'' is either a value or a constructor applied to constructor values). If the expression is well-typed, this will always be a constructor
+          of the algebraic data type corresponding to the layout. The two rules that this applies to are {\sc AM-Lower} and
+          {\sc AM-Instantiate}.
+        To interpret a function application, we interpret its arguments and substitute the results into the body
+          of the function. We then proceed to interpret the substituted function body. This process is performed by the {\sc AM-Instantiate} rule.
+  % }
+% \\
+
+% \subsubsection{SSL Translation}
+Next, consider the SSL translation. Here we can determine which layout branch to use by generating a Boolean condition that will be
+          true if and only if the SSL proposition on the right-hand side of the branch holds for the heap. Note
+          that we assume that the programmer-supplied layout definitions are \textit{injective} functions from
+          algebraic data types to SSL assertions (up to bi-implication).
+We can directly translate function applications into SSL inductive predicate applications. Since inductive predicates
+          already allow for recursive applications, there is no special handling necessary for recursion.
+      % \end{enumerate}
+  % }
+% \\
+
+% We will return to these points when we talk about each of the two interpretations.
+%
+% The differences on the first point, again, results primarily from the difference between concrete heaps and symbolic heaps.
+%
+% For the second
+% point, on the other hand, there is an additional reason for the differences. Both \tool and SSL have a notion of application. In the former,
+% this is function application and in the latter it is predicate application. In both cases, these applications can be recursive. Since
+% \tool functions are translated into inductive predicates, function applications are translated into predicate applications. As SSL has
+% recursion, we do not need to handle this specially.
+%
+% For the abstract machine, in contrast, we must actually \textit{run} the body of the function.
+
+After defining these interpretations, we show how the abstract machine relation $\step$ and the SSL interpretation function $\Tsem{e}{V,r}$ relate to each other by the Soundness \autoref{thm:gen-soundness}.
+
+% We sketch the
+% statement of the theorem here, leaving the details for later. In particular, the part marked with question marks is filled in later. We
+% show the {\color{cyan} start state} in {\color{cyan} cyan} and the {\color{orange} end state} in {\color{orange} orange}.
+%
+%
+%   \[
+%     \begin{aligned}
+%     &\begin{aligned}
+%       (\fbox{      ???      }
+%       &\land (\exists \VarSet, r.\; ({\color{cyan} \sigma}, {\color{cyan} h}) \models \Tsem{e}{\VarSet, r})\\
+%       &\land (f_{A,B}(e), {\color{cyan} \sigma}, {\color{cyan} h}) \step (e_2, {\color{orange} \sigma'}, {\color{orange} h'}, v'))
+%      \end{aligned}
+%     \\
+%         & \implies
+%       (\exists \VarSet, r.\; ({\color{orange} \sigma'}, {\color{orange} h'}) \models \Tsem{f_{A,B}(e)}{\VarSet, r})
+%     \end{aligned}
+%   \]
+%
+% At a high-level, the theorem says: if we start in a machine state which is a model for the SSL interpretation of a given expression $e$ (this SSL proposition is given by $\Tsem{e}{\VarSet,r}$), then
+% any state that the abstract machine steps to from the original state, given an application expression $f_{A,B}(e)$, is a model for the SSL interpretation
+% $\Tsem{f_{A,B}(e)}{\VarSet,r}$. This is subject to the condition that there exists \textit{some} model for $\Tsem{f_{A,B}(e)}{\VarSet,r}$. The reason for this requirement
+% is that the SSL interpretation of an arbitrary \tool expression is not guaranteed to be satisfiable. There are further restrictions
+% that will be given when we fill in the question marks, but this is deferred to a later subsection.
+
+
+\subsubsection{Abstract Machine Semantics}
+In this section, we will define an abstract machine semantics for \tool and relate this to
+the standard semantics for SSL.
+
+% \subsubsection{Notation and Setup}
+
+% The only difference between the two sorts of values is that the set of \tool values also includes
+% constructor application values, while \BaseVal{} does not.
+
+The set of values is $\Val = \mathbb{Z} \cup \mathbb{B} \cup \Loc$. Each of these three sets
+is disjoint from the other two. In particular, note that $\Loc$ and $\mathbb{Z}$ are disjoint.
+
+\begin{figure}
+\[
+\begin{array}{c}
+  \labinfer[\FsVal-Base]{x \in \FsVal}
+    {x \in \Val}
+  ~~~
+  \labinfer[\FsVal-Constr]{(C\; x_1 \cdots x_n) \in \FsVal}
+    {x_1 \in \FsVal & \cdots & x_n \in \FsVal}
+\end{array}
+\]
+  \caption{\FsVal{} judgment rules}
+  \label{fig:FsVal-rules}
+\end{figure}
+
+There is also a set of \tool values \FsVal. This includes all the elements of \Val{}, but also includes
+``constructor values'' given by the rules in \autoref{fig:FsVal-rules}.
+In addition to the store and heap of standard SSL semantics, the abstract machine semantics uses an \FsStore. This is a partial function from locations
+to \tool values: $\FsStore = \Loc \rightharpoonup \FsVal$. The primary purpose of this is to recover constructor values when given a location.
+
+%\noindent
+The general format of the transition relation is $(e, \sigma, h, \mathcal{F}) \step (v, \sigma', h', \mathcal{F}', r)$, where the expression $e$ results
+in the store being updated from $\sigma$ to $\sigma'$, the heap being updated from $h$ to $h'$, $v$ is the \Val{} obtained by
+evaluating $e$, the initial and final $\FsStore$ are $\mathcal{F}$ and $\mathcal{F}'$ and the result is stored in variable $r$. We assume that there is a global environment $\Sigma$ which contains all layout definition equations and function definition equations.
+% We will have the following properties for the \FsStore:
+%
+% % \begin{lemma}
+% %   $(e, \sigma, h, \mathcal{F}) \step (v, \sigma', h', \mathcal{F}', r) \implies (dom(h) = dom(\mathcal{F}) \land dom(h') = dom(\mathcal{F}'))$
+% % \end{lemma}
+%
+% \begin{lemma}
+%   $(e, \sigma, h, \mathcal{F}) \step (v, \sigma', h', \mathcal{F}', r) \implies (v \in dom(h') \land v \in \Loc \land h'(v) \in \Loc \implies h'(v) \in dom(\mathcal{F}'))$
+% \end{lemma}
+
+% Describing this relation more explicitly, we have $\step\; \subset (\Expr \times \Store \times \Heap \times \FsStore) \times (\Val \times \Store \times \Heap \times \times \FsStore \times \Var)$.
+
+% \noindent
+% The syntax $dom(\sigma)$ allows us to refer to the set of names in a store. It is defined as
+% \[
+%   dom(\sigma) = \{ v \mid (v, a) \in \sigma \}
+% \]
+
+Given a heap $h$ and a layout body $H$, we will make use of the
+notation $h \cdot [H]$. This extends the heap with the location
+assignments given in $H$. We say that the layout body $H$ is
+\textit{acting} on the heap $h$. This is defined in
+\autoref{fig:layout-act}. The intuition for this is that $h$ gets
+updated using the symbolic heap description in $H$. For example, if
+$h$ is the empty heap and $H$ is $a \pointsto 7$, then the updated
+heap $h \cdot [H]$ will contain only the value $7$ at the location
+$a$. It is assumed that $H$ does not have any variables on the
+right-hand side of $\pointsto$.
+
+\begin{figure}
+\[
+\begin{array}{c}
+  \labinfer[L-Emp]{h \cdot [\emp] = h}
+    {}
+  ~~~
+  \labinfer[L-PointsTo]{h \cdot [\ell \pointsto a, \kappa] = h'[\ell \mapsto a]}
+    {h' = h \cdot [\kappa] & a \in \Val}
+  \\\\
+  \labinfer[L-Apply]{h \cdot [A[x](e), \kappa] = h \cdot [\kappa]}
+    {e \in \Val}
+\end{array}
+\]
+  \caption{Rules for layout bodies acting on heaps}
+  \label{fig:layout-act}
+\end{figure}
+
+% \subsubsection{Abstract Machine Rules}
+% The rules for the abstract machine transition relation are as follows.
+
+The abstract machine semantics provides big-step operational semantics
+for evaluating \tool expressions on a heap machine. Its rules, given by
+\autoref{fig:abs-machine}, make use of standard SSL models:
+
+\begin{align*}
+  &\text{Model} &\mathcal{M} ::= (\sigma, h)\\
+  &\text{Store} &\sigma : \text{Var} \rightharpoonup \text{Val}\\
+  &\text{Heap} &h : \text{Loc} \rightharpoonup \text{Val}\\
+\end{align*}
+
+\noindent
+Note that a compound expression, consisting of multiple
+subexpressions, uses \emph{disjoint} parts of the heap for each
+subexpression. This can be seen in the {\sc AM-Add}, {\sc AM-Lower}
+and {\sc AM-Instantiate} rules, which is essential for the proof of
+Soundness \autoref{thm:gen-soundness}.
+
+\begin{figure}
+{
+\[
+\begin{array}{c}
+  \labinfer[AM-Int]{(i, \sigma, \emptyheap, \mathcal{F}) \step (i, \sigma', \emptyheap, \mathcal{F}, r) }
+    {\freshVar{r} & i \in \mathbb{Z} & \sigma' = \sigma \cup \{ (r, i) \}}
+  ~~~
+  \labinfer[AM-Bool]{(b, \sigma, \emptyheap, \mathcal{F}) \step (b, \sigma', \emptyheap, \mathcal{F}, r) }
+    {\freshVar{r} & b \in \mathbb{B} & \sigma' = \sigma \cup \{ (r, b) \}}
+  \\\\
+  \labinfer[AM-Var-Base]{(v, \sigma, \emptyheap, \mathcal{F}) \step (\sigma(v), \sigma, \emptyheap, \mathcal{F}, v)}
+    {v \in dom(\sigma) & \sigma(v) \not\in \Loc}
+  \\\\
+  \labinfer[AM-Var-Loc]{(v, \sigma, \emptyheap, \mathcal{F}) \step (\mathcal{F}(\sigma(v)), \sigma, \emptyheap, \mathcal{F}, v)}
+    {v \in dom(\sigma) & \sigma(v) \in \Loc}
+  \\\\
+  % \labinfer[AM-Constr]{(C\; e_1 \cdots e_n, \sigma, h, \mathcal{F}) \step (C\; e_1 \cdots e_n, \sigma, h, \mathcal{F})}
+  %   {{\color{red} TODO} \textnormal{fix this}}
+  % \\\\
+  \labinfer[AM-Add]{(x + y, \sigma, h, \mathcal{F}) \step (z, \sigma', h, \mathcal{F}, r)}
+    {\begin{gathered}
+      (x, \sigma, \mathcal{F}, h_1) \step (x', \sigma_x, h_1', \mathcal{F}, v_x)
+      ~~~ (y, \sigma_x, \mathcal{F}, h_2) \step (y', \sigma_y, h_2', \mathcal{F}, v_y)
+    \\  \freshVar{r}
+    ~~~ h = h_1 \circ h_2
+    ~~~ h' = h_1' \circ h_2'
+    ~~~ z = x' + y'
+    ~~~ \sigma' = \sigma_y \cup \{ (r, z) \}
+     \end{gathered}
+    }
+  \\\\
+  \labinfer[AM-Lower]{(\lowerS{A}{e}, \sigma_0, h, \mathcal{F}) \step ((C\; e_1' \cdots e_n'), \sigma', h' \cdot [H'], \mathcal{F}', r)}
+     {\begin{gathered}
+          (A[x]\; (C\; a_1 \cdots a_n) := H) \in \Sigma
+       ~~~ (e, \sigma_0, h_0) \step (C\; e_1 \cdots e_n, \sigma_1, h_1, y_1)
+       \\  (e_i, \sigma_i, h_i) \step (e_i', \sigma_{i+1}, h_{i}', v_i)\; \textnormal{for each $1 \le i \le n$}
+       \\ h' = h_1' \circ h_2' \circ \cdots \circ h_n'
+       ~~~ h = h_0 \circ h_1 \circ \cdots \circ h_n
+       ~~~ \sigma' = \sigma_{n+1} \cup \{ (r, \ell) \}
+       \\  \freshLoc{\ell}
+       ~~~ \freshVar{r}
+       \\  H' = H[x := \ell][a_1 := \sigma_2(v_1)][a_2 := \sigma_3(v_2)]\cdots[a_n := \sigma_{n+1}(v_n)]
+       \\  \mathcal{F}' = \mathcal{F} \cup \{ (\ell, (C\; e_1' \cdots e_n')) \}
+     \end{gathered}
+    }
+  \\\\
+  \labinfer[AM-Instantiate]{(\instantiateS{A,B}{f}(e), \sigma, \mathcal{F}, h) \step (e_f', \sigma', h'', \mathcal{F}', r)}
+    {\begin{gathered}
+        (A[x]\; (C\; a) := H) \in \Sigma
+    ~~~ (f\; (C\; b) := e_f) \in \Sigma
+    \\  (e, \sigma, h) \step (C\; e_1, \sigma_1, h_1, y)
+    \\  (e_1, \sigma_1, h_1) \step (e_1', \sigma_2, h_2, r)
+    \\ \freshLoc{\ell}
+    ~~~ \freshVar{r}
+      ~~~ \freshVar{y}
+    \\  H' = H[x := \ell][a := e_1']
+    ~~~  h' = h_1 \cdot [H']
+    ~~~ \sigma' = \sigma_f \cup \{ (r, \ell) \}
+    \\  \mathcal{F}' = \mathcal{F} \cup \{ (\ell, (C\; e_1')) \}
+    \\  (\lowerS{B}{e_f[b := y]}, \sigma_2, h') \step (e_f', \sigma_f, h'', r)
+     \end{gathered}
+    }
+\end{array}
+\]
+}
+
+%   % \labinfer[AM-Constr]{(C\; e_1 \cdots e_n, \sigma, h, \mathcal{F}) \step (C\; e_1 \cdots e_n, \sigma, h, \mathcal{F})}
+%   %   {{\color{red} TODO} \textnormal{fix this}}
+% \[
+% \begin{array}{c}
+%   \labinfer[$\mathfrak{C}$-Constr]{(C\; e_1 \cdots e_n, \sigma, h, \mathcal{F}) \Cstep (C\; e_1 \cdots e_n, \sigma, h, \mathcal{F})}
+%     {}
+%   \\\\
+%   \labinfer[$\mathfrak{C}$-NonConstr]{(e, \sigma, h, \mathcal{F}) \Cstep (e', \sigma', h', \mathcal{F}')}
+%     {(e, \sigma, h, \mathcal{F}) \step (e', \sigma', h', \mathcal{F}', r)}
+% \end{array}
+% \]
+
+  \caption{Abstract machine semantics rules}
+  \label{fig:abs-machine}
+\end{figure}
+
+% Reviewing the two points of difference between the interpretations mentioned at the start of the section:
+
+\subsection{Translating \tool Specifications into SSL}
+
+We will define two translations: One from \tool \textit{expressions} into SSL propositions and the other from
+\tool \textit{definitions} into SSL inductive predicate definitions. We start with the former.
+
+\subsubsection{Translating Expressions}
+
+In the rules given in \autoref{fig:expr-rules}, the notation $\mathcal{I}_{A,B}(f)$ gives the name of the inductive predicate that the \tool
+function $f$ translates to when it is instantiated to the layouts $A$ and $B$.
+
+We start by defining the translation rules for expressions. We use these translation rules in \autoref{thm:ssem-fn} to
+define a translation function $\Tsem{\cdot}{\VarSet,r}$. Then, we will define translation rules for function definitions.
+
+The translation relation for expressions has the form $(e, \VarSet) \tstep (p, s, \VarSet', v)$,
+where $p$ and $s$ are the pure part and spatial part (respectively) of an SSL assertion and $\VarSet,\VarSet' \in \mathcal{P}(\Var)$.
+
+\begin{figure}
+  % \resizebox{.9 \textwidth}{!}
+  {
+\[
+\begin{array}{c}
+  \labinfer[S-Int]{(i, \VarSet) \tstep (v == i, \emp, \VarSet \cup \{v\}, v)}
+    {i \in \mathbb{Z} &
+     \freshVar{v}}
+  \\\\
+  \labinfer[S-Bool]{(b, \VarSet) \tstep (v == b, \emp, \VarSet \cup \{v\}, v)}
+    {b \in \mathbb{B} &
+     \freshVar{v}
+    }
+  \\\\
+  \labinfer[S-Var]{(v, \VarSet) \tstep (\texttt{true}, \emp, \VarSet, v)}
+    {v \in \Var}
+  \\\\
+  \ruleSAdd
+  \\\\
+  \labinfer[S-Lower-Var]{(\lowerS{A}{v}, \VarSet) \tstep (\texttt{true}, A(v), \VarSet \cup \{v\}, v)}
+    {\begin{gathered}
+      v \in \Var
+     \end{gathered}
+    }
+  \\\\
+  \labinfer[S-Lower-Constr]{
+        (\lowerS{A}{C\; e_1 \cdots e_n}, \VarSet_1)
+          \tstep (p_1 \land \cdots \land p_n, H' \sep s_1 \sep \cdots \sep s_n, \VarSet', x)}
+    {\begin{gathered}
+          (A[x]\; (C\; a_1 \cdots a_n) := H) \in \Sigma
+      \\  (e_i, \VarSet_i) \tstep (p_i, s_i, \VarSet_{i+1}, v_i)\; \textnormal{for each $1 \le i \le n$}
+      \\  \freshVar{v}
+      \\  \VarSet' = \VarSet_{n+1} \cup \{x\}
+      ~~~ H' = H[a_1 := v_1]\cdots[a_n := v_n]
+     \end{gathered}
+    }
+  \\\\
+  \labinfer[S-Inst-Var]{(\instantiateS{A,B}{f}(v), \VarSet) \tstep (\texttt{true}, \mathcal{I}_{A,B}(f)(v, r), \VarSet \cup \{r\}, r)}
+    {v \in \VarSet & \freshVar{r}}
+  \\\\
+  \labinfer[S-Inst-Constr]{
+        (\instantiateS{A,B}{f}(C\; e_1 \cdots e_n), \VarSet_1)
+                                     \tstep (p \land p_1 \land \cdots \land p_n, s \sep s_1 \sep \cdots \sep s_n, \VarSet', r)
+      }
+    {\begin{gathered}
+          (A[x]\; (C\; a_1 \cdots a_n) := H) \in \Sigma
+      \\  (e_i, \VarSet_i) \tstep (p_i, s_i, \VarSet_{i+1}, v_i)\; \textnormal{for each $1 \le i \le n$}
+      \\  \freshVar{x}
+      \\  \VarSet' = \VarSet_{n+1} \cup \{x\}
+      ~~~ H' = H[a_1 := v_1]\cdots[a_n := v_n]
+      \\
+          (f\; (C\; b_1 \cdots b_n) := e_f) \in \Sigma
+      ~~~ e_f' = e_f[b_1 := v_1]\cdots[b_n := v_n]
+      \\  (\lowerS{B}{e_f'}, \VarSet_{n+1}) \tstep (p, s, \VarSet', r)
+     \end{gathered}
+    }
+  \\\\
+  \labinfer[S-Inst-Inst]{
+      (\instantiateS{B,C}{f}(\instantiateS{A,B}{g}(e)), \VarSet) \tstep (p_1 \land p_2, s_1 \sep s_2, \VarSet_2, r_2)
+    }
+    {\begin{gathered}
+      (\instantiateS{A,B}{g}(e), \VarSet) \tstep (p_1, s_1, \VarSet_1, r_1)
+      \\ (\instantiateS{B,C}{f}(r_1), \VarSet_1) \tstep (p_2, s_2, \VarSet_2, r_2)
+     \end{gathered}
+    }
+\end{array}
+\]
+}
+\caption{Expression Translation Rules}
+\label{fig:expr-rules}
+\end{figure}
+
+\begin{lemma}[$\Tsem{\cdot}{}$ function] \label{thm:ssem-fn} $(\cdot, \VarSet) \tstep (\cdot, \cdot, \cdot, r)$ is a computable function $\Expr \rightarrow (\Pure \times \Spatial \times \mathcal{P}(\Var))$, given fixed
+  $\VarSet$ and $r$ where $r \not\in \VarSet$.
+
+By throwing away the third element of the tuple in the codomain, we obtain a function $\Expr \rightarrow (\Pure \times \Spatial)$ from expressions to
+SSL propositions.
+
+  Call this function $\Tsem{\cdot}{\VarSet, r}$. That is, we define the function as follows where $r \not\in \VarSet$:
+  \[
+    \Tsem{e}{\VarSet, r} = (p ; s) \iff (e, \VarSet) \tstep (p, s, \VarSet', r)\; \textnormal{for some $\VarSet'$}
+  \]
+\end{lemma}
+
+We highlight the computability of this function to emphasise the fact
+that it can be used directly in an implementation of this subset of
+\tool.
+
+\subsubsection{Translating Function Definitions}
+
+The next step is to define the translation for \tool function definitions. In order to do this, we must first figure out how to determine the
+appropriate layout branch to use when unfolding a layout, a problem we highlighted earlier. Once this is accomplished, the rest of
+the translation can be defined. When this problem was solved for the abstract machine semantics,
+it was possible to simply evaluate the \tool expression until it a constructor application expression was reached. From there, it is possible to just look at the constructor name and match it against the appropriate layout branch.
+
+For the translation, however, we do not have the luxury of being able to evaluate expressions. Instead, we must instead rely on the fact
+that, in SSL, a ``pure'' (Boolean) condition can determine which inductive predicate branch to use. The question becomes: \textit{Given an algebraic
+data type and a layout for that ADT, how do we
+generate an appropriate Boolean condition for a given constructor for the ADT}?
+
+The solution is to find a Boolean condition which, given that the inductive predicate holds, is true \textit{if and only if} the layout branch corresponding to that
+ADT constructor is satisfiable. In more detail, to define the branches of an inductive predicate $\mathcal{I}_{A}(x)$, given an ADT $\alpha$, a constructor $C : \beta_1 \rightarrow \beta_2 \rightarrow \cdots \rightarrow \beta_n \rightarrow \alpha$, a layout $A : \alpha \monic \layout[x]$ with a branch $A[x]\; (C\; a_1 \cdots a_n) := H$ and given that $\mathcal{I}_{A}(x)$ holds, find a Boolean expression $b$ with one free variable $x$ such that
+\[
+  b \iff \exists \sigma, h.\; (\sigma, h) \models H
+\]
+
+\begin{lemma}[$\cond$ function]
+  \label{thm:cond}
+  There is a computable function $\cond(\cdot,\cdot)$ that takes in any layout $A : \alpha \monic \layout[x]$ with a branch $A[x]\; (C\; a_1 \cdots a_n) := H$ for a given constructor
+  $C : \beta_1 \rightarrow \beta_2 \rightarrow \cdots \rightarrow \beta_n \rightarrow \alpha$ and it produces a Boolean expression with one free variable $x$ such that the following holds under the assumption that $\mathcal{I}_{A}(x)$ holds.
+  Note that $\mathcal{I}_{A}(x)$ is the name of the generated inductive predicate corresponding to the layout $A$.
+  \[
+    \cond(A, C) \iff \exists \sigma, h.\; (\sigma, h) \models H
+  \]
+\end{lemma}
+
+With this function in hand, we are now ready to define the translation for \tool function definitions. This
+definition is in \autoref{fig:FnDef-rule}.
+
+\begin{figure}
+\[
+\begin{array}{c}
+  \labinfer[FnDef]{(f\; (C\; a_1 \cdots a_n) := e) \defstep{A,B} (\mathcal{I}_{A,B}(f)(x, r) : c \Ra \{p ; s\})}
+    {\begin{gathered}
+          \VarSet = \{ v_1 , \cdots , v_n \}\; \textnormal{where $v_1, \cdots, v_n$ are distinct variables}
+      \\  r \in \Var
+      ~~~ r \not\in \VarSet
+      ~~~ c = \cond(A, C, x)
+      \\  (p, s) = \Tsem{\instantiateS{A,B}{f}(C\; p_1 \cdots p_n)}{\VarSet, r}
+     \end{gathered}
+    }
+\end{array}
+\]
+\caption{Translation rule for function definitions}
+\label{fig:FnDef-rule}
+\end{figure}
+
+% \noindent
+% As mentioned before, we are looking at a subset of \tool where
+% functions only have a single argument. However, the solution we have just
+% described is the general solution that works for multiple arguments as well.
+
+\subsection{Typing Rules}
+
+Typing rules for \tool expressions are given in
+\autoref{fig:typing-rules}. These rules differ from standard typing
+rules for a functional language due to the existence of layouts and
+their associated constructors, like \verb|instantiate| and
+\verb|lower|. If an expression is well-typed, then each use of
+\verb|instantiate| and \verb|lower| only uses layouts together with
+the ADT that they are defined for.
+
+The rules also make use of a \textit{concreteness judgment}. The rules
+for this judgment are given in \autoref{fig:concreteness-rules}. The
+intuition of this judgment is that a type is ``concrete'' iff values
+of that type can be directly represented in the heap machine
+semantics. For example, an ADT type is \textit{not} concrete because a
+layout has not been specified. However, once a particular layout is
+specified for the ADT type, it becomes concrete. Base types, like
+\verb|Int|, are also concrete.
+
+Rules for the ensuring that global definitions are well-typed are
+given in \autoref{fig:globals-typing-rules}. In this figure, $\Delta$
+is the set of all (global) constructor type definitions.
+
+\begin{figure}[t]
+\[
+\begin{array}{c}
+  \labinfer[T-Int]{\Gamma \vdash i : \Int}
+    {i \in \mathbb{Z}}
+  ~~~
+  \labinfer[T-Bool]{\Gamma \vdash b : \Bool}
+    {b \in \mathbb{B}}
+  ~~~
+  \labinfer[T-Var]{\Gamma \vdash v : \alpha}
+    {(v : \alpha) \in \Gamma}
+  \\\\
+  \labinfer[T-Fn-Global]{\Gamma \vdash f : \alpha \rightarrow \beta}
+    {(f : \alpha \rightarrow \beta) \in \Sigma}
+  \\\\
+  \labinfer[T-Add]{\Gamma \vdash x + y : \Int}
+    {\Gamma \vdash x : \Int & \Gamma \vdash y : \Int}
+  \\\\
+  \labinfer[T-Lower-Var]{\Gamma \vdash \lowerS{A}{v} : A}
+    {(v : \alpha) \in \Gamma & (A : \alpha \monic \layout[x]) \in \Sigma}
+  \\\\
+  \labinfer[T-Lower-Constr]{\Gamma \vdash \lowerS{A}{C\; e_1 \cdots e_n} : B}
+    {\begin{gathered}
+      (C : \alpha_1 \rightarrow \cdots \rightarrow \alpha_n \rightarrow \beta) \in \Sigma
+      \\ (B : \beta \monic \layout[x]) \in \Sigma
+      \\  \Gamma \vdash e_i \concrete{\alpha_i}\; \textnormal{for each $i$ with $1 \le i \le n$}
+     \end{gathered}
+    }
+  \\\\
+  % \labinfer[T-Lower]{\Gamma \vdash \lowerS{A}{e} : A}
+  %   {\Gamma \vdash e : \alpha & (A : \alpha \monic \layout[x]) \in \Sigma}
+  % \\\\
+  \labinfer[T-Instantiate]{\Gamma \vdash \instantiateS{A,B}{f}(e) : B}
+    {\begin{gathered}
+          (A : \alpha \monic \layout[x]) \in \Sigma
+      ~~~ (B : \beta \monic \layout[y]) \in \Sigma
+      \\  \Gamma \vdash f : \alpha \rightarrow \beta
+      ~~~ \Gamma \vdash e : A
+     \end{gathered}
+    }
+  \\\\
+  \labinfer[T-Constr]{\Gamma \vdash C\; e_1 \cdots e_n : \beta}
+    {(C : \alpha_1 \rightarrow \cdots \rightarrow \alpha_n \rightarrow \beta) \in \Sigma &
+     \Gamma \vdash e_i : \alpha_i\; \textnormal{for each $i$ with $1 \le i \le n$}
+    }
+\end{array}
+\]
+  \caption{Typing rules}
+  \label{fig:typing-rules}
+\end{figure}
+
+
+\begin{figure}[b]
+%\vspace{-5pt}
+% \setlength{\belowcaptionskip}{-12pt}
+% \setlength{\abovecaptionskip}{0pt}
+\centering
+% \begin{subfigure}{0.49\textwidth}
+\begin{minipage}{1.0\linewidth}
+{\footnotesize{
+\[
+  \begin{array}{c}
+    \labinfer[C-Int]{e \concrete{\Int}}
+      {\Gamma \vdash e : \Int}
+    ~~~
+    \labinfer[C-Bool]{e \concrete{\Bool}}
+      {\Gamma \vdash e : \Bool}
+    \\\\
+    \labinfer[C-Layout]{e \concrete{\alpha}}
+      {(A : \alpha \monic \layout[x]) \in \Sigma &
+       \Gamma \vdash e : A
+      }
+  \end{array}
+\]
+}}
+\end{minipage}
+  \caption{Concreteness judgment rules}
+  \label{fig:concreteness-rules}
+% \end{subfigure}
+%%
+% \begin{subfigure}{0.49\textwidth}
+\begin{minipage}{1.0\linewidth}
+{\footnotesize{
+\[
+\begin{array}{c}
+  \labinfer[G-Fn]{(f\; (C\; b_1 \cdots b_n) := e) \Rightarrow f : \beta \rightarrow \gamma}
+    {(C : \alpha_1 \rightarrow \alpha_2 \rightarrow \cdots \rightarrow \alpha_n \rightarrow \beta) \in \Delta\\
+    b_1 : \alpha_1, b_2 : \alpha_2, \cdots, b_n : \alpha_n \vdash e : \gamma
+    }
+\end{array}
+\]
+}}
+\end{minipage}
+  \caption{Global definition typing}
+  \label{fig:globals-typing-rules}
+% \end{subfigure}
+%\setlength{\belowcaptionskip}{-15pt}
+\caption{Rules for concreteness judgement and typing global definitions}
+\label{fig:meh}
+\end{figure}
+

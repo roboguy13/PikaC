@@ -49,6 +49,12 @@
 \newcommand {\withIn} [1] {\keyword{with}\,#1\,\keyword{in}\,}
 \newcommand {\letPure} [1] {\keyword{letpure}\,#1\,\keyword{in}\,}
 
+\newcommand{\cond}{\textnormal{cond}}
+
+\newcommand{\Pure}{\textnormal{Pure}}
+\newcommand{\Spatial}{\textnormal{Spatial}}
+
+
 % Based on https://tex.stackexchange.com/questions/451786/how-do-i-put-a-circle-around-a-symbol
 \makeatletter
 \newcommand {\osep}{\mathbin{\mathpalette\make@circled\ast}}
@@ -80,24 +86,22 @@
 
 \newcommand {\tyLambda} {\mathrm{\Lambda}}
 
-\newcommand {\sem} [1] {\llbracket #1 \rrbracket}
-
 \newcommand {\argCount} [1] {N\sem{#1}}
 \newcommand {\namesem} [1] {\Var^{\argCount{#1}}}
 
-\newcommand {\pcsubscript} {\textsf{PC}}
-\newcommand {\step} {\longrightarrow}
-\newcommand {\steps} {\longrightarrow^{*}}
-\newcommand {\pcstep} {\step_{\pcsubscript}}
-\newcommand {\pcsteps} {\steps_{\pcsubscript}}
-\newcommand {\pcNotionStep} {\rightsquigarrow_{\pcsubscript}}
+% \newcommand {\pcsubscript} {\textsf{PC}}
+% \newcommand {\step} {\longrightarrow}
+% \newcommand {\steps} {\longrightarrow^{*}}
+% \newcommand {\pcstep} {\step_{\pcsubscript}}
+% \newcommand {\pcsteps} {\steps_{\pcsubscript}}
+% \newcommand {\pcNotionStep} {\rightsquigarrow_{\pcsubscript}}
 
 \newcommand {\FV} {\textsf{FV}}
 
-\newcommand {\bigstep} {\Downarrow}
-\newcommand {\pcStep} {\bigstep_{\pcsubscript}}
+% \newcommand {\bigstep} {\Downarrow}
+% \newcommand {\pcStep} {\bigstep_{\pcsubscript}}
 
-\newcommand {\defStep} {\bigstep_{\pcsubscript}}
+% \newcommand {\defStep} {\bigstep_{\pcsubscript}}
 
 \newcommand {\val} {\textsf{value}}
 
@@ -128,9 +132,9 @@
 \newcommand {\SuSLik} {SuSLik}
 \newcommand {\SuSLang} {SuSLang}
 
-\newcommand {\Var} {\textsf{Var}}
+% \newcommand {\Var} {\textsf{Var}}
 
-\newcommand {\Heap} {\textsf{Heap}}
+% \newcommand {\Heap} {\textsf{Heap}}
 
 \newcommand {\lifted} [1] {#1_{\bot}}
 
@@ -152,6 +156,58 @@
 \newcommand {\layoutParams} {\textsf{params}}
 
 \newcommand{\eg}{\emph{e.g.}}
+\newcommand{\etal}{\emph{et~al.}}
+
+\newcommand{\sep}{*}
+
+
+\newcommand{\step} {\ensuremath{\longmapsto}}
+\newcommand{\tstep} {\ensuremath{\Downarrow}}
+\newcommand{\defstep} [1] {\ensuremath{\xmapsto{\textnormal{fn-def}}_{#1}}}
+\newcommand{\Cstep} {\ensuremath{\longmapsto_{\mathfrak{C}}}}
+
+\newcommand{\Expr} {\textnormal{Expr}}
+\newcommand{\Heap} {\textnormal{Heap}}
+\newcommand{\Store} {\textnormal{Store}}
+\newcommand{\Var} {\textnormal{Var}}
+\newcommand{\Loc} {\textnormal{Loc}}
+\newcommand{\Val} {\textnormal{Val}}
+\newcommand{\FsVal} {\textnormal{FsVal}}
+% \newcommand{\labinfer} [3] [] {\infer[{\textsc{#1}}]{#2}{#3}}
+% \newcommand{\fresh} {\mathbin{\#}}
+
+\newcommand{\freshLoc} [1] {#1\;\textnormal{fresh}}
+\newcommand{\freshVar} [1] {#1\;\textnormal{fresh}}
+
+\newcommand{\FsStore} {\textnormal{FsStore}}
+\newcommand{\VarSet} {V}
+
+\newcommand{\lowerS} [2] {\texttt{lower}_{#1}(#2)}
+\newcommand{\instantiateS} [2] {\texttt{inst}_{#1}(#2)}
+
+\newcommand{\emptyheap} {\varnothing}
+
+\newcommand{\emp} {\texttt{emp}}
+\newcommand{\pointsto} {\ensuremath{\mathbin{\texttt{:->}}}}
+
+\newcommand{\tname}[1]{\textsf{#1}}
+
+\newcommand {\tool} {\Pika\xspace}
+
+
+\newcommand{\sem} [1] {\llbracket#1\rrbracket}
+\newcommand{\Tsem} [2] {\mathcal{T}\sem{#1}_{#2}}
+
+\newcommand{\concrete} [1] {\textnormal{\;concrete$_{#1}$}}
+
+\newcommand{\Start} [1] {{\color{cyan} #1}}
+\newcommand{\End} [1] {{\color{orange} #1}}
+
+\newcommand{\StartSigma} {\Start{\sigma}}
+\newcommand{\EndSigma} {\End{\sigma'}}
+
+\newcommand{\StartPair} {(\StartSigma, \Start{h})}
+\newcommand{\EndPair} {(\EndSigma, \End{h'})}
 
 % From https://tex.stackexchange.com/questions/502652/define-tcolorbox-in-math-mode
 \newtcbox{\boxtext}{on line,colback=white,colframe=black,size=fbox,arc=3pt,boxrule=0.8pt}

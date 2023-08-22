@@ -10,6 +10,8 @@
 \usepackage{tikz-cd}
 \usepackage{syntax}
 \usepackage{listings}
+\usepackage{xspace}
+\usepackage{mathtools}
 \lstset{basicstyle=\ttfamily, mathescape=true, literate={~} {$\sim$}{1}}
 
 \input{defs.tex}
@@ -237,9 +239,11 @@
 %% information and builds the first part of the formatted document.
 \maketitle
 
+\input{selected-rules}
+
 \input{introduction}
 \input{overview}
-\input{syntax}
+% \input{syntax}
 \input{layouts}
 \input{semantics}
 \input{limitations}
@@ -247,6 +251,9 @@
 \input{examples}
 \input{future-work}
 \input{conclusion}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{paper}
 
 \end{document}
 \endinput
