@@ -12,8 +12,7 @@ Two versions of \Pika{} have been built. \Pika{} 1 has a focus on using \SuSLik{
   \item We explore the connection between SSL and functional programming using a pair of formal semantics for \Pika: A standard abstract machine semantics and a
     semantics that translates \Pika{} into SSL specifications. The second semantics is shown to be sound relative to the first semantics. (Section~\ref{sec:semantics})
 
-  \item In order to provide seamless interoperability between SSL and \Pika, we provide a separation between algebraic data types and their representation in memory.
-    At a type-level, we track this representation in memory. Furthermore, we describe a kind of polymorphism over memory layouts of an algebraic data type. (Section~\ref{sec:layouts})
+  \item In order to provide seamless interoperability between SSL and \Pika, we provide a mechanism to related algebraic data types to their representation in memory. In particular, Pika has a language construct that allows the programmer to define a kind of function from values of an algebraic data type to SSL assertions. This is called a \textit{layout}. (Section~\ref{sec:layouts})
 
   \item We address the limitations of this approach. In particular, we develop an extension of \Pika{} that allows \SuSLik's synthesis capabilities to be exposed more naturally inside the \Pika{} language. (Section~\ref{sec:synth})
 

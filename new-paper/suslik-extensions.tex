@@ -159,7 +159,7 @@ predicate sum(loc l, int output){
 
 Such sequential application is common in functional programming, especially in the recursive function. For example, it is not elegant to flatten a list of lists without the sequential application. 
 
-\begin{lstlisting}[language=SynLang]
+\begin{lstlisting}[language=Pika]
     flatten :: [[a]] -> [a]
     flatten [] = []
     flatten (x:xs) = x ++ flatten xs

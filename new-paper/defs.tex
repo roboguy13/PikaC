@@ -215,6 +215,8 @@
 \lstdefinelanguage{Pika}{
   keywords={let, in, if, then, else, while, data, emp, generate, instantiate, addr, deref, synth},
   ndkeywords={Int, Bool, layout, Ptr},
+  literate={>->}{$\monic$}1
+           {->}{$\ra$}1,
   mathescape=true,
   showspaces=false,
   showtabs=false,
@@ -245,6 +247,7 @@
 \lstdefinelanguage{SynLang}{
   keywords={new, let, if, else, null, return, while, emp, func, temp},
   ndkeywords={bool, int, void, loc, predicate},
+  literate={->}{$\ra$}1,
   mathescape=true,
   showspaces=false,
   showtabs=false,
