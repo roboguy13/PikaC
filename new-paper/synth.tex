@@ -27,8 +27,8 @@ We also need to extend layout definitions so that they can include ``ghost param
 
 This extension to layouts is best explain by way of example. First, consider the original definition of the singly-linked list type:
 
-\begin{lstlisting}
-Sll : layout[x](List)
+\begin{lstlisting}[language=Pika]
+Sll : List >-> layout[x]
 Sll Nil := emp;
 Sll (Cons head tail) :=
   x :-> head ** (x+1) :-> nxt
@@ -38,8 +38,8 @@ Sll (Cons head tail) :=
 \noindent
 This does not use any ghost variables in \Pika{} or in the resulting \SuSLik{} specification. A common pattern in \SuSLik{} specifications is to use a \verb|set| type ghost variable to keep track of the elements in a data structure. Then, we can require that the elements are preserved or that new elements be added when using this in specifications. The feature we add to layouts allows us to use this feature directly:
 
-\begin{lstlisting}
-Sll : @(s : set) layout[x](List);
+\begin{lstlisting}[language=Pika]
+Sll : @(s : set) List >-> layout[x];
 Sll Nil := s == {} ;; emp;
 Sll (Cons head tail) :=
   s == {head} ++ s1
@@ -51,7 +51,7 @@ Sll (Cons head tail) :=
 \noindent
 Putting this all together, we can use this new kind of parameter together with the \synth{} keyword to specify a list append function:
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 synth append :
   s == s1 ++ s2
     ;;

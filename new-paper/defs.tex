@@ -211,6 +211,26 @@
 \newcommand{\StartPair} {(\StartSigma, \Start{h})}
 \newcommand{\EndPair} {(\EndSigma, \End{h'})}
 
+\lstdefinelanguage{Pika}{
+  keywords={let, in, if, then, else, while, data, emp, generate, instantiate, addr, deref, synth},
+  ndkeywords={Int, Bool, layout, Ptr},
+  mathescape=true,
+  showspaces=false,
+  showtabs=false,
+  breaklines=true,
+  showstringspaces=false,
+  breakatwhitespace=true,
+  lineskip=-0.9pt,
+  morecomment=[l]{//}, % l is for line comment
+  morecomment=[s]{/*}{*/}, % s is for start and end delimiter
+  basewidth={0.54em, 0.4em},%
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle={\color{pred}\ttfamily\bfseries},
+  ndkeywordstyle={\color{pblue}\ttfamily\bfseries},
+  commentstyle={\color{ccomment}\itshape},
+  numbers=none,
+}
+
 
 \definecolor{pblue}{rgb}{0.13,0.13,1}
 \definecolor{pgreen}{rgb}{0,0.5,0}
@@ -222,8 +242,8 @@
 \newcommand{\zy}[1]{\textcolor{pred}{(Ziyi: {#1})}}
 
 \lstdefinelanguage{SynLang}{
-  keywords={new, let, if, else, null, return, while},
-  ndkeywords={bool, int, void, loc},
+  keywords={new, let, if, else, null, return, while, emp, func, temp},
+  ndkeywords={bool, int, void, loc, predicate},
   mathescape=true,
   showspaces=false,
   showtabs=false,

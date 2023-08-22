@@ -101,7 +101,7 @@ program that takes an integer $x$ and a result in location $r$ and
 stores $x+1$ at location $r$. This can be written as the \SuSLik{}
 specification:
 
-\begin{lstlisting}
+\begin{lstlisting}[language=SynLang]
 void add1Proc(int x, loc r)
   { r :-> 0 }
   { y == x+1 ; r :-> y }
@@ -111,7 +111,7 @@ void add1Proc(int x, loc r)
 \noindent
 In contrast, this example can be written as follows in \Pika:
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 add1Proc : Int -> Int;
 add1Proc x := x + 1;
 \end{lstlisting}
@@ -192,7 +192,7 @@ SSL output variable is named $x$.
 % the Appendices. %x~\ref{sec:grammar}.
 
 \begin{figure}[t]
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 data List := Nil | Cons Int List;
 
 Sll : List >-> layout[x];
@@ -214,7 +214,7 @@ simple example of \Pika{} code that illustrates algebraic data types and
 layouts is a function which creates a singleton list out of the given
 integer argument:
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 %generate singleton [Int] Sll
 
 singleton : Int -> List;
@@ -224,7 +224,7 @@ singleton x := Cons x (Nil);
 \noindent
 This gets compiled to the following \SuSLik{} specification, with generated names simplified for greater clarity:
 
-\begin{lstlisting}
+\begin{lstlisting}[language=SynLang]
 predicate singleton(int p, loc r) {
 | true => { r :-> p ** (r+1) :-> 0 ** [r,2] }
 }
@@ -238,7 +238,7 @@ Considering the list implementation to be a singly-linked list with a
 fixed layout, one way to express this in \SuSLik{} is shown in \autoref{fig:sllx}
 
 \begin{figure}[t]
-\begin{lstlisting}
+  \begin{lstlisting}[language=SynLang]
 predicate sll(loc x) {
 | x == 0 => { emp }
 | not (x == 0) => { [x, 2] ** x :-> v ** (x+1) :-> nxt ** sll(nxt) }
@@ -294,7 +294,7 @@ However, there are still some significant differences:
 Say we want to write the functional program that corresponds to this specification. One way to do this in a Haskell-like language
 is the following, using the \verb|List| type from \autoref{fig:List-def}.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 mapAdd1_fn : List -> List;
 mapAdd1_fn (Nil) := 0;
 mapAdd1_fn (Cons head tail) := Cons (head + 1) (mapAdd1_fn tail);
@@ -323,7 +323,7 @@ function definitions. We instruct a \SuSLik{} specification generator to
 generate a \SuSLik{} specification from the \verb|mapAdd1_fn| function
 using the \verb|Sll| layout:
 %
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 %generate mapAdd1_fn [Sll] Sll
 \end{lstlisting}
 %
@@ -338,7 +338,7 @@ We can generalise our \verb|mapAdd1| to map arbitrary \verb|Int|
 functions over a list and then redefine \verb|mapAdd1| using the new
 \verb|map|.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 %generate mapAdd1 [Sll] Sll
 
 data List := Nil | Cons Int List;
@@ -399,7 +399,7 @@ to read. For a \SuSLik{} specification of this example, see
 \autoref{fig:SuSLik-filter}
 
 \begin{figure}
-  \begin{lstlisting}
+  \begin{lstlisting}[language=SynLang]
 predicate filterLt9(loc x, loc r) {
 | (x == 0) => { r == 0 ; emp }
 | not (x == 0) && head < 9 =>
@@ -420,7 +420,7 @@ void filterLt9(loc x1, loc r)
 
 On the other hand, an implementation of this in \Pika{} is:
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 %generate filterLt9 [Sll] Sll
 
 filterLt9 : List -> List;
@@ -443,7 +443,7 @@ constraint corresponding to the equality in the \verb|let| binding in the pure p
 
 The \verb|if-then-else| construct corresponds to \SuSLik's C-like ternary operator. We can use these features together to implement a \verb|maximum| function:
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 %generate maximum [Sll] Int
 
 maximum : List -> Int;
@@ -474,7 +474,7 @@ function that follows the left branches of a binary tree and collects the values
 stored in those nodes into a list. This example demonstrates a binary tree
 algebraic data type and a layout that corresponds to it.
 
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 %generate leftList [TreeLayout] Sll
 
 data Tree := Leaf | Node Int Tree Tree;
@@ -508,7 +508,7 @@ but it is a low-level construct, indictating how pointers should be used, rather
 Given a base type $\alpha$ (such as \verb|Int|), \verb|Ptr Int| is a type. This type is
 passed around differently in the generated code. In particular, it is passed by reference.
 \verb|addr| is the corresponding value-level introduction operation.
-\begin{lstlisting}
+\begin{lstlisting}[language=Pika]
 %generate fold_List [Int, Sll] (Ptr Int)
 
 fold_List : Int -> List -> Ptr Int;
@@ -525,7 +525,7 @@ fold_List z (Cons x xs) :=
 \noindent
 The compiler produces the following \SuSLik{} specification for \verb|fold_List|:
 
-\begin{lstlisting}
+\begin{lstlisting}[language=SynLang]
 predicate fold_List(int i, loc p_x ,loc __r) {
 | (p_x == 0) => { __r :-> i }
 | (not (p_x == 0)) => {
