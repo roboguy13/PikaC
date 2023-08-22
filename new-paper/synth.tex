@@ -36,6 +36,8 @@ Sll (Cons head tail) :=
 \end{lstlisting}
 
 \noindent
+Note that in \Pika{} 2, we distinguish between the pattern variables (such as \verb|tail|) and the SSL parameters (such as \verb|nxt|). In the recursive application of \verb|Sll|, we apply it to \verb|tail| and we substitute \verb|nxt| for \verb|x|.
+
 This does not use any ghost variables in \Pika{} or in the resulting \SuSLik{} specification. A common pattern in \SuSLik{} specifications is to use a \verb|set| type ghost variable to keep track of the elements in a data structure. Then, we can require that the elements are preserved or that new elements be added when using this in specifications. The feature we add to layouts allows us to use this feature directly:
 
 \begin{lstlisting}[language=Pika]
