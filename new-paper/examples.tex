@@ -3,6 +3,8 @@
 
 \subsection{\Pika{} 1}
 
+Working \Pika{} 1 examples are presented in Figure~\ref{size-comparison}. For each example, we compare the AST size of the \Pika{} code with that of the generated \SuSLik{} code. This is a rough measure of the relative expressiveness of \Pika{} and \SuSLik{} on these examples. Each example in the list consists of a single function which was tested by hand.
+
 \begin{figure}[b]
 \setlength{\abovecaptionskip}{5pt}
 \setlength{\belowcaptionskip}{-15pt}
@@ -31,6 +33,8 @@
 \subsection{\Pika{} 2}
 
 Version 2 of \Pika{} is a rewrite of version 1 and it is missing a couple of features of version 1. However, it has the \synth{} feature. It also has the groundwork for layout polymorphism to be implemented. The second aspect, in particular, is a substantial change from version 1 and motivated the rewrite.
+
+Figure~\ref{fig:pika-2-examples} is a table of \Pika{} 2 examples together with the number of functions they have (not including \synth) and whether or not they use \synth. These functions were tested using the unit testing framework built into \Pika{} 2.
 
 \begin{figure}
   \begin{tabular}{ c c c }
