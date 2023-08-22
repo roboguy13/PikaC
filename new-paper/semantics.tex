@@ -2,8 +2,8 @@
 \label{sec:semantics}
 
 
-\subsection{Formal Semantics of \tool}
-\label{sec:formal}
+% \subsection{Formal Semantics of \tool}
+% \label{sec:formal}
 
 In this section, we have the following plan:
 
@@ -51,7 +51,7 @@ as before and are therefore omitted from the following grammar.
 \noindent
 The semantics for SSL are largely derived~\cite{polikarpova:2019:suslik} from standard separation logic semantics.~\cite{rowe:2017:auto-cyclic-term}
 
-\subsubsection{Overview of the Two Interpretations}
+\subsection{Overview of the Two Interpretations}
 
 The soundness theorem will link the abstract machine semantics to the translation. In fact, the abstract machine
 semantics and the translation are similar to each other. For the abstract machine we manipulate \textit{concrete} heaps, while
@@ -70,6 +70,7 @@ Comparing the two further, there are two main points (beyond what we've already 
 % \\
 
 % \subsubsection{Abstract Machine}
+\paragraph{Abstract machine}
 First, consider the abstract machine semantics. In this case, we are able to choose which branch of a layout to use by evaluating the expression we are applying it
           to until the expression is reduced to a constructor value (where a ``constructor value'' is either a value or a constructor applied to constructor values). If the expression is well-typed, this will always be a constructor
           of the algebraic data type corresponding to the layout. The two rules that this applies to are {\sc AM-Lower} and
@@ -80,6 +81,7 @@ First, consider the abstract machine semantics. In this case, we are able to cho
 % \\
 
 % \subsubsection{SSL Translation}
+\paragraph{SSL translation}
 Next, consider the SSL translation. Here we can determine which layout branch to use by generating a Boolean condition that will be
           true if and only if the SSL proposition on the right-hand side of the branch holds for the heap. Note
           that we assume that the programmer-supplied layout definitions are \textit{injective} functions from
@@ -129,7 +131,7 @@ After defining these interpretations, we show how the abstract machine relation 
 % that will be given when we fill in the question marks, but this is deferred to a later subsection.
 
 
-\subsubsection{Abstract Machine Semantics}
+\subsection{Abstract Machine Semantics}
 In this section, we will define an abstract machine semantics for \tool and relate this to
 the standard semantics for SSL.
 
@@ -590,9 +592,9 @@ is the set of all (global) constructor type definitions.
 \end{minipage}
   \caption{Global definition typing}
   \label{fig:globals-typing-rules}
-% \end{subfigure}
-%\setlength{\belowcaptionskip}{-15pt}
-\caption{Rules for concreteness judgement and typing global definitions}
-\label{fig:meh}
+% % \end{subfigure}
+% %\setlength{\belowcaptionskip}{-15pt}
+% \caption{Rules for concreteness judgement and typing global definitions}
+% \label{fig:meh}
 \end{figure}
 

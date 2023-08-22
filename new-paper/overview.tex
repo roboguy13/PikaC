@@ -168,7 +168,7 @@ constructs, respectively. For example, \verb|instantiate [A] B f x|
 calls $f$ with the argument $x$, where the layout $A$ is used for the
 argument and the layout $B$ is used for the result of the function
 application. This is also written $\instantiateS{A,B}{f}(x)$. The
-latter is primarily used in \autoref{sec:formal}.
+latter is primarily used in \autoref{sec:semantics}.
 
 The code generator is instructed to generate a \SuSLik{} specification
 for a certain function at a certain instantiation by using a
@@ -187,8 +187,9 @@ type signatures. A layout definition consists a \textit{layout type
 with lists of SSL heaplets on the right-hand sides. A layout type
 signature has a special form $A : \alpha \monic \layout[x]$. This says
 that the layout $A$ is for the algebraic data type $\alpha$ and the
-SSL output variable is named $x$. The full \Pika{} grammar is given in
-the Appendices. %x~\ref{sec:grammar}.
+SSL output variable is named $x$.
+% The full \Pika{} grammar is given in
+% the Appendices. %x~\ref{sec:grammar}.
 
 \begin{figure}[t]
 \begin{lstlisting}

@@ -1,9 +1,11 @@
 \section{Introduction}
 
-Synthetic separation logic (SSL) is the specification language for the \SuSLik{} program synthesizer. \SuSLik{} will take a precondition and postcondition pair together
-with a function prototype and use these to synthesize a function that satisfies that specification in a C-like language called \SuSLang.
+Synthetic separation logic (SSL) is the specification language for the \SuSLik{} program synthesiser. \SuSLik{} will take a precondition and postcondition pair together
+with a function prototype and use these to synthesise a function that satisfies that specification in a C-like language called \SuSLang.
 
 We have developed a first-order functional programming language, \Pika, which will compile to SSL specifications. \SuSLik{} can then take these SSL specifications and generate \SuSLang. Finally, the resulting \SuSLang{} code can be converted to C and then run. In addition to this translational semantics, we also provide a standard abstract machine semantics for \Pika{} and use this to show correctness of the translation into SSL.
+
+Two versions of \Pika{} have been built. \Pika{} 1 has a focus on using \SuSLik{} to generate all of the low-level code, while \Pika{} 2 adds an additional synthesis feature inside the \Pika{} language itself and has a builtin testing framework. In the present work, we will start by talking about \Pika{} 1, describe the fundamental limitations of using \SuSLik{} to generate everything and then use this to motivate the creation of \Pika{} 2. The two versions are then compared.
 
 \paragraph{Contributions} In this paper, we make the following contributions:
 \begin{itemize}

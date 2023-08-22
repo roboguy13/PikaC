@@ -3,6 +3,31 @@
 
 \subsection{\Pika{} 1}
 
+\begin{figure}[b]
+\setlength{\abovecaptionskip}{5pt}
+\setlength{\belowcaptionskip}{-15pt}
+\begin{center}
+  \begin{table}[H]
+  \begin{tabular}{ c c c c }
+    \hline
+    Name & \suslik size & \tool 1 size & \tool 1 size / \suslik size\\
+    \hline
+    \verb|append| & 164 & 84 & 0.512 \\
+    \verb|cons| & 82 & 52 & 0.634 \\
+    \verb|filterLt9| & 136 & 66 & 0.485 \\
+    \verb|singleton| & 70 & 47 & 0.671 \\
+    \verb|map| & 147 & 93 & 0.633 \\
+    \verb|mapSum| & 138 & 97 & 0.703 \\
+    \verb|maximum| & 106 & 61 & 0.575 \\
+    \verb|leftList| & 144 & 104 & 0.722 \\
+    \verb|take| & 180 & 112 & 0.622
+  \end{tabular}
+  \end{table}
+\end{center}
+  \caption{\tool 1 spec size vs generated SSL spec size measured in number of AST nodes}
+  \label{fig:size-comparison}
+\end{figure}
+
 \subsection{\Pika{} 2}
 
 Version 2 of \Pika{} is a rewrite of version 1 and it is missing a couple of features of version 1. However, it has the \synth{} feature. It also has the groundwork for layout polymorphism to be implemented. The second aspect, in particular, is a substantial change from version 1 and motivated the rewrite.
