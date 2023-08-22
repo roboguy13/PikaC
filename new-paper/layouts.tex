@@ -1,7 +1,7 @@
 \subsection{Layouts}
 \label{sec:layouts}
 
-A \textit{layout} is a mapping from algebraic datatype values to separation logic assertions. This is achieved by a special kind of function definition that pattern matches on the algebraic datatype and produces SSL assertions. This function can be recursive and it can be mutually recursive with other layouts.
+A \textit{layout} is a mapping from algebraic data type values to separation logic assertions. This is achieved by a special kind of function definition that pattern matches on the algebraic data type and produces SSL assertions. This function can be recursive and it can be mutually recursive with other layouts. We have seen the \verb|Sll| layout so far (Fig.~\ref{fig:List-def}), which is a layout for linked lists. In particular, it maps values of the \verb|List| type to SSL assertions representing a singly-linked list.
 
-This construct is at the heart of the connection between SSL and \Pika, providing a bridge between the algebraic datatypes of a functional programming language and the heap states of an imperative language as seen through the lens of separation logic.
+This construct is at the heart of the connection between SSL and \Pika, providing a bridge between the algebraic data types of a functional programming language and the heap states of an imperative language as seen through the lens of separation logic.
 
