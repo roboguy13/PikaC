@@ -56,16 +56,16 @@
 \newcommand{\Spatial}{\textnormal{Spatial}}
 
 
-% Based on https://tex.stackexchange.com/questions/451786/how-do-i-put-a-circle-around-a-symbol
-\makeatletter
-\newcommand {\osep}{\mathbin{\mathpalette\make@circled\ast}}
-\newcommand{\make@circled}[2]{%
-  \ooalign{$\m@th#1\smallbigcirc{#1}$\cr\hidewidth$\m@th#1#2$\hidewidth\cr}%
-}
-\newcommand{\smallbigcirc}[1]{%
-  \vcenter{\hbox{\scalebox{0.77778}{$\m@th#1\bigcirc$}}}%
-}
-\makeatother
+% % Based on https://tex.stackexchange.com/questions/451786/how-do-i-put-a-circle-around-a-symbol
+% \makeatletter
+% \newcommand {\osep}{\mathbin{\mathpalette\make@circled\ast}}
+% \newcommand{\make@circled}[2]{%
+%   \ooalign{$\m@th#1\smallbigcirc{#1}$\cr\hidewidth$\m@th#1#2$\hidewidth\cr}%
+% }
+% \newcommand{\smallbigcirc}[1]{%
+%   \vcenter{\hbox{\scalebox{0.77778}{$\m@th#1\bigcirc$}}}%
+% }
+% \makeatother
 
 % \newcommand {\lowerExpr} {\keyword{lower}}
 % \newcommand {\liftExpr} {\keyword{lift}}
@@ -112,8 +112,8 @@
 
 \newcommand {\Layout} [1] {\keyword{Layout}(#1)}
 
-\newcommand {\todo} [1] {\text{{\color{red}TODO}: #1}}
-
+% \newcommand {\todo} [1] {\text{{\color{red}TODO}: #1}}
+%
 \newcommand {\dom} {\textsf{dom}}
 \newcommand {\range} {\textsf{range}}
 
@@ -210,6 +210,77 @@
 
 \newcommand{\StartPair} {(\StartSigma, \Start{h})}
 \newcommand{\EndPair} {(\EndSigma, \End{h'})}
+
+
+\definecolor{pblue}{rgb}{0.13,0.13,1}
+\definecolor{pgreen}{rgb}{0,0.5,0}
+\definecolor{pred}{rgb}{0.7,0,0}
+\definecolor{pgrey}{rgb}{0.46,0.45,0.48}
+% \definecolor{ppurple}{rgb}{0.55,1,0,0.15}
+
+\newcommand{\todo}[1]{\textcolor{pred}{(TODO: {#1})}}
+\newcommand{\zy}[1]{\textcolor{pred}{(Ziyi: {#1})}}
+
+\lstdefinelanguage{SynLang}{
+  keywords={new, let, if, else, null, return, while},
+  ndkeywords={bool, int, void, loc},
+  mathescape=true,
+  showspaces=false,
+  showtabs=false,
+  breaklines=true,
+  showstringspaces=false,
+  breakatwhitespace=true,
+  lineskip=-0.9pt,
+  morecomment=[l]{//}, % l is for line comment
+  morecomment=[s]{/*}{*/}, % s is for start and end delimiter
+  basewidth={0.54em, 0.4em},%
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle={\color{pred}\ttfamily\bfseries},
+  ndkeywordstyle={\color{pblue}\ttfamily\bfseries},
+  commentstyle={\color{ccomment}\itshape},
+  numbers=none,
+}
+
+
+
+\newcommand{\pts}{\mapsto}
+\newcommand{\code}[1]{\lstinline[language=SynLang,basicstyle=\small\ttfamily,mathescape=true]{#1}}
+
+\newcommand{\rulename}[1]{\textsc{#1}}
+\newcommand{\func}{\textit{func}\xspace}
+\newcommand{\writer}{\rulename{Write}\xspace}
+\newcommand{\writeri}{\rulename{WriteRO}\xspace}
+\newcommand{\funcwrite}{\rulename{Funcwrite}\xspace}
+\newcommand{\inplace}{\textit{inplace}\xspace}
+\newcommand{\tempfuncalloc}{\rulename{Tempfuncalloc}\xspace}
+\newcommand{\temppredalloc}{\rulename{Temppredalloc}\xspace}
+\newcommand{\tempfuncfree}{\rulename{Tempfuncfree}\xspace}
+\newcommand{\temppredfree}{\rulename{Temppredfree}\xspace}
+\newcommand{\inplacewrite}{\rulename{Inplacewrite}\xspace}
+
+
+
+% \newcommand{\mcode}[1]{{\ensuremath{\tt #1}}}
+\newcommand{\mcode}[1]{{\ensuremath{#1}}}
+\newcommand{\vars}[1]{\mathsf{Vars}\left({#1}\right)}
+
+\newcommand{\set}[1]{\left\{{#1}\right\}}
+\newcommand{\bl}[1]{{\color{pblue}{#1}}}
+\newcommand{\asn}[1]{{\bl{\set{#1}}}}
+
+\newcommand{\trans}[3]{\left.\bl{#1} \!\leadsto\! \bl{#2} \right| #3}
+\newcommand{\translong}[3]{\left.\bl{#1} \!\leadsto\! \bl{#2} \right| #3}
+\newcommand{\prog}{c}
+\newcommand{\osep}{\ast}
+\newcommand{\env}{\Gamma}
+\newcommand{\deref}[1]{*{#1}}
+
+\newcommand{\iann}[1]{\mcode{ {#1}}} %immutability annotation
+\newcommand{\writeontop}[2]{\mathrel{\stackrel{\makebox[0pt]{\mbox{\tiny{#2}}}}{#1}}}
+\newcommand{\spointsto}[2]{{#1}~{\pts}~{#2}}
+\newcommand{\opointsto}[2]{\spointsto{\angled{#1}}{#2}}
+\newcommand{\ispointsto}[3]{#1{\writeontop{\ \!\pts\ \!}{\iann{#3}}}{#2}} % simple points-to, no angled parentheses
+
 
 % From https://tex.stackexchange.com/questions/502652/define-tcolorbox-in-math-mode
 \newtcbox{\boxtext}{on line,colback=white,colframe=black,size=fbox,arc=3pt,boxrule=0.8pt}

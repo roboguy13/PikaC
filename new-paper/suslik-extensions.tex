@@ -1,0 +1,382 @@
+\section{Extensions of \suslik}
+\label{sec:suslik-extensions}
+
+We have shown the translation from the functional specifications into
+SSL specifications. However, some of the SSL specifications are not
+supported in the original \suslik and existing variants.
+%
+In this section, we present how to extend the \suslik to support more
+features to make the whole thing work. We will show the extensions on
+the following three aspects:
+
+\begin{itemize}
+  \item How to describe and call an existing function within SSL predicates.
+  \item How to make the result of one function call as the input of another function call.
+  \item How to synthesise programs with inductive predicates without the help of pure theory.
+\end{itemize}
+
+\subsection{Function Predicates}
+\label{sec:funcPred}
+
+Without any modification upon the implementation, we find the SSL
+predicate within some restrictions can be used to describe function
+relations other than data structures (named function predicates). The
+definition of \textbf{function predicates} is as follows:
+
+\begin{definition}[Function Predicates]
+    \label{def:funcPred}
+    \normalfont
+    Given any non-higher-order n-ary function $f$\lstinline{(x1, ..., xn)} in the functional language, the function predicate to synthesise $f$ has the following format:
+    \begin{lstlisting}[language=SynLang]
+    predicate predf(T x1, ... ,T xn, T output){...}
+    \end{lstlisting}
+%
+    where \lstinline{T} $\in$ \{\lstinline{loc}, \lstinline{int}\}.
+    The type of \lstinline{xi} (and \lstinline{output}) is decided by
+    the type of $f$. If it is an integer in $f$, then its type is
+    \lstinline{int}; otherwise, it is \lstinline{loc} (for any data
+    structure in \tool).
+\end{definition}
+
+Since the input of the whole workflow is functional programs, the
+"output" in the definition is to provide another location for the
+output of the function. And the specification to synthesise function
+$f$ should have the following format:
+
+\begin{lstlisting}[language=SynLang]
+void f(loc x1, ... ,loc xn)
+{x1 :-> v1 ** x2 :-> l2 ** sll(l2) ** ... ** xn :-> vn ** output :-> 0}
+{x1 :-> v1 ** x2 :-> l2 ** ... ** xn :-> vn ** output :-> output0 ** 
+ predf(v1, l2, ..., vn, output0)}
+\end{lstlisting}
+
+\subsection{SSL Rules for \func Structure}
+
+As we show in previous examples, the reason we can have \func structure is that the points-to structure in the post-condition is always eliminated after some write operations. For example, the in-placed \lstinline{inc1} functions specification is satisfied via the \writer operation (\autoref{fig:write}) on the location.
+
+\begin{lstlisting}[language=SynLang]
+void inc_y(loc y, loc x)
+{x :-> vx ** y :-> vy}
+{x :-> vx + xy ** y :-> vy}
+\end{lstlisting}
+
+\begin{figure}[t]
+    \centering
+    \begin{mathpar}
+      \inferrule[\writer]
+      {
+      \mcode{\vars{e} \subseteq \env}
+      \\
+      \mcode{e \neq e'}
+      \\
+      \trans{\mcode{{\asn{\phi; \ispointsto{x}{e}{} \osep P}}}}
+              {\mcode{\asn{\psi; \ispointsto{x}{e}{} \osep Q}}} {\mcode{\prog}}
+      }
+      {
+      \mcode{
+      \trans{\asn{\phi; {x} \pts e' \osep P}}
+      {\asn{\psi; {x} \pts e \osep Q}}
+      {{\deref{x} = e\ ;\ \prog}}
+      }
+      }
+    \end{mathpar}
+    
+    \caption{The \writer rule in SSL}
+    \label{fig:write}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \begin{mathpar}
+    \inferrule[\funcwrite]
+      {
+      \mcode{\forall i \in [1, n], \vars{e_i} \subseteq \env}
+      \\
+      \trans{\mcode{{\asn{\phi; P}}}}
+            {\mcode{\asn{\psi; Q}}} {\mcode{\prog}}
+      }
+      {
+      \mcode{\trans{\asn{\phi; {x} \pts e \osep P}}
+      {\asn{\psi; \func\ f(e_1,\ldots,e_n,{x})\osep Q}}
+      {{f(e_1,\ldots,e_n,{x})\ ;\ \prog}}
+      }
+      }
+  \end{mathpar}
+  
+  \caption{The \funcwrite rule in SSL}
+  \label{fig:funcwrite}
+\end{figure}
+
+The core insight of \func structure is: since the function synthesised
+by function predicate behaves like the pure function, it is the same
+as the \writer rule in the sense that only the output location is
+modified. Thus, we add the new \funcwrite rule into the zoo of SSL
+rules (see \autoref{fig:funcwrite}).
+%
+To make the \func structure correctly equal to some ``write''
+operation, the following restrictions should hold, which are achieved
+by the translation:
+
+\begin{itemize}
+    \item If \lstinline[language=SynLang]{func f(x1, ..., xn, output)} appears in a post-condition, then no write rule can be applied to any \lstinline[language = SynLang]{xi}. This is to avoid the ambiguity of the \func.
+    \item The type of function f is consistent.
+\end{itemize}
+
+Note that based on the setting of the function predicate, the parameters of the function call are pointers, while the parameters of the function predicate are content to which pointers point. Furthermore, we have the \func generated from function predicates and with the format defined in \autoref{sec:funcPred}. As a result, the equivalent original SSL that duplicates points-to of one location is not a problem, since they can be merged as one.
+
+\subsection{Temporary Location for the Sequential Application}
+
+Though with rich expressiveness, SSL has difficulty in expressing the sequential application of functions. For example, given the \func structure available, the following function is not expressible within one function predicate:
+
+\begin{lstlisting}[language=SynLang]
+f x y = g (h x) y
+\end{lstlisting}
+
+If we attempt to express it, we will have the following part in the predicate:
+
+\begin{lstlisting}[language=SynLang]
+predicate f(loc x, loc y, loc output)
+{... ** func h(x, houtput) ** func g(houtput, y, output)}
+\end{lstlisting}
+
+However, \lstinline{houtput} is not a location in the pre-condition, which is not allowed in SSL. Thus, we introduce a new keyword \lstinline{temp} to denote the temporary location for the sequential application. The new definition of \lstinline{func} is as follows:
+
+\begin{lstlisting}[language=SynLang]
+predicate f(loc x, loc y, loc output)
+{... ** temp houtput ** func h(x, houtput) ** func g(houtput, y, output)}
+\end{lstlisting}
+
+Roughly speaking, the \lstinline{temp} structure will help to allocate a new location for the output of the first function, and then use it as the input of the second function. After all appearances of \lstinline{houtput} is eliminated, we will deallocate the location.
+
+Note that the temporary variable is possible to appear in two different structures: recursive function predicates or \func call. The reason we don't need to consider the basic arithmetic operations is that the integer will be directly used as the predicate parameter, instead of the location as the parameter. For example, the sum of a list can be expressed as:
+
+\begin{lstlisting}[language=SynLang]
+predicate sum(loc l, int output){
+| l == 0 => {output == 0; emp}
+| l != 0 => {output == output1 + v; [l, 2] ** l :-> v ** l + 1 :-> lnxt ** sum(lnxt, output1)}
+}
+\end{lstlisting}
+
+Such sequential application is common in functional programming, especially in the recursive function. For example, it is not elegant to flatten a list of lists without the sequential application. 
+
+\begin{lstlisting}[language=SynLang]
+    flatten :: [[a]] -> [a]
+    flatten [] = []
+    flatten (x:xs) = x ++ flatten xs
+\end{lstlisting}
+
+We can express this function, but with some strange structure to store all temporary lists.
+
+\begin{lstlisting}[language=SynLang]
+predicate flatten(loc x, loc output){
+| x == 0 => {output :-> 0}
+| x != 0 => {[x, 2] ** x :-> x0 ** sll(x0) ** x + 1 :-> xnxt **
+[output, 2] ** func append(x, outputnxt, output) ** output + 1 :-> outputnxt **
+flatten(xnxt, outputnxt)}
+}
+\end{lstlisting}
+
+With such a function predicate, though we can synthesise the function
+whose result stored in \lstinline{output} is the flattened list, the
+list \lstinline{output} is containing a lot of intermediate values,
+which is neither consistent with the definition in the source language
+nor space efficient.
+
+\begin{figure}[t]
+  \centering
+  \begin{mathpar}
+    \inferrule[\tempfuncalloc]
+      {
+      \trans{\mcode{{\asn{\phi; x \pts a \osep P}}}}
+      {\asn{\psi; \func\ f(e_1,\ldots,e_n,{x})\osep temp (x, 1) \osep Q}} {\mcode{\prog}}
+      }
+      {
+      \mcode{
+      \trans{\asn{\phi; P}}
+      {\asn{\psi; \func\ f(e_1,\ldots,e_n,{x})\osep temp (x, 0) \osep Q}}
+      {{let\ x\ =\ malloc(1)\ ;\ \prog}}
+      }
+      }
+  \end{mathpar}
+  % \begin{mathpar}
+  %   \inferrule[\temppredalloc]
+  %     {
+  %     \trans{\mcode{{\asn{\phi; x \pts x0 \osep x0 \pts a \osep P}}}}
+  %     {\asn{\psi; p(e_1,\ldots,e_n,{x_0})\osep temp (x, 2, x_0) \osep x \pts x_0 \osep Q}} {\mcode{\prog}}
+  %     }
+  %     {
+  %     \mcode{
+  %     \trans{\asn{\phi; P}}
+  %     {\asn{\psi; p(e_1,\ldots,e_n,{x})\osep temp (x, 0, \_) \osep Q}}
+  %     {}
+  %     }
+  %     \\
+  %     \mcode{
+  %       let\ x\ =\ malloc(1);
+  %       let\ x0\ =\ malloc(1);
+  %       *x\ =\ x0\ ; \prog
+  %     }
+  %     }
+  % \end{mathpar}
+  
+  \caption{New allocation rule for \lstinline{temp} in SSL }
+  \label{fig:newalloc}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \begin{mathpar}
+    \inferrule[\tempfuncfree]
+      {
+      \trans{\mcode{{\asn{\phi; P}}}}
+      {\asn{\psi; Q}} {\mcode{\prog}}
+      }
+      {
+      \mcode{\not\exists x\in Q\ \wedge
+      \trans{\asn{\phi; P}}
+      {\asn{\psi;  temp (x, 1) \osep Q}}
+      {}
+      }\\
+      \mcode{let\ x0\ =\ *x\ ;\ type\_free(x0);\ free(x);\ \prog}
+      }
+  \end{mathpar}
+  % \begin{mathpar}
+  %   \inferrule[\temppredfree]
+  %     {
+  %     \trans{\mcode{{\asn{\phi; P}}}}
+  %     {\asn{\psi; Q}} {\mcode{\prog}}
+  %     }
+  %     {
+  %     \mcode{\not\exists x_0\in Q\ \wedge
+  %     \trans{\asn{\phi; P}}
+  %     {\asn{\psi;  temp (x, 2, x_0) \osep  Q}}
+  %     {}
+  %     }\\
+  %     \mcode{let\ x0\ =\ *x\ ;\ let\ x00\ =\ *x0\ ;\ ds\_free(x00);\ free(x0);\ free(x);\ \prog}
+  %     }
+  % \end{mathpar}
+  
+  \caption{New deallocating rule for \lstinline{temp} in SSL}
+  \label{fig:newfree}
+\end{figure}
+
+The new rules consist of allocating (\autoref{fig:newalloc}) and deallocating rules (\autoref{fig:newfree}). Based on the definition of the \func structure and the function predicate, the allocated locations are different, where the \lstinline{temp} location for \func is directly used; while the \lstinline{temp} location for function predicate should allocate a new location for function predicates. As for the deallocation, not only the \lstinline{temp} location(s) but also the content they point to should be deallocated. That is the reason we have the \lstinline{type_free} function, which is syntax sugar to deallocate the content of a location based on the type information. For example, if the type of the location is \lstinline{tree}, then the \lstinline{type_free} will deallocate the content of the location via \lstinline{tree_free} function, which is synthesised based on the SSL predicate \lstinline{tree} as follows.
+\begin{lstlisting}[language=SynLang]
+void tree_free(loc x)
+  {tree(x)}
+  {emp}
+\end{lstlisting}
+Specifically, if the location contains the value with type \lstinline{int}, then the \lstinline{type_free} will do nothing.
+Thus, the function predicate with \lstinline{temp} is much better, in the sense that no extra space is used, and the synthesised function is consistent with the source language.
+
+\begin{lstlisting}[language=SynLang]
+predicate flatten(loc x, loc output){
+| x == 0 => {output :-> 0}
+| x != 0 => {[x, 2] ** x :-> x0 ** sll(x0) ** x + 1 :-> xnxt ** 
+temp outputnxt ** flatten(xnxt, outputnxt) ** func append(x, outputnxt, output)}
+}
+\end{lstlisting}
+
+\subsection{Avoiding Excessive Heap Manipulation with Read-Only Locations}
+
+The existing \suslik depends on the set theory to express the pure
+relation. However, it is not trivial to automatically generate the
+pure part of SSL specifications from the functional specifications. To
+see why the set theory is needed, the following simple example shows
+the functionality of the set theory, with \lstinline{sll_n} being the
+\textbf{s}ingle-\textbf{l}inked \textbf{l}ist with \textbf{n}o set.
+
+\begin{lstlisting}[language=SynLang]
+predicate cp(loc x, loc y) {
+|  x == 0        => {y == 0; emp }
+|  not (x == 0)  => {
+    [y, 2] ** y :-> v ** (y + 1) :-> ynxt **
+    [x, 2] ** x :-> v ** (x + 1) :-> xnxt ** cp(xnxt, ynxt) }
+}
+\end{lstlisting}
+
+While the intent of the function predicate \lstinline{cp} is to copy
+the list \lstinline{x} to \lstinline{y}, without the set theory, the
+output program will be somewhat surprising to see:
+
+\begin{lstlisting}[language=SynLang]
+void copy (loc x, loc y) {
+  if (x == 0) {
+  } else {
+    let n = *(x + 1);
+    copy(n, y);
+    let y01 = *y;
+    let y0 = malloc(2);
+    *y = y0;
+    *(y0 + 1) = y01;
+    let vy = *y0
+    *x = vy;
+  }
+}
+\end{lstlisting}
+
+The problem here is that, when we have the pure relation in the
+predicate to indicate that the values are the same, the synthesiser
+finds another possible way: instead of copying the value of
+\lstinline{x} to \lstinline{y}, we can just change the value of x to
+initial value \lstinline{vy} after \lstinline[language = c]{malloc}.
+This is not the user intent, and the output program is not correct.
+%
+Turns out, the solution is not that difficult: we simply need add a
+new kind of heaplet in the specification language, call
+\textit{constant points-to}, which has a similar idea as read-only
+borrows~\cite{costea2020concise}.
+%
+% Unlike the complex permissions in the robosuslik designed for
+% different purposes, we only need to get rid of the set theory in the
+% function predicate. Since the source language is a functional
+% language, it will be natural to make the input remain unmodified. 
+%
+The only difference of the constant points-to from the original
+\textit{points-to} heaplet is that the value of the location is
+constant, which means that the \writer rule in SSL is not applicable.
+
+% \subsection{In-place Function by Basic In-place Description}
+
+% With all extensions above, we have a complete specification language for the translation result of a basic functional source. However, all result programs are performed as pure functions. That is a normal result, considering the definition of functional language. But in some cases, the user may want to have the in-place function, which means that the input will be modified. For example, the user may want to have a function to reverse a list, and the input list will be reversed after the function call. In this case, such intent is impossible to be expressed by the basic source language, which is the reason we have another extension in the functional specification. As shown previously, the function predicate in SSL is to describe the pure function. But for the in-place function, it is kind of necessary for the user to describe the memory behaviour of the function. 
+
+% As the example in Sec. \ref{sec:overview} shows, the good point is that the higher-order in-place function can be achieved by the basic in-place function. For the simplest case, no more effort is needed when the basic in-place function itself is  following the restriction of \func structure. However, it is possible that some basic in-place functions are modifying multiple locations. For example, the in-place version of function \lstinline{cons} has the following specification after translation into \suslik.
+
+% \begin{lstlisting}[language=SynLang]
+%   void cons(loc x, loc xs)
+%   {x :-> v ** xs :-> vxs ** sll(vxs)}
+%   {[x, 2] ** x :-> v ** x + 1 :-> vxs ** sll(vxs) ** xs :-> 0}
+% \end{lstlisting}
+
+% Then the previous \func will not work. But following the basic idea of \func, where the execution of function call performs similar as \writer , we can have the following extension of \inplace structure, which is similar to \func except that the \lstinline{output} becomes a list of locations which are modified in the specification.
+% \begin{lstlisting}
+%   in_place f(e, ..., [x1, .., xn])
+% \end{lstlisting}
+% And a similar extension of SSL rules is shown in \autoref{fig:inplacewrite}.
+
+% \begin{figure}[t]
+%   \centering
+%   \begin{mathpar}
+%     \inferrule[\inplacewrite]
+%       {
+%       \mcode{\forall i \in [1, n], \vars{e_i} \subseteq \env}
+%       \\
+%       \env; \trans{\mcode{{\asn{\phi; P}}}}
+%             {\mcode{\asn{\psi; Q}}} {\mcode{\prog}}
+%       }
+%       {
+%       \mcode{
+%       \env; \translong{\asn{\phi; {x_1} \pts e_1' \sep \ldots \sep {x_n} \pts e_n' \sep P}}
+%       {\asn{\psi; \inplace~f(e_1,\ldots,e_n,[{x_1},\ldots,{x_n}])\sep Q}}
+%       {}
+%       }
+%       \\
+%       \mcode{{f(e_1,\ldots,e_n,{x_1},\ldots, {x_n})\ ;\ \prog}}
+%       }
+%   \end{mathpar}
+  
+%   \caption{The \inplacewrite rule in SSL \todo{Gamma bug}}
+%   \label{fig:inplacewrite}
+% \end{figure}
+
+% Moreover, we need to deal with the combination of basic in-place functions and temporary location, where the automatically free should be handled subtly.
