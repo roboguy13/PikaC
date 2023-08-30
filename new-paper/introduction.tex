@@ -5,7 +5,9 @@ with a function prototype and use these to synthesise a function that satisfies 
 
 We have developed a  functional programming language, \Pika, which will compile to SSL specifications. \SuSLik{} can then take these SSL specifications and generate \SuSLang. Finally, the resulting \SuSLang{} code can be converted to C and then run. In addition to this translational semantics, we also provide a standard abstract machine semantics for \Pika{} and use this to show correctness of the translation into SSL.
 
-Two versions of \Pika{} have been built. \Pika{} 1 has a focus on using \SuSLik{} to generate all of the low-level code, while \Pika{} 2 adds an additional synthesis feature inside the \Pika{} language itself and has a builtin testing framework. In the present work, we will start by talking about \Pika{} 1, describe the fundamental limitations of using \SuSLik{} to generate everything and then use this to motivate the creation of \Pika{} 2. The two versions are then compared.
+Two versions of \Pika{} have been built. \Pika{} 1 has a focus on using \SuSLik{} to generate all of the low-level code, while \Pika{} 2 adds an additional synthesis feature inside the \Pika{} language itself and has a builtin testing framework.
+
+%In the present work, we will start by talking about \Pika{} 1, describe the fundamental limitations of using \SuSLik{} to generate everything and then use this to motivate the creation of \Pika{} 2. The two versions are then compared.
 
 \paragraph{Contributions} In this paper, we make the following contributions:
 \begin{itemize}
@@ -14,7 +16,7 @@ Two versions of \Pika{} have been built. \Pika{} 1 has a focus on using \SuSLik{
 
   \item In order to provide seamless interoperability between SSL and \Pika, we provide a mechanism to related algebraic data types to their representation in memory. In particular, Pika has a language construct that allows the programmer to define a kind of function from values of an algebraic data type to SSL assertions. This is called a \textit{layout}. (Section~\ref{sec:layouts})
 
-  \item We address the limitations of this approach. In particular, we develop an extension of \Pika{} that allows \SuSLik's synthesis capabilities to be exposed more naturally inside the \Pika{} language. (Section~\ref{sec:synth})
+  \item We develop an extension of \Pika{} that allows \SuSLik's synthesis capabilities to be exposed more naturally inside the \Pika{} language. (Section~\ref{sec:synth})
 
   \item A comparison of examples that work on the first version of \Pika{} is compared with examples that are enabled by the new feature in the second version of \Pika. This new version of \Pika{} is not backwards compatible with the first version, so we also examine which examples in the old version no longer work in the new version. (Section~\ref{sec:examples})
 \end{itemize}
