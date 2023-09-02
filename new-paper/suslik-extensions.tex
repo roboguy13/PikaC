@@ -11,19 +11,19 @@ the following three aspects:
 
 \begin{itemize}
   \item How to describe and call an existing function within SSL predicates.
-  \item How to make the result of one function call as the input of another function call.
+  \item How to take the result of one function call as the input of another function call.
   \item How to synthesise programs with inductive predicates without the help of pure theory.
 \end{itemize}
 
 \subsection{Function Predicates}
 \label{sec:funcPred}
 
-Predicates in separation logic is commonly used to represent some data structures.
+Predicates in separation logic is commonly used to represent some data structures. However, as the function is a special case of the relation, it is natural that SSL predicates can describe the functional relation with some restrictions without any extension. Here we name such predicates as \textbf{function predicates}. The definition of \textbf{function predicates} is as follows:
 
-Without any modification upon the implementation, we find the SSL
-predicate within some restrictions can be used to describe function
-relations other than data structures (named function predicates). The
-definition of \textbf{function predicates} is as follows:
+% Without any modification upon the implementation, we find the SSL
+% predicate within some restrictions can be used to describe function
+% relations other than data structures (named function predicates). The
+% definition of \textbf{function predicates} is as follows:
 
 \begin{definition}[Function Predicates]
     \label{def:funcPred}
@@ -34,32 +34,31 @@ definition of \textbf{function predicates} is as follows:
     \end{lstlisting}
 %
     where \lstinline{T} $\in$ \{\lstinline{loc}, \lstinline{int}\}.
-    The type of \lstinline{xi} (and \lstinline{output}) is decided by
+    The types of \lstinline{xi} and \lstinline{output} are decided by
     the type of $f$. If it is an integer in $f$, then its type is
     \lstinline{int}; otherwise, it is \lstinline{loc} (for any data
     structure in \tool).
 \end{definition}
 
-Since the input of the whole workflow is functional programs, the
-"output" in the definition is to provide another location for the
-output of the function. And the specification to synthesise function
-$f$ should have the following format:
+Since the intent is to represent functional programs, the
+"output" in the predicate is to provide another location for the
+function output. And the specification to synthesise function
+$f$ should have the following format (the case is when the types of first two parameters are \lstinline{int} and \lstinline|sll|):
 
 \begin{lstlisting}[language=SynLang]
 void f(loc x1, ... ,loc xn)
-{x1 :-> v1 ** x2 :-> l2 ** sll(l2) ** ... ** xn :-> vn ** output :-> 0}
-{x1 :-> v1 ** x2 :-> l2 ** ... ** xn :-> vn ** output :-> output0 ** 
- predf(v1, l2, ..., vn, output0)}
+  {x1 :-> v1 ** x2 :-> l2 ** sll(l2) ** ... ** output :-> 0}
+  {x1 :-> v1 ** x2 :-> l2 ** ... ** output :-> output0 ** predf(v1, l2, ..., vn, output0)}
 \end{lstlisting}
 
 \subsection{SSL Rules for \func Structure}
 
-As we show in previous examples, the reason we can have \func structure is that the points-to structure in the post-condition is always eliminated after some write operations. For example, the in-placed \lstinline{inc1} functions specification is satisfied via the \writer operation (\autoref{fig:write}) on the location.
+As we show in \autoref{sec:examples-fold}, the reason we need \func structure is to represent some modifications which cannot be simply written as \textit{points-to} structure; and the reason we can have \func structure is that the \textit{points-to} structure in the post-condition is always eliminated after some write operations. For example, the in-placed \lstinline{inc1} functions specification is satisfied via the \writer operation (\autoref{fig:write}) on the location.
 
 \begin{lstlisting}[language=SynLang]
 void inc_y(loc y, loc x)
-{x :-> vx ** y :-> vy}
-{x :-> vx + xy ** y :-> vy}
+  {x :-> vx ** y :-> vy}
+  {x :-> vx + xy ** y :-> vy}
 \end{lstlisting}
 
 \begin{figure}[t]
@@ -113,7 +112,7 @@ The core insight of \func structure is: since the function synthesised
 by function predicate behaves like the pure function, it is the same
 as the \writer rule in the sense that only the output location is
 modified. Thus, we add the new \funcwrite rule into the zoo of SSL
-rules (see \autoref{fig:funcwrite}).
+rules as in \autoref{fig:funcwrite}.
 %
 To make the \func structure correctly equal to some ``write''
 operation, the following restrictions should hold, which are achieved
@@ -124,11 +123,11 @@ by the translation:
     \item The type of function f is consistent.
 \end{itemize}
 
-Note that based on the setting of the function predicate, the parameters of the function call are pointers, while the parameters of the function predicate are content to which pointers point. Furthermore, we have the \func generated from function predicates and with the format defined in \autoref{sec:funcPred}. As a result, the equivalent original SSL that duplicates points-to of one location is not a problem, since they can be merged as one.
+Note that based on the setting of the function predicate, the parameters of the function call are pointers, while the parameters of the function predicate are content to which pointers point. Furthermore, we have the \func generated from function predicates and with the format defined in \autoref{sec:funcPred}. As a result, the equivalent original SSL that duplicates \textit{points-to} of one location is not a problem, since they can be merged as one.
 
 \subsection{Temporary Location for the Sequential Application}
 
-Though with rich expressiveness, SSL has difficulty in expressing the sequential application of functions. For example, given the \func structure available, the following function is not expressible within one function predicate:
+Though with rich expressiveness, SSL still has the difficulty in expressing the sequential application of functions. For example, given the \func structure available, the following function is not expressible in the existing \suslik within one function predicate:
 
 \begin{lstlisting}[language=SynLang]
 f x y = g (h x) y
@@ -141,7 +140,7 @@ predicate f(loc x, loc y, loc output)
 {... ** func h(x, houtput) ** func g(houtput, y, output)}
 \end{lstlisting}
 
-However, \lstinline{houtput} is not a location in the pre-condition, which is not allowed in SSL. Thus, we introduce a new keyword \lstinline{temp} to denote the temporary location for the sequential application. The new definition of \lstinline{func} is as follows:
+However, \lstinline{houtput} is not a location in the pre-condition, which is not allowed in SSL. Thus, we introduce another keyword \lstinline{temp} to denote the temporary location for the sequential application. The new definition of \lstinline{func} is as follows:
 
 \begin{lstlisting}[language=SynLang]
 predicate f(loc x, loc y, loc output)
@@ -269,7 +268,7 @@ void tree_free(loc x)
   {emp}
 \end{lstlisting}
 Specifically, if the location contains the value with type \lstinline{int}, then the \lstinline{type_free} will do nothing.
-Thus, the function predicate with \lstinline{temp} is much better, in the sense that no extra space is used, and the synthesised function is consistent with the source language.
+Thus, with the function predicate with \lstinline{temp} no extra space is used, and the synthesised function is consistent with the source language.
 
 \begin{lstlisting}[language=SynLang]
 predicate flatten(loc x, loc output){
@@ -281,20 +280,29 @@ temp outputnxt ** flatten(xnxt, outputnxt) ** func append(x, outputnxt, output)}
 
 \subsection{Avoiding Excessive Heap Manipulation with Read-Only Locations}
 
-The existing \suslik depends on the set theory to express the pure
+The existing \suslik depends on the pure theories (set, interval or list) to express the pure
 relation. However, it is not trivial to automatically generate the
 pure part of SSL specifications from the functional specifications. To
-see why the set theory is needed, the following simple example shows
+see why the pure theory is needed, the following simple example shows
 the functionality of the set theory, with \lstinline{sll_n} being the
 \textbf{s}ingle-\textbf{l}inked \textbf{l}ist with \textbf{n}o set.
 
 \begin{lstlisting}[language=SynLang]
+predicate sll_n(loc x) {
+|  x == 0        => { emp }
+|  not (x == 0)  => { [x, 2] ** x :-> v ** (x + 1) :-> nxt ** sll_n(nxt) }
+}
+
 predicate cp(loc x, loc y) {
 |  x == 0        => {y == 0; emp }
 |  not (x == 0)  => {
     [y, 2] ** y :-> v ** (y + 1) :-> ynxt **
     [x, 2] ** x :-> v ** (x + 1) :-> xnxt ** cp(xnxt, ynxt) }
 }
+
+void copy (loc x, loc y)
+  {x :-> x0 ** sll_n(x0) ** y :-> 0}
+  {x :-> x0 ** y :-> y0 ** cp(x0, y0)}
 \end{lstlisting}
 
 While the intent of the function predicate \lstinline{cp} is to copy
@@ -303,16 +311,17 @@ output program will be somewhat surprising to see:
 
 \begin{lstlisting}[language=SynLang]
 void copy (loc x, loc y) {
+  let x = *x;
   if (x == 0) {
   } else {
     let n = *(x + 1);
-    copy(n, y);
+    *x = n;
+    copy(x, y);
     let y01 = *y;
     let y0 = malloc(2);
     *y = y0;
     *(y0 + 1) = y01;
-    let vy = *y0
-    *x = vy;
+    *x = 666;
   }
 }
 \end{lstlisting}
@@ -321,10 +330,10 @@ The problem here is that, when we have the pure relation in the
 predicate to indicate that the values are the same, the synthesiser
 finds another possible way: instead of copying the value of
 \lstinline{x} to \lstinline{y}, we can just change the value of x to
-initial value \lstinline{vy} after \lstinline[language = c]{malloc}.
-This is not the user intent, and the output program is not correct.
+initial value of \lstinline|y| (which is set  to be 666 by default in \suslik) after \lstinline[language = c]{malloc}.
+So the output program is not correct in the sense of the user intent, but correct based on the specification.
 %
-Turns out, the solution is not that difficult: we simply need add a
+Turns out, the solution is not that difficult: we simply need to add a
 new kind of heaplet in the specification language, call
 \textit{constant points-to}, which has a similar idea as read-only
 borrows~\cite{costea2020concise}.
@@ -334,9 +343,19 @@ borrows~\cite{costea2020concise}.
 % function predicate. Since the source language is a functional
 % language, it will be natural to make the input remain unmodified. 
 %
-The only difference of the constant points-to from the original
+The only difference of the \textit{constant points-to} from the original
 \textit{points-to} heaplet is that the value of the location is
 constant, which means that the \writer rule in SSL is not applicable.
+Such read-only heaplet is also consistent with the functional language.
+
+Now with only modifying the \lstinline|sll_n| into the following \lstinline|ssl_c| (c for constant) where the \textit{constant points-to} is denoted by \lstinline|:=>|, the synthesiser will generate the correct program.
+\begin{lstlisting}[language=SynLang]
+predicate sll_c(loc x) {
+|  x == 0        => { emp }
+|  not (x == 0)  => { [x, 2] ** x :=> v ** (x + 1) :=> nxt ** sll_n(nxt) }
+}
+\end{lstlisting}
+
 
 % \subsection{In-place Function by Basic In-place Description}
 
