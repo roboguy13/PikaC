@@ -173,8 +173,8 @@ latter is primarily used in \autoref{sec:semantics}.
 The code generator is instructed to generate a \SuSLik{} specification
 for a certain function at a certain instantiation by using a
 \generate{} directive. For example, if there is a function definition
-with the type signature \verb|mapAdd1 : List -> List|, a line reading
-\verb|%generate mapAdd1 [Sll] Sll| would instruct the
+with the type signature \lstinline[language=Pika]{mapAdd1 : List -> List}, a line reading
+\lstinline[language=Pika]{$\%$generate mapAdd1 [Sll] Sll} would instruct the
 \Pika{} compiler to generate the \SuSLik{} inductive predicate
 corresponding to \verb|mapAdd1| instantiated to the \verb|Sll| layout
 for both its argument and its result.

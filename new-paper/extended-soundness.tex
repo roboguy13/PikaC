@@ -1,0 +1,191 @@
+\section{Soundness Proof}
+\label{sec:soundness-proof}
+
+First, we introduce an operator that will make it more convenient to talk about the conjunction of two SSL propositions:
+\[
+  (p_1 ; s_1) \otimes (p_2 ; s_2) = (p_1 \land p_2 ; s_1 \sep s_2)
+\]
+
+\noindent
+Next, we present a lemma regarding this operator that will be used in the soundness proof:
+\begin{lemma}[$\otimes$ pairing]\label{thm:otimes-entail}
+  If $(\sigma_1, h_1) \models p$ and $(\sigma_2, h_2) \models q$ and $\sigma_1 \subseteq \sigma_2$ and $h_1 \mathbin{\bot} h_2$,\\
+  then $(\sigma_2, h_1 \circ h_2) \models p \otimes q$
+\end{lemma}
+
+\noindent
+Now we proceed to soundness.
+
+\soundnessThm*
+
+\begin{proof}
+  Proceeding by induction on $e$:
+  \begin{itemize}
+    \item $e = i$ for some $i \in \mathbb{Z}$.\\
+      We have 
+      \begin{itemize}
+        \item $\Tsem{i}{V,r} = (v == i ; \emp)$
+        \item $v \fresh V$
+        \item $v = r$
+        \item $\EndSigma = \StartSigma \cup \{ (r,i) \}$
+        \item $\End{h'} = \Start{h} = \emptyheap$
+      \end{itemize}
+      Plugging these in, we find that we want to prove
+      \[
+        (\StartSigma \cup \{ (r,i) \}, \emptyheap) \models (r == i ; \emp)
+      \]
+      This immediately follows from the rules of separation logic.
+
+    \item $e = b$ for some $b \in \mathbb{B}$. This case proceeds exactly as the previous case.
+
+    \item $e = e_1 + e_2$.
+      From the $\Tsem{\cdot}{}$ hypothesis, we have
+      \begin{itemize}
+        \item $(e_1, V_0) \tstep (p_1, s_2, V_1, v_1)$
+        \item $(e_2, V_1) \tstep (p_2, s_2, V_2, v_2)$
+        \item $v \fresh V_2$
+        \item $v = r$
+        \item $\Tsem{e_1 + e_2}{V, r} = (v == v_1 + v_2 \land p_1 \land p_2 ; s_1 \sep s_2)$
+        \item $\Tsem{e_1}{V_0,v_1} = (p_1 ; s_1)$
+        \item $\Tsem{e_2}{V_1,v_2} = (p_2 ; s_2)$
+        % \item $ $
+      \end{itemize}
+
+      Plugging these in, we want to show
+      \[
+        \EndPair \models (v == v_1 + v_2 \land p_1 \land p_2 ; s_1 \sep s_2)
+      \]
+
+      Furthermore, we see that
+      \[
+        \Tsem{e}{V,r} = (v == v_1 + v_2 ; \emp) \otimes \Tsem{e_1}{V_0,v_1} \otimes \Tsem{e_2}{V_1,v_2}
+      \]
+
+      From the {\sc AM} relation hypothesis we have
+      \begin{enumerate}
+        \item $\EndSigma = \sigma_y \cup \{(r, z)\}$
+        \item $z = x' + y'$
+        \item $(x, \sigma, \mathcal{F}, h_1) \step (x', \sigma_x, h_1', \mathcal{F}, v_x)$
+        \item $(y, \sigma_x, \mathcal{F}, h_2) \step (y', \sigma_y, h_2', \mathcal{F}, v_y)$
+        \item $v_1 = v_x$
+        \item $v_2 = v_y$
+        \item $h = h_1 \circ h_2$
+        \item $h' = h_1' \circ h_2'$
+      \end{enumerate}
+
+      From the first six items, we can derive
+      \[
+        (\EndSigma, \emptyheap) \models (v == v_1 + v_2 ; \emp)
+      \]
+
+      From the inductive hypotheses, we get
+      \begin{itemize}
+        \item $(\sigma_x, h_1') \models \Tsem{e_1}{\dom(\sigma_x), v_x}$
+        \item $(\sigma_y, h_2') \models \Tsem{e_2}{\dom(\sigma_y), v_y}$
+      \end{itemize}
+
+      By Lemma~\ref{thm:otimes-entail}
+      \[
+        (\sigma_y, h_1' \circ h_2') \models \Tsem{e_1}{\dom(\sigma_x), v_x} \otimes \Tsem{e_2}{\dom(\sigma_y), v_y}
+      \]
+
+      and we know that $\sigma_x \subseteq \sigma_y$.
+
+      By Lemma~\ref{thm:otimes-entail}, we conclude
+      \[
+        (\sigma_y \cup \{(r, z)\}, h') \models (v == v_1 + v_2 ; \emp) \otimes \Tsem{e_1}{\dom(\sigma_x),v_1} \otimes \Tsem{e_2}{\dom(\sigma_y),v_2}
+      \]
+
+    \item $e = v$ for some $v \in \Var$.
+      Therefore the only two {\sc AM} rules that apply are {\sc AM-Base-Var} and {\sc AM-Loc-Var}. Both
+      cases proceed in the same way.
+
+      We know
+      \begin{itemize}
+        \item $h = h' = \emptyheap$
+      \end{itemize}
+
+      So we want to show
+      \[
+        (\EndSigma, \emptyheap) \models (\verb|true| ; \emp)
+      \]
+      This trivially holds.
+
+    \item $e = \lowerS{A}{v}$ for some layout $A$ and $v \in \Var$.
+      The applicable {\sc AM} rule is {\sc AM-Lower}.
+      From the premises of {\sc AM-Lower}, we have
+      \begin{itemize}
+        \item $h' = \hat{h} \cdot H'$
+      \end{itemize}
+      where $H'$ comes from applying the layout $A$ to the constructor application expression
+      obtained by reducing $e$. As a result, $H'$ exactly fits the specification of
+      one of the branches of the $A$ layout.
+
+      $v$ must be associated with some high-level value in $\mathcal{F}$ and $\hat{h}$
+      is the part of the heap that is updated when this is reduced. Since all expressions
+      are required to be well-typed, $\hat{h}$ must satisfy some collection of heaplets
+      in the $A$ layout branch that is associated to $H'$.
+
+      Note that $\Tsem{e}{V,r} = A(v)$
+
+      From these facts, we can conclude
+      \[
+        \EndPair \models A(v)
+      \]
+
+    \item $e = \lowerS{A}{C\; e_1 \cdots e_n}$. This case is similar to the previous case,
+      except that we do not need to lookup a variable in the store before dealing with the constructor
+      application.
+
+    \item $e = \instantiateS{A,B}{f}(v)$ for some $v \in \Var$.
+        The rule {\sc AM-Instantiate} applies here.
+
+        The {\sc S-Inst-Var} rule requires that we satisfy the inductive predicate
+        associated to $f$, that is $\mathcal{I}_{A,B}(f)(v)$. Note that the SSL propositions in the definition of
+        such an inductive predicate, given by {\sc FnDef}, will always not only explicitly
+        describe the memory used in its result (given by the layout $B$) but also the memory used
+        in its argument (given by the layout $A$).
+
+        Now, consider that the {\sc AM-Instantiate} rule uses the layout $A$ to the function argument to
+        update the heap and uses the $B$ layout to produce the function's result on the heap. This will match the
+        inductive predicate associated to $f$ instantiated at the layouts $A$ and $B$, as required.
+
+      %   Among our hypotheses, we have
+      % \begin{itemize}
+      %   \item $\End{h'} = \hat{h}_1 \circ \hat{h}_2 \circ \cdots \circ \hat{h}_{n+1}$
+      %   \item $\EndSigma = \sigma_f$
+      %   \item $(A[x]\; (C\; a_1 \cdots a_n) := H) \in \Sigma$
+      %   \item $(f\; (C\; b_1 \cdots b_n) := e_f) \in \Sigma$
+      %   \item $(\lowerS{B}{e_f[b_1 := r_1]\cdots[b_n := r_n]}, \sigma_{n+1}, \hat{h}_1) \step (e_f', \sigma_f, \hat{h}_2, r)$
+      % \end{itemize}
+      %
+      % Let $\hat{h} = \hat{h}_1 \circ \hat{h}_2 \circ \cdots \circ \hat{h}_n$. Note that we stop at $n$, not $n+1$. This is the
+      % difference between $\hat{h}$ and $\End{h'}$.
+      %
+      % We can recursively apply the present lemma to the last item, since it is a derivation of an abstract machine reduction which is
+      % strictly smaller than the abstract machine reduction derivation we started with. From this, we obtain:
+      %
+      % \[
+      %   (\EndSigma, \hat{h}) \models \lowerS{B}{e_f[b_1 := r_1]\cdots[b_n := r_n]}
+      % \]
+
+
+      % and from the {\sc AM} relation hypothesis we have
+      % \begin{itemize}
+      %   \item $(x, \sigma, \mathcal{F}, h) \step (x', \sigma_x, h, \mathcal{F}, v_x)$
+      % \end{itemize}
+
+      \item $e = \instantiateS{A,B}{f}(C\; e_1 \cdots e_n)$.
+        This is much like the previous case. The only difference is that the {\sc S-Inst-Constr} rule
+        unfolds the inductive predicate $\mathcal{I}_{A,B}(f)(C\; e_1 \cdots e_n)$. The resulting SSL proposition
+        will still be satisfied by the model $\EndPair$ given by {\sc AM-Instantiate}.
+
+      \item $e = \instantiateS{B,C}{f}(\instantiateS{A,B}{g}(e_0))$.
+        This case combines to instantiates together. The main condition we need to check here is that the
+        two instantiate applications use disjoint parts of the heap in $\EndPair$ in {\sc AM-Instantiate}.
+
+        This can be seen to be true by the fact that the resulting heap is built up out of the subexpressions
+        using $\circ$, ensuring that the parts of the heap are disjoint.
+  \end{itemize}
+  % {\color{red} ???}
+\end{proof}
