@@ -51,6 +51,20 @@ the manipulation of integer values. In contrast, we have focused
 largely on data structure manipulation, which follow the primary
 motivation of \suslik.
 
+\begin{figure}
+  \begin{tabular}{|c|c|c|}
+    \hline
+    Feature & \Pika & \tname{Dargent}\\
+    \hline
+    Bit-level layouts & \xmark & \cmark\\
+    Recursive layouts & \cmark & \xmark\\
+    Synthesis from type signatures & \cmark & \xmark\\
+    Custom record accessors & \xmark & \cmark\\
+    \hline
+  \end{tabular}
+  \caption{Comparison to \tname{Dargent}}
+\end{figure}
+
 \tname{Synquid} is another synthesis framework with a functional
 surface language. While \tname{Synquid} allows an even higher-level
 program specification than \tool through its liquid types, it does not
