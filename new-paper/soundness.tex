@@ -1,0 +1,45 @@
+\subsection{From \tool to SLL Specifications: Soundness of the Translation}
+\label{sec:soundness}
+
+We want to show that our abstract machine semantics and our SSL
+translation fit together. In particular, our abstract machine
+semantics should generate models that satisfy the separation logic
+propositions given by our SSL translation.
+Figure~\ref{fig:soundness-diagram} gives a high-level overview of how
+these pieces fit together. We will give a more specific description of
+this in Theorem~\ref{thm:gen-soundness}.
+
+\input{soundness-diagram.tex}
+
+\begin{restatable}[Soundness]{theorem}{soundnessThm} \label{thm:gen-soundness}
+  For any well-typed expression $e$, the following holds where $\VarSet = \dom(\EndSigma)$:
+  \begin{itemize}
+    \item If $\Tsem{e}{\VarSet, r}$ is satisfiable and $(e, \StartSigma, \Start{h}, \mathcal{F}) \step (e', \EndSigma, \End{h'}, \mathcal{F}', r)$\\
+          then $\EndPair \models \Tsem{e}{\VarSet, r}$
+  \end{itemize}
+  That is, given an expression $e$ with a satisfiable SSL translation, any heap machine state that $e$ transitions to (by the abstract machine semantics) will
+  be a model for the SSL translation of $e$. See Figure~\ref{fig:soundness-diagram}.
+\end{restatable}
+
+\begin{proof}
+  See the Appendices
+  %~\ref{sec:soundness-proof}
+  in the extended version of the paper.
+\end{proof}
+
+The fact that, at the top level, we only translate function definitions suggests an additional theorem. We want to specifically
+show that any possible function application is sound, in the sense just described. This immediately follows from Theorem~\ref{thm:gen-soundness}.
+
+Abbreviating $\instantiateS{A,B}{f}$ as $f_{A,B}$:
+
+\begin{theorem}[Application soundness] \label{thm:fn-soundness}
+  For any well-typed function application $f_{A,B}(e)$, the following should hold where $V = \dom(\EndSigma)$:
+  \begin{itemize}
+    \item If $\Tsem{f_{A,B}(e)}{\VarSet, r}$ is satisfiable and $(f_{A,B}(e), \StartSigma, \Start{h}, \mathcal{F}) \step (e', \EndSigma, \End{h'}, \mathcal{F}', r)$\\
+          then $\EndPair \models \Tsem{f_{A,B}(e)}{\VarSet, r}$
+  \end{itemize}
+\end{theorem}
+
+\begin{proof}
+  This follows immediately from Theorem~\ref{thm:gen-soundness}.
+\end{proof}
