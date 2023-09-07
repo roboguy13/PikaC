@@ -22,7 +22,7 @@ In this section, we have the following plan:
   % SSL proposition given by translating \verb|f e| into SSL.
 \end{itemize}
 
-This subset of \tool does not have guards or \verb|if then else| expressions, but it does have pattern
+This subset of \tool does not have guards or \lstinline[language=Pika]{if then else} expressions, but it does have pattern
 matching. It also has the requirement that functions can only have one argument. Unlike the implementation, there
 is no elaboration. As a result, every algebraic data type value must be lowered to a specific layout at every usage
 and every function application must be explicitly instantiated with a layout for the argument and a layout for the result. We
@@ -479,9 +479,9 @@ definition is in \autoref{fig:FnDef-rule}.
 Typing rules for \tool expressions are given in
 \autoref{fig:typing-rules}. These rules differ from standard typing
 rules for a functional language due to the existence of layouts and
-their associated constructors, like \verb|instantiate| and
-\verb|lower|. If an expression is well-typed, then each use of
-\verb|instantiate| and \verb|lower| only uses layouts together with
+their associated constructors, like \lstinline[language=Pika]{instantiate} and
+\lstinline[language=Pika]{lower}. If an expression is well-typed, then each use of
+\lstinline[language=Pika]{instantiate} and \lstinline[language=Pika]{lower} only uses layouts together with
 the ADT that they are defined for.
 
 The rules also make use of a \textit{concreteness judgment}. The rules
@@ -491,7 +491,7 @@ of that type can be directly represented in the heap machine
 semantics. For example, an ADT type is \textit{not} concrete because a
 layout has not been specified. However, once a particular layout is
 specified for the ADT type, it becomes concrete. Base types, like
-\verb|Int|, are also concrete.
+\lstinline[language=Pika]{Int}, are also concrete.
 
 Rules for the ensuring that global definitions are well-typed are
 given in \autoref{fig:globals-typing-rules}. In this figure, $\Delta$
