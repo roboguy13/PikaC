@@ -41,7 +41,7 @@ variables, in the present work we simply only check to see if a layout
 is valid for a given type when type-checking. In particular, we cannot
 write type signatures that \textit{require} the same layout in
 multiple parts of the type (for instance, in a function type
-\verb|List -> List| we have no way at the type-level of requiring that
+\lstinline[language=Pika]{List -> List} we have no way at the type-level of requiring that
 the argument \verb|List| layout and the result \verb|List| layout are
 the same). \Pika{} 2 makes progress towards eliminating this restriction but, as of now, it is layout monomorphic. This more rudimentary approach that \tool currently takes
 could be extended in future work.
