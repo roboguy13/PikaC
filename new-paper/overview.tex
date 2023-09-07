@@ -160,11 +160,11 @@ value is called ``lowering.''
 There is a subtlety here: The layout of a subexpression inside of a
 function definition might not be determined by the layouts that the
 function definition is instantiated at. In this case, we must
-explicitly specify a layout. This is done using the \verb|instantiate|
-and \verb|lower| constructs. The former is for function calls, while
+explicitly specify a layout. This is done using the \lstinline[language=Pika]{instantiate}
+and \lstinline[language=Pika]{lower} constructs. The former is for function calls, while
 the latter is for all other types of values. These operations are
-performed with the \verb|instantiate| and \verb|lower| language
-constructs, respectively. For example, \verb|instantiate [A] B f x|
+performed with the \lstinline[language=Pika]{instantiate} and \lstinline[language=Pika]{lower} language
+constructs, respectively. For example, \lstinline[language=Pika]|instantiate [A] B f x|
 calls $f$ with the argument $x$, where the layout $A$ is used for the
 argument and the layout $B$ is used for the result of the function
 application. This is also written $\instantiateS{A,B}{f}(x)$. The
@@ -176,7 +176,7 @@ for a certain function at a certain instantiation by using a
 with the type signature \lstinline[language=Pika]{mapAdd1 : List -> List}, a line reading
 \lstinline[language=Pika]{$\%$generate mapAdd1 [Sll] Sll} would instruct the
 \Pika{} compiler to generate the \SuSLik{} inductive predicate
-corresponding to \verb|mapAdd1| instantiated to the \verb|Sll| layout
+corresponding to \lstinline[language=Pika]{mapAdd1} instantiated to the \lstinline[language=Pika]{Sll} layout
 for both its argument and its result.
 
 An example of an ADT definition and a corresponding layout definition
@@ -210,8 +210,8 @@ Sll (Cons head tail) := x :-> head ** (x+1) :-> tail ** Sll tail;
 We demonstrate the characteristic usages of \Pika{} on a series of
 examples.
 %
-In these examples, we will often make use of the \verb|List| algebraic
-data type and its \verb|Sll| layout from~\autoref{fig:List-def}. A
+In these examples, we will often make use of the \lstinline[language=Pika]{List} algebraic
+data type and its \lstinline[language=Pika]{Sll} layout from~\autoref{fig:List-def}. A
 simple example of \Pika{} code that illustrates algebraic data types and
 layouts is a function which creates a singleton list out of the given
 integer argument:
@@ -234,7 +234,7 @@ predicate singleton(int p, loc r) {
 
 \noindent
 A slightly more complicated example comes from trying to write a
-functional-style \verb|map| function directly in \SuSLik. Consider a
+functional-style \lstinline[language=Pika]{map} function directly in \SuSLik. Consider a
 function which adds 1 to each integer in a list of integers.
 Considering the list implementation to be a singly-linked list with a
 fixed layout, one way to express this in \SuSLik{} is shown in \autoref{fig:sllx}
@@ -266,19 +266,19 @@ void mapAdd1_fn(loc x, loc y)
 \end{figure}
 
 \noindent
-Note that inductive predicates are used for \textit{two} different purposes: the \verb|sll| inductive
-predicate describes a singly-linked list data structure, while the \verb|mapAdd1| inductive predicate 
+Note that inductive predicates are used for \textit{two} different purposes: the \lstinline[language=Pika]{sll} inductive
+predicate describes a singly-linked list data structure, while the \lstinline[language=Pika]{mapAdd1} inductive predicate 
 describes how the input list relates to the output list. Both are used in the specification of
-\verb|mapAdd1_fn|: \verb|sll| in the precondition and \verb|mapAdd1| in the postcondition.
+\lstinline[language=Pika]{mapAdd1_fn}: \lstinline[language=Pika]{sll} in the precondition and \lstinline[language=Pika]{mapAdd1} in the postcondition.
 
-Using the \verb|mapAdd1| inductive predicate gives us two advantages over attempting to
-put the SSL propositions directly into the postcondition of \verb|mapAdd1_fn|:
+Using the \lstinline[language=Pika]{mapAdd1} inductive predicate gives us two advantages over attempting to
+put the SSL propositions directly into the postcondition of \lstinline[language=Pika]{mapAdd1_fn}:
 %
 \begin{enumerate}
   \item We are able to express a conditional on the shape of the list. This is much like pattern
     matching in a language with algebraic data types, but we are examining the pointer involved directly.
-  \item We are able to express \textit{recursion} part of the postcondition: the \verb|mapAdd1| inductive
-    predicate refers to itself in the \verb|not (x == 0)| branch.
+  \item We are able to express \textit{recursion} part of the postcondition: the \lstinline[language=Pika]{mapAdd1} inductive
+    predicate refers to itself in the \lstinline[language=Pika]{not (x == 0)} branch.
 \end{enumerate}
 %
 These two features are both reminiscent of features common in
@@ -294,7 +294,7 @@ However, there are still some significant differences:
 \end{itemize}
 
 Say we want to write the functional program that corresponds to this specification. One way to do this in a Haskell-like language
-is the following, using the \verb|List| type from \autoref{fig:List-def}.
+is the following, using the \lstinline[language=Pika]{List} type from \autoref{fig:List-def}.
 
 \begin{lstlisting}[language=Pika]
 mapAdd1_fn : List -> List;
@@ -303,13 +303,13 @@ mapAdd1_fn (Cons head tail) := Cons (head + 1) (mapAdd1_fn tail);
 \end{lstlisting}
 
 \noindent
-The only missing information is the memory representation of the \verb|List| data structure. We do not want the
-\verb|mapAdd1_fn| implementation to deal with this directly, however. We want to separate the more abstract notions
+The only missing information is the memory representation of the \lstinline[language=Pika]{List} data structure. We do not want the
+\lstinline[language=Pika]{mapAdd1_fn} implementation to deal with this directly, however. We want to separate the more abstract notions
 of pattern matching and constructors from the concrete memory layout that the data structure has.
 
 To accomplish this, we now extend the code with the definition of
-\verb|Sll| from \autoref{fig:List-def}. \verb|Sll| is a
-\textit{layout} for the algebraic data type \verb|List|.
+\lstinline[language=Pika]{Sll} from \autoref{fig:List-def}. \lstinline[language=Pika]{Sll} is a
+\textit{layout} for the algebraic data type \lstinline[language=Pika]{List}.
 %
 Now we have all of the information of the original specification but
 rearranged so that the low-level memory layout is separated from the
@@ -322,23 +322,23 @@ recursive functions that pattern match on, and construct, ADTs.
 
 All that is left is to connect these two parts: the layouts and the
 function definitions. We instruct a \SuSLik{} specification generator to
-generate a \SuSLik{} specification from the \verb|mapAdd1_fn| function
-using the \verb|Sll| layout:
+generate a \SuSLik{} specification from the \lstinline[language=Pika]{mapAdd1_fn} function
+using the \lstinline[language=Pika]{Sll} layout:
 %
 \begin{lstlisting}[language=Pika]
 %generate mapAdd1_fn [Sll] Sll
 \end{lstlisting}
 %
-The \verb|[Sll]| part of the directive tells the generator which
+The \lstinline[language=Pika]{[Sll]} part of the directive tells the generator which
 layouts are used for the arguments. In this case, the function only
-has one argument and the \verb|Sll| layout is used. The \verb|Sll| at
+has one argument and the \lstinline[language=Pika]{Sll} layout is used. The \lstinline[language=Pika]{Sll} at
 the end specifies the layout for the result.
 
 \subsubsection{map}
 
-We can generalise our \verb|mapAdd1| to map arbitrary \verb|Int|
-functions over a list and then redefine \verb|mapAdd1| using the new
-\verb|map|.
+We can generalise our \lstinline[language=Pika]{mapAdd1} to map arbitrary \lstinline[language=Pika]{Int}
+functions over a list and then redefine \lstinline[language=Pika]{mapAdd1} using the new
+\lstinline[language=Pika]{map}.
 
 \begin{lstlisting}[language=Pika]
 %generate mapAdd1 [Sll] Sll
@@ -362,22 +362,22 @@ mapAdd1 xs :=
 \end{lstlisting}
 
 This example makes use of \lstinline{instantiate} in two places. In the first case where we have the call
-\lstinline{instantiate [Int] Int f x}, the builtin \verb|Int| layout is used for both the input
-and output. In this special case, the \verb|Int| layout shares a name with the \verb|Int| type
+\lstinline[language=Pika]{instantiate [Int] Int f x}, the builtin \lstinline[language=Pika]{Int} layout is used for both the input
+and output. In this special case, the \lstinline[language=Pika]{Int} layout shares a name with the \lstinline[language=Pika]{Int} type
 that it represents. This is necessary since \lstinline{instantiate} is used for all non-recursive calls that are not constructor applications.
 
-In the second use, \lstinline{instantiate [Int -> Int, Sll] Sll map add1 xs}, we specify that
-the second argument uses the \verb|Sll| layout for the \verb|List| type from \autoref{fig:List-def}. We also give \verb|Sll| as
-the layout for the result of the call. Note that it is not necessary to use \verb|instantiate| for the recursive call to \verb|map|. This is because the appropriate layout
+In the second use, \lstinline[language=Pika]{instantiate [Int -> Int, Sll] Sll map add1 xs}, we specify that
+the second argument uses the \lstinline[language=Pika]{Sll} layout for the \lstinline[language=Pika]{List} type from \autoref{fig:List-def}. We also give \lstinline[language=Pika]{Sll} as
+the layout for the result of the call. Note that it is not necessary to use \lstinline[language=Pika]{instantiate} for the recursive call to \lstinline[language=Pika]{map}. This is because the appropriate layout
 is inferred for recursive calls.
 
-It might be surprising that \verb|instantiate| is required in the body of \verb|mapAdd1| since the type signature
-of \verb|mapAdd1| suggests that it is layout polymorphic and yet we must pick a specific \verb|List| layout when
-we use \verb|instantiate| to call \verb|map|. This is because, in general, a call inside the body of some function \verb|fn| might use
-any layout, even layouts that have no relation to the layouts that \verb|fn| is instantiated to.
+It might be surprising that \lstinline[language=Pika]{instantiate} is required in the body of \lstinline[language=Pika]{mapAdd1} since the type signature
+of \lstinline[language=Pika]{mapAdd1} suggests that it is layout polymorphic and yet we must pick a specific \lstinline[language=Pika]{List} layout when
+we use \lstinline[language=Pika]{instantiate} to call \lstinline[language=Pika]{map}. This is because, in general, a call inside the body of some function \lstinline[language=Pika]{fn} might use
+any layout, even layouts that have no relation to the layouts that \lstinline[language=Pika]{fn} is instantiated to.
 
 It is possible to do inference of some layouts, for example in
-\verb|mapAdd1| we would usually want to use the same layout as the
+\lstinline[language=Pika]{mapAdd1} we would usually want to use the same layout as the
 argument layout, but we leave this for future work. Another approach
 is to introduce type variables that correspond to layouts, as done in
 the series of works on the \tname{Dargent}{}
@@ -438,12 +438,12 @@ the condition for the pattern match.
 
 \subsubsection{\texttt{let} bindings and \texttt{if-then-else}}
 
-Two more features that are common in functional languages are \verb|let| bindings and
-\verb|if-then-else| expressions. Both of these have straightforward translations into
-\SuSLik. A \verb|let| binding corresponds to introducing a new variable with an equality
-constraint corresponding to the equality in the \verb|let| binding in the pure part of a \SuSLik{} assertion.
+Two more features that are common in functional languages are \lstinline[language=Pika]{let} bindings and
+\lstinline[language=Pika]{if-then-else} expressions. Both of these have straightforward translations into
+\SuSLik. A \lstinline[language=Pika]{let} binding corresponds to introducing a new variable with an equality
+constraint corresponding to the equality in the \lstinline[language=Pika]{let} binding in the pure part of a \SuSLik{} assertion.
 
-The \verb|if-then-else| construct corresponds to \SuSLik's C-like ternary operator. We can use these features together to implement a \verb|maximum| function:
+The \lstinline[language=Pika]{if-then-else} construct corresponds to \SuSLik's C-like ternary operator. We can use these features together to implement a \lstinline[language=Pika]{maximum} function:
 
 \begin{lstlisting}[language=Pika]
 %generate maximum [Sll] Int
@@ -459,15 +459,15 @@ maximum (Cons x xs) :=
 \end{lstlisting}
 
 \noindent
-The \verb|let| binding is required here. This is because the recursive predicate
+The \lstinline[language=Pika]{let} binding is required here. This is because the recursive predicate
 application must use an additional variable, beyond the argument and output
-parameters, to store the intermediate result \verb|i| and this is introduced in
-\Pika{} using a \verb|let|. It is possible to extend the translator to
-automatically introduce these \verb|let| bindings, but we relegate this to future work.
+parameters, to store the intermediate result \lstinline[language=Pika]{i} and this is introduced in
+\Pika{} using a \lstinline[language=Pika]{let}. It is possible to extend the translator to
+automatically introduce these \lstinline[language=Pika]{let} bindings, but we relegate this to future work.
 
-Furthermore, since the \verb|let| is required and the variable introduced by the \verb|let| is used
-in the \verb|if| condition, we cannot replace the \verb|if| with a guard. Guards can only occur
-at the top-level of a function definition, so it could not occur after a \verb|let|.
+Furthermore, since the \lstinline[language=Pika]{let} is required and the variable introduced by the \lstinline[language=Pika]{let} is used
+in the \lstinline[language=Pika]{if} condition, we cannot replace the \lstinline[language=Pika]{if} with a guard. Guards can only occur
+at the top-level of a function definition, so it could not occur after a \lstinline[language=Pika]{let}.
 
 \subsubsection{Using multiple layouts}
 
@@ -503,13 +503,13 @@ A fold is a common kind of operation on a data structure in functional programmi
 is applied the elements of a data structure to create a summary value. For example, if the binary function
 is the addition function, it will give the sum of all the elements of the data structure. The
 classic example of such a fold is a fold on a list. In this example, we will write a
-right fold over a \verb|List|.
+right fold over a \lstinline[language=Pika]{List}.
 
-We also demonstrate \verb|Ptr| types and the \verb|addr| builtin operation. This is somewhat similar to an \verb|@| pattern in Haskell,
+We also demonstrate \lstinline[language=Pika]{Ptr} types and the \lstinline[language=Pika]{addr} builtin operation. This is somewhat similar to an \verb|@| pattern in Haskell,
 but it is a low-level construct, indictating how pointers should be used, rather than a high-level construct.
-Given a base type $\alpha$ (such as \verb|Int|), \verb|Ptr Int| is a type. This type is
+Given a base type $\alpha$ (such as \lstinline[language=Pika]{Int}), \lstinline[language=Pika]{Ptr Int} is a type. This type is
 passed around differently in the generated code. In particular, it is passed by reference.
-\verb|addr| is the corresponding value-level introduction operation.
+\lstinline[language=Pika]{addr} is the corresponding value-level introduction operation.
 \begin{lstlisting}[language=Pika]
 %generate fold_List [Int, Sll] (Ptr Int)
 
@@ -525,7 +525,7 @@ fold_List z (Cons x xs) :=
 \end{lstlisting}
 
 \noindent
-The compiler produces the following \SuSLik{} specification for \verb|fold_List|:
+The compiler produces the following \SuSLik{} specification for \lstinline[language=Pika]{fold_List}:
 
 \begin{lstlisting}[language=SynLang]
 predicate fold_List(int i, loc p_x ,loc __r) {
@@ -538,5 +538,5 @@ predicate fold_List(int i, loc p_x ,loc __r) {
 }
 \end{lstlisting}
 %
-In the generated code, \verb|f| is applied to \verb|p_x| rather than
-\verb|x| as a result of using \verb|Ptr| and \verb|addr|.
+In the generated code, \lstinline[language=Pika]{f} is applied to \lstinline[language=Pika]{p_x} rather than
+\lstinline[language=Pika]{x} as a result of using \lstinline[language=Pika]{Ptr} and \lstinline[language=Pika]{addr}.

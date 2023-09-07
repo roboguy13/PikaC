@@ -180,7 +180,7 @@
   \SuSLik{} will take a Hoare-style specification expressed in SSL and synthesize a program that satisfies this
   specification in a C-like language. However, these specifications are very low-level and SSL does not allow for much abstraction. In this paper,
   we explore a connection between SSL specifications and functional programming. We give a functional
-  programming language, \Pika, which has both a standard semantics and a translation into SSL that respects the standard semantics. This translation also makes interfacing between SSL and \Pika{} easy. We introduce ``layouts'' to bridge the gap between a functional programming language and SSL called. This allows us to describe the memory layout of algebraic data types as SSL predicates inside \Pika.
+  programming language, \Pika, which has both a standard semantics and a translation into SSL that respects the standard semantics. This translation also makes interfacing between SSL and \Pika{} easy. We introduce ``layouts'' to bridge the gap between functional programming and SSL. This allows us to describe the memory layout of algebraic data types as SSL predicates inside \Pika.
 
   We then develop a second version of \Pika{} extended with an additional synthesis feature. These two versions are compared.
 
@@ -260,10 +260,10 @@
 
 \appendix
 
-\input{extended-soundness}
-
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{paper}
+
+\input{extended-soundness}
 
 \end{document}
 \endinput
