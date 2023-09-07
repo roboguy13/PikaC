@@ -5,6 +5,11 @@
 
 Working \Pika{} 1 examples are presented in Figure~\ref{fig:size-comparison}. For each example, we compare the AST size of the \Pika{} code with that of the generated \SuSLik{} code. This is a rough measure of the relative expressiveness of \Pika{} and \SuSLik{} on these examples. Each example in the list consists of a single function which was tested by hand.
 
+The \verb|filterLt9| example makes use of the Boolean guard feature. Guards must always occur at the level of a function
+definition, rather than inside of a subexpression. On the other hand, the \verb|maximum| example uses the \lstinline[language=Pika]{if-then-else}
+construct. This is necessary since it occurs inside of a \lstinline[language=Pika]{let}. The \verb|leftList| example uses two different
+ADTs: lists and binary trees. A singly-linked list layout is used for the list and a linked representation is used as a layout for the binary tree.
+
 \begin{figure}[b]
 \setlength{\abovecaptionskip}{5pt}
 \setlength{\belowcaptionskip}{-15pt}
@@ -37,23 +42,30 @@ Version 2 of \Pika{} is a rewrite of version 1 and it is missing a couple of fea
 
 Figure~\ref{fig:pika-2-examples} is a table of \Pika{} 2 examples together with the number of functions they have (not including \synth) and whether or not they use \synth. These functions were tested using the unit testing framework built into \Pika{} 2.
 
+The \lstinline[language=Pika]{synth} feature is used in the \verb|set| example for two functions: The \verb|append| function mentioned in \autoref{sec:synth} and the
+\verb|setToSll| function that converts set values to linked list values:
+
+\begin{lstlisting}[language=Pika]
+synth setToSll : SetLayout @s -> Sll @s;
+\end{lstlisting}
+
 \begin{figure}
-  \begin{tabular}{|c|c|c|}
+  \begin{tabular}{|c|c|}
     \hline
-    Name & \# of functions & Uses \synth\\
+    Name & \# of functions\\
     \hline
-    \verb|add1Head| & 1 & No\\
-    \verb|anagram| & 4 & No\\
-    \verb|fact| & 1 & No\\
-    \verb|filterLt| & 1 & No\\
-    \verb|heap| & 6 & \textbf{Yes}\\
-    \verb|leftList| & 1 & No\\
-    \verb|mapAdd| & 1 & No\\
-    \verb|maximum| & 1 & No\\
-    \verb|set| & 3 & \textbf{Yes}\\
-    \verb|sum| & 1 & No\\
-    \verb|take| & 1 & No\\
-    \verb|treeSize| & 1 & No\\
+    \verb|add1Head| & 1\\
+    \verb|anagram| & 4\\
+    \verb|fact| & 1\\
+    \verb|filterLt| & 1\\
+    \verb|heap| & 6\\
+    \verb|leftList| & 1\\
+    \verb|mapAdd| & 1\\
+    \verb|maximum| & 1\\
+    \verb|set| & 3\\
+    \verb|sum| & 1\\
+    \verb|take| & 1\\
+    \verb|treeSize| & 1\\
     \hline
   \end{tabular}
   \caption{\Pika{} 2 examples}
