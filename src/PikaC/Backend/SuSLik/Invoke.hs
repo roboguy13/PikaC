@@ -40,7 +40,7 @@ invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
 
   case exitCode of
     ExitSuccess -> do
-      putStrLn suslikOut
+      -- putStrLn suslikOut
       pure $ Right $ parse' (some parseFunction) suslikOut
     ExitFailure n -> pure $ Left stderrOut
 

@@ -213,6 +213,7 @@ test-suite PikaC-golden-tests
                       tasty-golden,
                       filepath,
                       bytestring,
+                      equivalence,
     hs-source-dirs:   src
     default-language: GHC2021
 

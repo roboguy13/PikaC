@@ -1,0 +1,9 @@
+*** Running test sum_1
+6
+
+*** Running test mapSum_1
+(6 (30 ()))
+
+*** Running test summary1
+(6 (30 (6 (30 ()))))
+

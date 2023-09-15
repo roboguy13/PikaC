@@ -53,5 +53,5 @@ runTest fileName = do
               -- TODO: Do elaboration and type checking here:
       pikaModule = toPikaModuleElaborated_unsafe pikaModule'
 
-  fromString <$> genAndRun C Unlimited cCompiler pikaModule
+  fromString <$> genAndRun C Unlimited False cCompiler pikaModule
 

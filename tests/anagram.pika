@@ -3,8 +3,8 @@
 %generate reverse1
 -- %generate reverse
 -- %generate revcat
--- %generate reverse
--- %generate isAnagram
+%generate reverse
+%generate isAnagram
 
 data List := Nil | Cons Int List;
 
@@ -48,6 +48,6 @@ isAnagram (Cons a as) := equal (Cons a as [Sll]) (reverse (Cons a as [Sll]));
 %test "equal2" Bool: equal (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) (Nil [Sll]);
 %test "equal3" Bool: equal (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]);
 
--- %test "isAnagram1" Bool: isAnagram (Cons 1 (Cons 2 (Cons 1 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
--- %test "isAnagram1" Bool: isAnagram (Cons 1 (Cons 2 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
+%test "isAnagram1" Bool: isAnagram (Cons 1 (Cons 2 (Cons 1 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
+%test "isAnagram1" Bool: isAnagram (Cons 1 (Cons 2 (Cons 2 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
 
