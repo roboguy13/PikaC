@@ -214,6 +214,7 @@ test-suite PikaC-golden-tests
                       filepath,
                       bytestring,
                       equivalence,
+                      async,
     hs-source-dirs:   src
     default-language: GHC2021
 

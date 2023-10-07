@@ -257,7 +257,7 @@ withModule opts pikaModule = do
     putStrLn =<< readFile "tests/common/common.h"
     putStrLn . render . pprLayoutPrinters $ convertedLayouts
 
-  forM_ (moduleGenerates pikaModule) $ \fnName -> do
+  forM_ (moduleGenerates pikaModule) $ \fnName ->
     generateFn opts pikaModule fnName
 
   -- main function for tests
