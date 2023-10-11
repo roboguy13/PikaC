@@ -1,3 +1,4 @@
-*** Running test plus1
-4
-
+void plus(loc i1, loc i, loc i2);
+void plus(loc i1, loc i, loc i2) {
+ WRITE_LOC(i2, 0, (long)i1 + (long)i);
+}

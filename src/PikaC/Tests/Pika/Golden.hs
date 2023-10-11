@@ -19,7 +19,8 @@ import Control.Monad.Identity
 import Control.Concurrent.Async
 
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy.Char8 as BS
+-- import qualified Data.ByteString.Char8 as BS
 import Data.String
 
 import System.FilePath
@@ -98,12 +99,13 @@ runTest fileName = do
   if useC
     then fromString <$> genAndRun C Unlimited False cCompiler pikaModule
     else do
-      forM_ (moduleGenerates pikaModule) $ \fnName ->
-        generateFn pikaModule fnName
-      pure mempty -- TODO: Return a Maybe instead of doing this
+      xs <- forM (moduleGenerates pikaModule) $ \fnName ->
+              generateFn pikaModule fnName
+      pure $ mconcat xs
+      -- pure mempty -- TODO: Return a Maybe instead of doing this
 
   where
-    generateFn :: PikaModuleElaborated -> String -> IO ()
+    generateFn :: PikaModuleElaborated -> String -> IO ByteString
     generateFn pikaModule fnName = do
       pikaCore <- getPikaCore pikaModule $ moduleLookupFn pikaModule fnName
       let fnDefs = moduleFnDefs pikaModule
@@ -113,17 +115,18 @@ runTest fileName = do
           fnIndPred = codeGenIndPred pikaCore
           fnSig = codeGenFnSig pikaCore
 
-      putStrLn "\n- SuSLik:"
-      mapM_ (putStrLn . ppr') layoutPreds
-      putStrLn $ ppr' fnIndPred
-      putStrLn $ ppr' fnSig
+      -- putStrLn "\n- SuSLik:"
+      -- mapM_ (putStrLn . ppr') layoutPreds
+      -- putStrLn $ ppr' fnIndPred
+      -- putStrLn $ ppr' fnSig
 
-      putStrLn "\n- SuSLang:"
+      -- putStrLn "\n- SuSLang:"
       (invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig) >>= \case
           Left err -> error $ "SuSLik error: " ++ err
-          Right susLangFn -> do
+          Right susLangFn ->
+            pure . BS.pack . render . pprFns $ concatMap functionToC susLangFn
             -- putStrLn susLang
-            putStrLn $ render $ pprFns $ concatMap functionToC susLangFn
+            -- putStrLn $ render $ pprFns $ concatMap functionToC susLangFn
 
 getPikaCore :: PikaModuleElaborated -> FnDef -> IO PikaCore.FnDef
 getPikaCore pikaModule fnDef =

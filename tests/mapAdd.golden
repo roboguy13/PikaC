@@ -1,3 +1,15 @@
-*** Running test mapAdd1
-(11 (21 (31 ())))
-
+void mapAdd(loc i1, loc x, loc x2);
+void mapAdd(loc i1, loc x, loc x2) {
+ if (x == 0) {
+  WRITE_LOC(x2, 0, 0);
+ } else {
+  loc h = READ_LOC(x, 0);
+  loc n = READ_LOC(x, 1);
+  mapAdd(i1, n, x2);
+  loc x4 = READ_LOC(x2, 0);
+  loc x = (loc)malloc(2 * sizeof(loc));
+  WRITE_LOC(x2, 0, x);
+  WRITE_LOC(x, 1, x4);
+  WRITE_LOC(x, 0, (long)h + (long)i1);
+ }
+}
