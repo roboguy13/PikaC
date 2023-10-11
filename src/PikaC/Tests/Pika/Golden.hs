@@ -123,7 +123,10 @@ runTest fileName = do
       let allPreds = fnIndPreds ++ layoutPreds
       -- putStrLn $ "predicates = " ++ show allPreds
       (invokeSuSLikWithTimeout (Just timeoutMilli) [] allPreds [] fnSig) >>= \case
-          Left err -> error $ "SuSLik error: " ++ err
+          Left err -> error $
+            unlines (map ppr' allPreds ++ [ppr' fnSig])
+            ++
+            "\n=== SuSLik error: " ++ err
           Right susLangFn ->
             pure . BS.pack . render . pprFns $ concatMap functionToC susLangFn
             -- putStrLn susLang
