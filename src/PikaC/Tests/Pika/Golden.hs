@@ -20,7 +20,6 @@ import Control.Concurrent.Async
 
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as BS
--- import qualified Data.ByteString.Char8 as BS
 import Data.String
 
 import System.FilePath
@@ -52,29 +51,21 @@ timeoutMilli =
   1000 *
   30 -- <- seconds
 
-timeoutMicro :: Integral a => a
-timeoutMicro =
-  1000 *
-  timeoutMilli
+-- timeoutMicro :: Integral a => a
+-- timeoutMicro =
+--   1000 *
+--   timeoutMilli
 
-timeout :: Timeout
-timeout =
-  mkTimeout timeoutMicro
+-- timeout :: Timeout
+-- timeout =
+--   mkTimeout timeoutMicro
 
 main :: IO ()
 main = do
   let ingredients = consoleTestReporter : defaultIngredients
-  (defaultMainWithIngredients ingredients . adjustOption (const timeout)) =<< goldenTestTreeWithTimeout
+  -- (defaultMainWithIngredients ingredients . adjustOption (const timeout)) =<< goldenTestTreeWithTimeout
+  defaultMainWithIngredients ingredients =<< goldenTestTree
   exitSuccess
-
-goldenTestTreeWithTimeout :: IO TestTree
-goldenTestTreeWithTimeout =
-  withAsync goldenTestTree $ \act ->
-    Timeout.timeout timeoutMilli (wait act) >>= \case
-      Just r -> pure r
-      Nothing -> do
-        cancel act
-        error "Timeout"
 
 goldenTestTree :: IO TestTree
 goldenTestTree = do
@@ -121,7 +112,7 @@ runTest fileName = do
       -- putStrLn $ ppr' fnSig
 
       -- putStrLn "\n- SuSLang:"
-      (invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig) >>= \case
+      (invokeSuSLikWithTimeout (Just timeoutMilli) [] (fnIndPred : layoutPreds) [] fnSig) >>= \case
           Left err -> error $ "SuSLik error: " ++ err
           Right susLangFn ->
             pure . BS.pack . render . pprFns $ concatMap functionToC susLangFn

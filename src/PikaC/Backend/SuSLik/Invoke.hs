@@ -25,9 +25,17 @@ suslikCmd = "./suslik.sh"
 
 type SuSLikError = String
 
+-- | In milliseconds
+timeoutOpt :: Maybe Int -> [String]
+timeoutOpt Nothing = []
+timeoutOpt (Just millis) = ["--timeout", show millis]
+
 invokeSuSLik :: [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError [SuSLang.Function])
-invokeSuSLik susOpts0 indPreds helperSigs sigToSynth = do
-  let susOpts = defaultSuslikOpts ++ susOpts0
+invokeSuSLik= invokeSuSLikWithTimeout Nothing
+
+invokeSuSLikWithTimeout :: Maybe Int -> [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError [SuSLang.Function])
+invokeSuSLikWithTimeout maybeTimeout susOpts0 indPreds helperSigs sigToSynth = do
+  let susOpts = defaultSuslikOpts ++ susOpts0 ++ timeoutOpt maybeTimeout
 
       indPredCode = vcat (map ppr indPreds)
       helperCode = vcat (map pprFnSigPrototype helperSigs)
