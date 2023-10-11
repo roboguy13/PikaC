@@ -1,0 +1,13 @@
+void listId(loc x, loc x1);
+void listId(loc x, loc x1) {
+ if (x == 0) {
+  WRITE_LOC(x1, 0, 0);
+ } else {
+  loc h = READ_LOC(x, 0);
+  loc n = READ_LOC(x, 1);
+  loc x = (loc)malloc(2 * sizeof(loc));
+  WRITE_LOC(x1, 0, x);
+  WRITE_LOC(x, 1, n);
+  WRITE_LOC(x, 0, h);
+ }
+}

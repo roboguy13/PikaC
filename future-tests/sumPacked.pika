@@ -1,10 +1,14 @@
+%generate sum
+%generate sumPacked
+
 -- Packed tree
 
 data Tree := Tip | Bin Int Tree Tree;
 
-SlowTree : layout(Tree);
+SlowTree : layout[-x](Tree);
 SlowTree [x] Tip := emp;
 SlowTree [x] (Bin i a b) :=
+  exists +left, +right.
   x :-> i **
   (x+1) :-> left **
   (x+2) :-> right **
