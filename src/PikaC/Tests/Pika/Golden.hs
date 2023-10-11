@@ -27,6 +27,7 @@ import System.FilePath
 import PikaC.Tests.Pika.Run
 import PikaC.Syntax.Pika.Parser
 import PikaC.Syntax.Pika.FnDef
+import PikaC.Backend.SuSLik.Syntax (InductivePredicate)
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 import PikaC.Syntax.ParserUtils
 import PikaC.Stage.ToPikaCore.SimplifyM
@@ -90,20 +91,27 @@ runTest fileName = do
   if useC
     then fromString <$> genAndRun C Unlimited False cCompiler pikaModule
     else do
+      let fnPreds = map (getPred pikaModule) (moduleGenerates pikaModule)
       xs <- forM (moduleGenerates pikaModule) $ \fnName ->
-              generateFn pikaModule fnName
+              generateFn pikaModule fnPreds fnName
       pure $ mconcat xs
       -- pure mempty -- TODO: Return a Maybe instead of doing this
 
   where
-    generateFn :: PikaModuleElaborated -> String -> IO ByteString
-    generateFn pikaModule fnName = do
-      pikaCore <- getPikaCore pikaModule $ moduleLookupFn pikaModule fnName
+    getPred :: PikaModuleElaborated -> String -> InductivePredicate
+    getPred pikaModule fnName =
+      let pikaCore = getPikaCore pikaModule $ moduleLookupFn pikaModule fnName
+      in
+      codeGenIndPred pikaCore
+
+    generateFn :: PikaModuleElaborated -> [InductivePredicate] -> String -> IO ByteString
+    generateFn pikaModule fnIndPreds fnName = do
+      let pikaCore = getPikaCore pikaModule $ moduleLookupFn pikaModule fnName
       let fnDefs = moduleFnDefs pikaModule
           layouts = moduleLayouts pikaModule
           convertedLayouts = map (runIdentity . runPikaConvert layouts [] (map getFnTypeSig fnDefs) . convertLayout) layouts
           layoutPreds = map (codeGenLayout False) convertedLayouts
-          fnIndPred = codeGenIndPred pikaCore
+          -- fnIndPred = codeGenIndPred pikaCore
           fnSig = codeGenFnSig pikaCore
 
       -- putStrLn "\n- SuSLik:"
@@ -112,14 +120,16 @@ runTest fileName = do
       -- putStrLn $ ppr' fnSig
 
       -- putStrLn "\n- SuSLang:"
-      (invokeSuSLikWithTimeout (Just timeoutMilli) [] (fnIndPred : layoutPreds) [] fnSig) >>= \case
+      let allPreds = fnIndPreds ++ layoutPreds
+      -- putStrLn $ "predicates = " ++ show allPreds
+      (invokeSuSLikWithTimeout (Just timeoutMilli) [] allPreds [] fnSig) >>= \case
           Left err -> error $ "SuSLik error: " ++ err
           Right susLangFn ->
             pure . BS.pack . render . pprFns $ concatMap functionToC susLangFn
             -- putStrLn susLang
             -- putStrLn $ render $ pprFns $ concatMap functionToC susLangFn
 
-getPikaCore :: PikaModuleElaborated -> FnDef -> IO PikaCore.FnDef
+getPikaCore :: PikaModuleElaborated -> FnDef -> PikaCore.FnDef
 getPikaCore pikaModule fnDef =
-  pure . runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) fnDef
+  runQuiet $ toPikaCore Unlimited (moduleLayouts pikaModule) (map getFnTypeSig (moduleFnDefs pikaModule)) fnDef
 

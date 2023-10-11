@@ -31,7 +31,7 @@ timeoutOpt Nothing = []
 timeoutOpt (Just millis) = ["--timeout", show millis]
 
 invokeSuSLik :: [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError [SuSLang.Function])
-invokeSuSLik= invokeSuSLikWithTimeout Nothing
+invokeSuSLik = invokeSuSLikWithTimeout Nothing
 
 invokeSuSLikWithTimeout :: Maybe Int -> [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError [SuSLang.Function])
 invokeSuSLikWithTimeout maybeTimeout susOpts0 indPreds helperSigs sigToSynth = do

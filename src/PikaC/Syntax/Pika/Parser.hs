@@ -126,7 +126,7 @@ parsePikaModule :: Parser PikaModule
 parsePikaModule = do
   generates <- mconcat . map singleGenerate <$> some parseGenerate
   adts <- mconcat . map singleAdt <$> many parseAdt
-  layouts <- mconcat . map singleLayout <$> some parseLayout
+  layouts <- mconcat . map singleLayout <$> many parseLayout
   synths <- mconcat . map singleSynth <$> many parseSynth
   fnDefs <- mconcat . map singleFnDef <$> some parseFnDef
   tests <- mconcat . map singleTest <$> many parseTest
