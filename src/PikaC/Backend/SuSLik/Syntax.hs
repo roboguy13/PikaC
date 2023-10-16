@@ -34,6 +34,7 @@ data Expr
   | Add Expr Expr
   | Mul Expr Expr
   | Sub Expr Expr
+  | Div Expr Expr
   | Equal Expr Expr
   | Lt Expr Expr
   | Le Expr Expr
@@ -169,6 +170,7 @@ instance Ppr Expr where
   ppr (BoolLit False) = text "false" --text "0"
   ppr (Add x y) = sep [pprP x, text "+", pprP y]
   ppr (Mul x y) = sep [pprP x, text "*", pprP y]
+  ppr (Div x y) = sep [pprP x, text "/", pprP y]
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
   ppr (Equal x y) = sep [pprP x, text "==", pprP y]
   ppr (Lt x y) = sep [pprP x, text "<", pprP y]

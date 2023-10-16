@@ -453,6 +453,7 @@ convertBaseAsn outVar (PikaCore.BoolLit b) =
 convertBaseAsn outVar (PikaCore.Add x y) = convertBin SuSLik.Add outVar x y
 convertBaseAsn outVar (PikaCore.Mul x y) = convertBin SuSLik.Mul outVar x y
 convertBaseAsn outVar (PikaCore.Sub x y) = convertBin SuSLik.Sub outVar x y
+convertBaseAsn outVar (PikaCore.Div x y) = convertBin SuSLik.Div outVar x y
 convertBaseAsn outVar (PikaCore.Equal x y) = convertBin mkEqual outVar x y
 convertBaseAsn outVar (PikaCore.And x y) = convertBin SuSLik.Mul outVar x y
 convertBaseAsn outVar (PikaCore.Lt x y) = convertBin SuSLik.Lt outVar x y
