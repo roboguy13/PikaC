@@ -19,12 +19,38 @@ import PikaC.Stage.ToPikaCore.Utils
 import PikaC.Stage.ToPikaCore.SimplifyM
 
 import Control.Lens
+import Control.Monad
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Unsafe
 
 floatWith :: Logger m => Expr -> SimplifyM m Expr
-floatWith = step "floatWith" $ rewriteM go
+floatWith = step "floatWith" $ rewriteM go <=< rewriteM goApplies
+
+goApplies :: Fresh m => Expr -> m (Maybe Expr)
+goApplies (Add (App f allocs es) y) = Just <$> goApply f allocs es (`Add` y)
+goApplies (Add x (App f allocs es)) = Just <$> goApply f allocs es (x `Add`)
+goApplies (Mul (App f allocs es) y) = Just <$> goApply f allocs es (`Mul` y)
+goApplies (Mul x (App f allocs es)) = Just <$> goApply f allocs es (x `Mul`)
+goApplies (Sub x (App f allocs es)) = Just <$> goApply f allocs es (x `Sub`)
+goApplies (Sub (App f allocs es) y) = Just <$> goApply f allocs es (`Sub` y)
+goApplies (Div (App f allocs es) y) = Just <$> goApply f allocs es (`Div` y)
+goApplies (Div x (App f allocs es)) = Just <$> goApply f allocs es (x `Div`)
+goApplies (Equal (App f allocs es) y) = Just <$> goApply f allocs es (`Equal` y)
+goApplies (Equal x (App f allocs es)) = Just <$> goApply f allocs es (x `Equal`)
+goApplies (Lt (App f allocs es) y) = Just <$> goApply f allocs es (`Lt` y)
+goApplies (Lt x (App f allocs es)) = Just <$> goApply f allocs es (x `Lt`)
+goApplies (Le (App f allocs es) y) = Just <$> goApply f allocs es (`Le` y)
+goApplies (Le x (App f allocs es)) = Just <$> goApply f allocs es (x `Le`)
+goApplies (Not (App f allocs es)) = Just <$> goApply f allocs es Not
+goApplies (And (App f allocs es) y) = Just <$> goApply f allocs es (`And` y)
+goApplies (And x (App f allocs es)) = Just <$> goApply f allocs es (x `And`)
+goApplies _ = pure Nothing
+
+goApply :: Fresh m => FnName -> [Int] -> [Expr] -> (Expr -> Expr) -> m Expr
+goApply f allocs args op = do
+  x <- fresh (string2Name "v")
+  pure $ WithIn (App f allocs args) (bind [Moded Out x] (op (V x)))
 
   -- TODO: Find a nicer way
 go :: Fresh m => Expr -> m (Maybe Expr)

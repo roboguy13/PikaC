@@ -64,7 +64,7 @@ simplifyExpr = fixedPoint simplifyExprStep
 
 simplifyExprStep :: Logger m => Expr -> SimplifyM m Expr
 simplifyExprStep =
-    -- floatWith <=<
+    floatWith <=<
     -- baseAppToWith <=<
     layoutVOne <=<
     assertionOfAssertion <=<
