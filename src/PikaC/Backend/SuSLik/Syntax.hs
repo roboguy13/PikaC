@@ -172,7 +172,7 @@ instance Ppr Expr where
   ppr (Mul x y) = sep [pprP x, text "*", pprP y]
   ppr (Div x y) = sep [pprP x, text "/", pprP y]
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
-  ppr (Equal x y) = sep [pprP x, text "==", pprP y]
+  ppr (Equal x y) = sep [pprP (fromBool x), text "==", pprP (fromBool y)]
   ppr (Lt x y) = sep [pprP x, text "<", pprP y]
   ppr (Le x y) = sep [pprP x, text "<=", pprP y]
   ppr (Not x) = text "not " <> pprP x
@@ -182,6 +182,11 @@ instance Ppr Expr where
   ppr EmptySet = text "{}"
   ppr (SingletonSet x) = text "{" <> ppr x <> text "}"
   ppr (SetUnion x y) = pprP x <+> text "++" <+> pprP y
+
+fromBool :: Expr -> Expr
+fromBool (BoolLit True) = IntLit 1
+fromBool (BoolLit False) = IntLit 0
+fromBool e = e
 
 instance IsNested Expr where
   isNested (V _) = False
