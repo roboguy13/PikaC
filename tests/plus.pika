@@ -1,13 +1,5 @@
 %generate plus
 
-Sll : layout[-x](List);
-Sll Nil := emp;
-Sll (Cons head tail) :=
-  exists +nxt.
-  x :-> head **
-  (x+1) :-> nxt **
-  Sll tail [nxt];
-
 plus : Int -> Int -> Int;
 plus x y := x + y;
 

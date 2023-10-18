@@ -1,0 +1,28 @@
+%generate add1HeadDll
+
+-- - coming into layout
+-- + produced by layout
+-- nothing is probably not possible so needs - or +
+-- every variable needs mode specified or exists added for it
+Dll : layout[-this, +prev](List);
+Dll Nil := emp;
+Dll (Cons head tail) :=
+  exists +next.
+  this :-> head **
+  (this+1) :-> next **
+  (this+2) :-> prev **
+  Dll tail [next] [this];
+
+-- predicate dll(loc x, loc z, set s) {
+-- |  x == 0 => { s == {} ; emp }
+-- |  not (x == 0) =>
+--    { s == {v} ++ s1 ; [x, 3] ** x :-> v ** (x + 1) :-> w ** (x + 2) :-> z ** dll(w, x, s1) }
+-- }
+
+add1HeadDll : Dll -> Dll;
+add1HeadDll Nil := Nil [Dll];
+add1HeadDll (Cons h t) :=
+   Cons (h + 1) t [Dll];
+
+%test "add1Head1" Dll:
+  add1Head (Cons 1 (Cons 2 (Cons 3 (Nil [Dll]) [Dll]) [Dll]) [Dll]);

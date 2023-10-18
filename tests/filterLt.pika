@@ -15,4 +15,3 @@ filter n (Cons a as) | not (a < n) := Cons a (filter n as) [Sll];
 
 %test "filter1" Sll:
   filter 2 (Cons 1 (Cons 2 (Cons 10 (Cons 20 (Nil [Sll]) [Sll]) [Sll]) [Sll]) [Sll]);
-

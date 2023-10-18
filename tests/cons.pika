@@ -11,4 +11,3 @@ Sll (Cons head tail) :=
 cons : Int -> Sll -> Sll;
 cons i Nil := Cons i (Nil [Sll]) [Sll];
 cons i (Cons a as) := Cons i (Cons a as [Sll]) [Sll];
-

@@ -29,4 +29,3 @@ add1Head (Cons h t) :=
 
 %test "add1Head1" Sll:
   add1Head (Cons 1 (Cons 2 (Cons 3 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
-

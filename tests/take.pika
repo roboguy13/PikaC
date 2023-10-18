@@ -8,6 +8,7 @@ Sll (Cons head tail) :=
   (x+1) :-> nxt **
   Sll tail [nxt];
 
+-- Peano
 NatLayout : layout[-x](Nat);
 NatLayout Z := emp;
 NatLayout (S n) :=
@@ -25,4 +26,3 @@ take (S n) (Cons h t) :=
 %test "take" Sll:
   take (S (S (Z [NatLayout]) [NatLayout]) [NatLayout])
     (Cons 10 (Cons 20 (Cons 30 (Cons 40 (Nil [Sll]) [Sll]) [Sll]) [Sll]) [Sll]);
-

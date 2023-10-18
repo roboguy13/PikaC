@@ -1,5 +1,7 @@
 %generate append
 
+-- double arrow is readonly and single arrow is writeable
+
 Sll : layout[-x](List);
 Sll Nil := emp;
 Sll (Cons head tail) :=
@@ -19,4 +21,3 @@ append (Cons h t) (Cons h2 t2) :=
   append
     (Cons 1 (Cons 2 (Nil [Sll]) [Sll]) [Sll])
     (Cons 10 (Cons 20 (Cons 30 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
-
