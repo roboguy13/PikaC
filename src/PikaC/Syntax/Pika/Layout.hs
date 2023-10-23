@@ -592,6 +592,9 @@ getPointsTos b@(LayoutBody xs0) = go xs0
     go (LApply {} : xs) = go xs
     go (LPointsTo p : xs) = p : go xs
 
+fromPointsTos :: [PointsTo a] -> LayoutBody a
+fromPointsTos = LayoutBody . map LPointsTo
+
 getLApplies :: LayoutBody a -> [(String, [a], a, [a])]
 getLApplies b@(LayoutBody xs0) = go xs0
   where

@@ -21,6 +21,8 @@ import GHC.Stack
 
 import Data.Validity
 
+import Data.List
+
 import Control.Lens
 
 import Debug.Trace
@@ -97,6 +99,12 @@ data HeapletS
   | BlockS (Name Expr) Int
   | TempLoc (Name Expr)
   deriving (Show, Generic)
+
+nubBlocks :: [HeapletS] -> [HeapletS]
+nubBlocks = nubBy go
+  where
+    go (BlockS x _) (BlockS y _) = x == y
+    go _ _ = False
 
 newtype ExistVar = ExistVar { getExistVar :: ExprName }
   deriving (Show, Generic)

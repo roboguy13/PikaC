@@ -138,6 +138,17 @@ locIx (_ :+ i) = i
 data Allocation a = Alloc { allocName :: Name a, allocSize :: Int }
   deriving (Show, Generic, Eq, Ord)
 
+getMaxPointsToSize :: Name a -> [PointsTo (Name a)] -> Int
+getMaxPointsToSize x [] = 0
+getMaxPointsToSize x ((y :+ i) :-> _ : ys)
+  | y == x = (i + 1) `max` getMaxPointsToSize x ys
+  | otherwise = getMaxPointsToSize x ys
+
+allocsByPointsTos :: [Name a] -> [PointsTo (Name a)] -> [Allocation a]
+allocsByPointsTos ns ps = map go ns 
+  where
+    go n = Alloc n $ getMaxPointsToSize n ps
+
 overAllocName :: (Name a -> Name b) -> Allocation a -> Allocation b
 overAllocName f (Alloc n sz) = Alloc (f n) sz
 

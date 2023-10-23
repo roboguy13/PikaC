@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+
 module PikaC.Backend.SuSLik.CodeGen
   (codeGenSynth
   ,codeGenSynthSig
@@ -20,6 +22,7 @@ import PikaC.Stage.ToPikaCore.SimplifyM (runSimplifyQuiet, SimplifyFuel (..), fi
 import PikaC.Stage.ToPikaCore.Utils
 import PikaC.Stage.ToPikaCore.BaseAppToWith
 import PikaC.Stage.ToPikaCore.FloatWith
+import PikaC.Stage
 
 import PikaC.Ppr
 import PikaC.Utils
@@ -291,6 +294,7 @@ genBranch fnName outSizes allNames outNames branch = do
                     (convertBase (PikaCore._fnDefBranchCondition branch))
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
+          SuSLik.nubBlocks $
           map convertAlloc (filter (liftA2 (&&) (notUsedInApp . allocName) (isUsedAlloc asnFVs)) (outAllocs ++ branchAllocs)) ++
           -- map convertAlloc (outAllocs ++ branchAllocs) ++
           mapMaybe (\(f, xs) -> mkRecApplyMaybe f (map SuSLik.V (filter notUsedInApp (map (SuSLik.getV . convertBase) xs)))) (PikaCore.getLayoutApps (PikaCore.getInputAsns' inAsns)) ++
@@ -324,6 +328,10 @@ isUsedAlloc usedNames (Alloc n _) = n `elem` usedNames
 convertAlloc :: Allocation SuSLik.Expr -> SuSLik.HeapletS
 convertAlloc (Alloc n 0) = BlockS n 1
 convertAlloc (Alloc n sz) = BlockS n sz
+
+convertAlloc_maybe :: Allocation SuSLik.Expr -> Maybe SuSLik.HeapletS
+convertAlloc_maybe (Alloc n 0) = Nothing
+convertAlloc_maybe (Alloc n sz) = Just $ BlockS n sz
 
 toAssertion :: Fresh m => String -> [SuSLik.ExprName] -> PikaCore.Expr -> m CompoundAsn
 toAssertion = collectAssertions []
@@ -407,11 +415,19 @@ collectAssertions appOutNames fnName outVars (PikaCore.App (PikaCore.FnName f) _
       ]
 collectAssertions appOutNames fnName outVars (PikaCore.SslAssertion bnd) = do
   (vars, asn) <- unbind bnd
+
+  allocs <- getAsnAllocs vars asn
+
   let unmodedVars = map (convertName . modedNameName) vars
-  let asn' = map convertPointsTo asn
+  let asn' = map convertPointsTo asn <> mapMaybe (convertAlloc_maybe . overAllocName convertName) allocs
   let asn'' = rename (zip unmodedVars outVars) asn'
   pure $ mkSpatialPart asn'' -- TODO: Bind existentials
 collectAssertions appOutNames fnName _ e = error $ "collectAssertions: " ++ ppr' e
+
+getAsnAllocs :: Fresh m => [Moded PikaCore.ExprName] -> PikaCore.ExprAssertion' PC -> m [Allocation PikaCore.Expr]
+getAsnAllocs vs body = do
+  let vs' = map modedNameName vs
+  pure $ allocsByPointsTos vs' (map (mapPointsTo PikaCore.getV) body)
 
 convertPointsTo :: PointsTo PikaCore.Expr -> HeapletS
 convertPointsTo (x :-> y) =
