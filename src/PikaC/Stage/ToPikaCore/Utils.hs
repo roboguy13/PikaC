@@ -1,3 +1,6 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module PikaC.Stage.ToPikaCore.Utils
   where
 
@@ -11,7 +14,23 @@ import PikaC.Utils
 
 import Control.Lens
 
+import Control.Monad.State
+
 import GHC.Stack
+
+data RewriteOne = Rewritten | NoRewrite
+
+rewriteOne :: forall a m. (Monad m, Plated a) => (a -> m (Maybe a)) -> a -> m a
+rewriteOne f x0 = evalStateT (rewriteM go x0) NoRewrite
+  where
+    go :: a -> StateT RewriteOne m (Maybe a)
+    go x = do
+      get >>= \case
+        Rewritten -> pure Nothing
+        NoRewrite ->
+          lift (f x) >>= \case
+            Just r -> put Rewritten *> pure (Just r)
+            Nothing -> pure Nothing
 
 onFnDefBranch :: Fresh m => (Expr -> m Expr) -> FnDefBranch -> m FnDefBranch
 onFnDefBranch f =

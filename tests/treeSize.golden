@@ -4,8 +4,11 @@ void treeSize(loc x, loc i1) {
   WRITE_LOC(i1, 0, 1);
  } else {
   loc p = READ_LOC(x, 1);
+  loc q = READ_LOC(x, 2);
   treeSize(p, i1);
+  loc i3 = READ_LOC(i1, 0);
+  treeSize(q, i1);
   loc i = READ_LOC(i1, 0);
-  WRITE_LOC(i1, 0, (long)1 + (long)i);
+  WRITE_LOC(i1, 0, (long)((long)1 + (long)i3) + (long)i);
  }
 }

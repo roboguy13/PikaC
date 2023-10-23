@@ -25,7 +25,7 @@ import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Unsafe
 
 floatWith :: Logger m => Expr -> SimplifyM m Expr
-floatWith = step "floatWith" $ rewriteM go <=< rewriteM goApplies
+floatWith = step "floatWith" $ rewriteOne go -- <=< rewriteM goApplies
 
 goApplies :: Fresh m => Expr -> m (Maybe Expr)
 goApplies (Add (App f allocs es) y) = Just <$> goApply f allocs es (`Add` y)
@@ -77,8 +77,6 @@ goWith :: Fresh m => Expr -> Bind [ModedName Expr] Expr -> (Expr -> Expr) -> m E
 goWith e bnd f = do
   (vs, body) <- unbind bnd
   let vsUnmoded = map modedNameName vs
-  -- vs' <- mapM (fresh . modedNameName) vs
-  -- let renameIt = substs (zip (map modedNameName vs) (map V vs'))
-  -- let 
-  pure $ WithIn e $ bind vs (f (argExpr vsUnmoded))
+  -- pure $ WithIn e $ bind vs (f (argExpr vsUnmoded))
+  pure $ WithIn e $ bind vs (f body)
 
