@@ -1,0 +1,15 @@
+%generate add1HeadDll
+
+Dll : layout[-x,+z](List);
+Dll Nil := emp;
+Dll (Cons head tail) :=
+  exists +nxt.
+  x :-> head **
+  (x+1) :-> nxt **
+  (x+2) :-> z **
+  Dll tail [nxt] [x];
+
+add1HeadDll : Dll -> Dll;
+add1HeadDll Nil := Nil [Dll];
+add1HeadDll (Cons h t) :=
+  Cons (h + 1) t [Dll];
