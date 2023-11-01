@@ -147,11 +147,11 @@ codeGenFnSig fnDef = runFreshM $ do
     }
 
 codeGenLayout :: Bool -> Layout PikaCore.Expr -> SuSLik.InductivePredicate
-codeGenLayout useGhosts layout = runFreshM $ do
+codeGenLayout useGhosts layout = runFreshM $  do
   (ghosts, bnd) <- unbind $ _layoutBranches layout
   (params, branches) <- unbind bnd
   let params' = map (convertName . modedNameName) params -- modedNameName removes the mode (+ or -)
-  branches' <- mapM (codeGenLayoutBranch useGhosts params) branches
+  branches' <- mapM (codeGenLayoutBranch useGhosts (map (fmap convertName) params)) branches
 
   let params'' =
         if useGhosts
@@ -183,6 +183,7 @@ codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
       -- allNames' = 
 
   let branchAllocs = map (overAllocName convertName) $ findAllocations (map convertName' (map modedNameName allNames)) $ getPointsTos body
+
   -- let outAllocs = zipWith Alloc outNames outSizes
   pure
     $ SuSLik.PredicateBranch
@@ -193,7 +194,7 @@ codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
     , 
     
     -- we need to ignore + modes?
-    SuSLik._predBranchCond = computeBranchCondition allNames branchNames
+    SuSLik._predBranchCond = computeModedBranchCondition allNames branchNames
 
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
@@ -250,7 +251,7 @@ codeGenIndPred fnDef0 = runFreshM $ do
       unmodedOutParams = map (convertName . modedNameName) outParams
 
   let (argTypes, resultType) = splitFnType $ PikaCore._fnDefType fnDef
-      nonBaseParams = map snd $ filter (not . isBaseType . fst) $ zip argTypes unmodedInParams
+      nonBaseParams = map (fmap convertName) $ map snd $ filter (not . isBaseType . fst) $ zip argTypes inParams
 
   let outSizes = PikaCore._fnDefOutputSizes fnDef
 
@@ -268,8 +269,10 @@ codeGenIndPred fnDef0 = runFreshM $ do
         (unmodedInParams ++ unmodedOutParams, branches')
     }
 
-genBranch :: Fresh m => String -> [Int] -> [SuSLik.ExprName] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
-genBranch fnName outSizes allNames outNames branch = do
+genBranch :: Fresh m => String -> [Int] -> [ModedName SuSLik.Expr] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
+genBranch fnName outSizes modedAllNames outNames branch = do
+  let allNames = map modedNameName modedAllNames
+
   asn <- toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
   (zeroes0, heaplets) <- getZeroes outNames (view spatialPart asn)
   let zeroes = map snd . filter ((> 0) . fst) $ zip outSizes zeroes0
@@ -289,12 +292,12 @@ genBranch fnName outSizes allNames outNames branch = do
   pure $
     -- trace ("inputAsn = " ++ show inputAsn ++ ", branchAllocs = " ++ show branchAllocs) $
     -- trace ("branchNames = " ++ show branchNames) $
-    -- trace ("allNames = " ++ show allNames) $
+    -- trace ("!!! modedAllNames = " ++ show modedAllNames) $
     -- trace ("branchAllocs = " ++ show branchAllocs) $
     SuSLik.PredicateBranch
     { SuSLik._predBranchPure = branchPurePart
     , SuSLik._predBranchCond =
-        SuSLik.andS (computeBranchCondition allNames branchNames)
+        SuSLik.andS (computeModedBranchCondition modedAllNames branchNames)
                     (convertBase (PikaCore._fnDefBranchCondition branch))
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
