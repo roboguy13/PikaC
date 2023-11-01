@@ -9,13 +9,14 @@ Sll (Cons head tail) :=
   (x+1) :-> nxt **
   Sll tail [nxt];
 
--- Dll : layout[x z](List);
--- Dll Nil := emp;
--- Dll (Cons head tail) :=
---   x :-> head **
---   (x+1) :-> w **
---   (x+2) :-> z **
---   Dll tail [w] [x];
+Dll : layout[-x,+z](List);
+Dll Nil := emp;
+Dll (Cons head tail) :=
+  exists +nxt.
+  x :-> head **
+  (x+1) :-> nxt **
+  (x+2) :-> z **
+  Dll tail [nxt] [x];
 
 add1Head : Sll -> Sll;
 add1Head Nil := Nil [Sll];

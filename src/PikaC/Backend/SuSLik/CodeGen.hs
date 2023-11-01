@@ -150,8 +150,8 @@ codeGenLayout :: Bool -> Layout PikaCore.Expr -> SuSLik.InductivePredicate
 codeGenLayout useGhosts layout = runFreshM $ do
   (ghosts, bnd) <- unbind $ _layoutBranches layout
   (params, branches) <- unbind bnd
-  let params' = map (convertName . modedNameName) params
-  branches' <- mapM (codeGenLayoutBranch useGhosts params') branches
+  let params' = map (convertName . modedNameName) params -- modedNameName removes the mode (+ or -)
+  branches' <- mapM (codeGenLayoutBranch useGhosts params) branches
 
   let params'' =
         if useGhosts
@@ -170,7 +170,7 @@ codeGenLayout useGhosts layout = runFreshM $ do
         -- (unmodedInParams ++ unmodedOutParams, branches')
     }
 
-codeGenLayoutBranch :: Fresh m => Bool -> [SuSLik.ExprName] -> LayoutBranch PikaCore.Expr -> m SuSLik.PredicateBranch
+codeGenLayoutBranch :: Fresh m => Bool -> [ModedName SuSLik.Expr] -> LayoutBranch PikaCore.Expr -> m SuSLik.PredicateBranch
 codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
   (pat, bnd1) <- unbind bnd
   (existVars, (GhostCondition gCond body@(LayoutBody asn))) <- unbind bnd1
@@ -182,7 +182,7 @@ codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
         map convertName $ toListOf fv asn
       -- allNames' = 
 
-  let branchAllocs = map (overAllocName convertName) $ findAllocations (map convertName' allNames) $ getPointsTos body
+  let branchAllocs = map (overAllocName convertName) $ findAllocations (map convertName' (map modedNameName allNames)) $ getPointsTos body
   -- let outAllocs = zipWith Alloc outNames outSizes
   pure
     $ SuSLik.PredicateBranch
@@ -190,7 +190,11 @@ codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
         if useGhosts
           then fromMaybe (boolLit True) $ fmap convertBase gCond
           else boolLit True
-    , SuSLik._predBranchCond = computeBranchCondition allNames branchNames
+    , 
+    
+    -- we need to ignore + modes?
+    SuSLik._predBranchCond = computeBranchCondition allNames branchNames
+
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
           map convertAlloc branchAllocs ++
