@@ -102,7 +102,8 @@ summary doneVar testNames = TestReporter [] $ \_ _ -> Just $ \statusMap -> do
   pure $ const $ do
     takeMVar doneVar
     putStrLn "\n--- Summary ---"
-    mapM_ printStatus (Map.toList statusMap)
+    results <- mapM printStatus (Map.toList statusMap)
+    printf "# of Successful tests: %s\n" (show (length (filter (isSuccess . resultOutcome) results)))
     pure True
   where
     printStatus (i, statusVar) = do
@@ -112,6 +113,10 @@ summary doneVar testNames = TestReporter [] $ \_ _ -> Just $ \statusMap -> do
           Executing {} -> retry
           x -> pure x
       printf "%-14s%s\n" (drop (length groupName + 1) (testNames !! i) ++ ":") (resultShortDescription result)
+      pure result
+
+    isSuccess Success = True
+    isSuccess _ = False
 
     waitForDone statusMap = do
       atomically $ do
