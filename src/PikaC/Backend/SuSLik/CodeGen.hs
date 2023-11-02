@@ -147,7 +147,7 @@ codeGenFnSig fnDef = runFreshM $ do
     }
 
 codeGenLayout :: Bool -> Layout PikaCore.Expr -> SuSLik.InductivePredicate
-codeGenLayout useGhosts layout = runFreshM $  do
+codeGenLayout useGhosts layout = runFreshM $ do
   (ghosts, bnd) <- unbind $ _layoutBranches layout
   (params, branches) <- unbind bnd
   let params' = map (convertName . modedNameName) params -- modedNameName removes the mode (+ or -)

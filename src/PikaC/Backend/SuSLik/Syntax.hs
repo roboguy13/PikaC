@@ -259,10 +259,13 @@ instance Ppr InductivePredicate where
     let (params, branches) = _indPredBody indPred
         argTypes = _indPredArgTypes indPred -- ++ [TyVar (string2Name "unused")] --[_indPredResultType indPred]
         ghostTypes = _indPredGhostTypes indPred
-    in
+    in -- trace ("(params, argTypes) = " ++ show (params, argTypes)) $
     vcat $
       [(text "predicate" <+> text (_indPredName indPred))
-        <> text "(" <> hsep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes ++ map ghostToSuSLikType ghostTypes) params)) <> text ")"
+        -- <> text "(" <> hsep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes ++ map ghostToSuSLikType ghostTypes) params)) <> text ")"
+
+        -- TODO: Find a nicer way
+        <> text "(" <> hsep (punctuate (text ",") (map (showParam (text "loc")) params)) <> text ")"
       ,text "{"
       ]
       ++

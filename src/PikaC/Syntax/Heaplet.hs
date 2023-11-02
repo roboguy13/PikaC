@@ -162,9 +162,12 @@ locsPossiblyWrittenTo = map pointsToLhs
 
 lookupAllocation :: HasCallStack => [Allocation a] -> Name a -> Int
 lookupAllocation allocs n =
-  case find ((== n) . allocName) allocs of
-    Just r -> allocSize r
+  case lookupAllocationMaybe allocs n of
+    Just r -> r
     Nothing -> error $ "Cannot find allocation for " ++ ppr' n
+
+lookupAllocationMaybe :: [Allocation a] -> Name a -> Maybe Int
+lookupAllocationMaybe allocs n = allocSize <$> find ((== n) . allocName) allocs
 
 toMaxAllocs :: [Allocation a] -> [Allocation a]
 toMaxAllocs allocs0 = map go $ fastNub $ map allocName allocs0

@@ -173,7 +173,7 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
     PikaCore.FnDef
       { PikaCore._fnDefName = PikaCore.FnName $ Pika.fnDefName fn
       , PikaCore._fnDefOutputSizes =
-          map (lookupAllocation outAllocs . modedNameName) outParams
+          mapMaybe (lookupAllocationMaybe outAllocs . modedNameName) outParams
       , PikaCore._fnDefType = ty
       , PikaCore._fnDefBranches =
           bind (concat inParams)
