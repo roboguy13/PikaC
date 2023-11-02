@@ -5,7 +5,12 @@ module PikaC.Tests.Pika.Golden
 
 import Test.Tasty
 import Test.Tasty.Ingredients.ConsoleReporter
+import Test.Tasty.Ingredients
+import Test.Tasty.Options
+import Test.Tasty.Runners
 import Test.Tasty.Golden
+
+import qualified Data.IntMap as Map
 
 import System.IO
 import System.Environment
@@ -23,6 +28,14 @@ import qualified Data.ByteString.Lazy.Char8 as BS
 import Data.String
 
 import System.FilePath
+
+import GHC.Conc
+import Control.Monad.STM
+import Control.Concurrent.MVar
+
+import Text.Printf
+
+import Control.Exception
 
 import PikaC.Tests.Pika.Run
 import PikaC.Syntax.Pika.Parser
@@ -61,17 +74,61 @@ timeoutMilli =
 -- timeout =
 --   mkTimeout timeoutMicro
 
+data Summary = Summary
+
+instance IsOption Summary where
+ defaultValue = Summary
+ parseValue _ = Just Summary
+ optionName = pure "Summary"
+ optionHelp = pure "Print a brief summary"
+
+  -- (defaultMainWithIngredients ingredients . adjustOption (const timeout)) =<< goldenTestTreeWithTimeout
+
 main :: IO ()
 main = do
-  let ingredients = consoleTestReporter : defaultIngredients
-  -- (defaultMainWithIngredients ingredients . adjustOption (const timeout)) =<< goldenTestTreeWithTimeout
-  defaultMainWithIngredients ingredients =<< goldenTestTree
+  testTree <- goldenTestTree
+  doneVar <- newEmptyMVar
+  let ingredients = composeReporters consoleTestReporter (summary doneVar (testsNames mempty testTree)) : defaultIngredients
+  defaultMainWithIngredients ingredients testTree
+  -- testRunner <- async $ defaultMainWithIngredients ingredients testTree
+  -- wait testRunner
+  -- putMVar doneVar ()
   exitSuccess
+
+summary :: MVar () -> [TestName] -> Ingredient
+summary doneVar testNames = TestReporter [] $ \_ _ -> Just $ \statusMap -> do
+  waitForDone statusMap
+  void $ forkIO $ waitForDone statusMap >> putMVar doneVar ()
+  pure $ const $ do
+    takeMVar doneVar
+    putStrLn "\n--- Summary ---"
+    mapM_ printStatus (Map.toList statusMap)
+    pure True
+  where
+    printStatus (i, statusVar) = do
+      Done result <- atomically $
+        readTVar statusVar >>= \case
+          NotStarted {} -> retry
+          Executing {} -> retry
+          x -> pure x
+      printf "%-14s%s\n" (drop (length groupName + 1) (testNames !! i) ++ ":") (resultShortDescription result)
+
+    waitForDone statusMap = do
+      atomically $ do
+        statuses <- mapM (readTVar . snd) (Map.toList statusMap)
+        check (all isDone statuses)
+
+    isDone NotStarted{} = False
+    isDone Executing{} = False
+    isDone _ = True
+
+groupName :: String
+groupName = "golden tests"
 
 goldenTestTree :: IO TestTree
 goldenTestTree = do
   pikaFiles <- findByExtension [".pika"] testsPath
-  pure $ testGroup "golden tests"
+  pure $ testGroup groupName
       [ goldenVsString
               baseName
               outputFile
@@ -80,6 +137,15 @@ goldenTestTree = do
         , let baseName = takeBaseName pikaFile
         , let outputFile = replaceExtension pikaFile ".golden"
       ]
+
+-- syncIngredient :: MVar () -> Ingredient
+-- syncIngredient doneVar = TestReporter [] $ \_ _ -> Just $ \_ -> do
+--   takeMVar doneVar  -- Block until the MVar is filled
+--   pure (const $ pure True)
+
+-- consoleReporterWithSync :: MVar () -> Ingredient
+-- consoleReporterWithSync doneVar = composeReporters consoleTestReporter $ syncIngredient doneVar
+
 
 runTest :: FilePath -> IO ByteString
 runTest fileName = do

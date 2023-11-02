@@ -215,6 +215,7 @@ test-suite PikaC-golden-tests
                       bytestring,
                       equivalence,
                       async,
+                      stm,
     hs-source-dirs:   src
     default-language: GHC2021
 
