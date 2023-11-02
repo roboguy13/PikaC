@@ -141,7 +141,7 @@ codeGenFnSig fnDef = runFreshM $ do
 
   pure $ SuSLik.FnSig
     { SuSLik._fnSigName = fnName
-    , SuSLik._fnSigArgTypes = argTypes
+    , SuSLik._fnSigArgTypes = replicate (length params) (LayoutId "Unused")--argTypes
     , SuSLik._fnSigResultType = resultType
     , SuSLik._fnSigConds = (params, spec)
     }

@@ -146,7 +146,8 @@ data FnSpec
 pprFnSigPrototype :: FnSig -> Doc
 pprFnSigPrototype fnSig =
     let (params, conds) = _fnSigConds fnSig
-        argTypes = _fnSigArgTypes fnSig ++ [LayoutId "Unused"] -- [_fnSigResultType fnSig]
+        argTypes = _fnSigArgTypes fnSig
+        -- argTypes = _fnSigArgTypes fnSig ++ [LayoutId "Unused"] -- [_fnSigResultType fnSig]
         -- conds = unsafeUnbind bnd
     in
     vcat
