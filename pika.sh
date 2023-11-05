@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cabal exec PikaC --no-c -- "$@"
+cabal exec PikaC -- --no-c "$@"
