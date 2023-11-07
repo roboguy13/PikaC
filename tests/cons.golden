@@ -6,14 +6,9 @@ void cons(loc i1, loc x, loc x2) {
   WRITE_LOC(x, 0, i1);
   WRITE_LOC(x, 1, 0);
  } else {
-  loc h = READ_LOC(x, 0);
-  loc nx = READ_LOC(x, 1);
-  loc x = (loc)malloc(2 * sizeof(loc));
-  loc n = (loc)malloc(2 * sizeof(loc));
-  WRITE_LOC(x2, 0, x);
-  WRITE_LOC(x, 0, i1);
-  WRITE_LOC(x, 1, n);
-  WRITE_LOC(n, 1, nx);
-  WRITE_LOC(n, 0, h);
+  loc x4 = (loc)malloc(2 * sizeof(loc));
+  WRITE_LOC(x2, 0, x4);
+  WRITE_LOC(x4, 0, i1);
+  WRITE_LOC(x4, 1, x);
  }
 }

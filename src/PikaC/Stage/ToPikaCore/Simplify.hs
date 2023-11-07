@@ -52,7 +52,7 @@ simplifyFnDef :: Logger m => FnDef -> SimplifyM m FnDef
 simplifyFnDef =
   fixedPoint
     (
-    -- reuseExistingPtrs <=<
+    reuseExistingPtrs <=<
     onFnDef simplifyExprStep
     )
   -- renameResultLayout <=< -- NOTE: This should go last

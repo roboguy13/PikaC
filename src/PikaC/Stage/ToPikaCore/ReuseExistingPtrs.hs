@@ -44,18 +44,33 @@ goBranch branch = do
   let e = _fnDefBranchBody branch
       asns = _fnDefBranchInputAssertions branch
 
-  e' <- go (getInputAsns asns) e
+  e' <- go1 (getInputAsns asns) e
   pure $ branch { _fnDefBranchBody = e' }
 
+-- Skip the top-level layout {r ...} {...} since r will be an output
+-- variable for the entire function.
+go1 :: Fresh m => [ExprAssertion] -> Expr -> m Expr
+go1 _asns e0@(SslAssertion _bnd) = pure e0
+  -- do
+  -- (vars, asn) <- unbind bnd
+  -- asn' <- go asns asn
+  -- SslAssertion <$> bind vars asn'
+go1 asns e0 = go asns e0
+
 go :: Fresh m => [ExprAssertion] -> Expr -> m Expr
-go asns e0@(V {}) = pure e0
-go asns e0@(LayoutV {}) = pure e0
-go asns e0@(IntLit {}) = pure e0
-go asns e0@(BoolLit {}) = pure e0
+go _asns e0@(V {}) = pure e0
+go _asns e0@(LayoutV {}) = pure e0
+go _asns e0@(IntLit {}) = pure e0
+go _asns e0@(BoolLit {}) = pure e0
 go asns (Add x y) = liftA2 Add (go asns x) (go asns y)
 go asns (Sub x y) = liftA2 Sub (go asns x) (go asns y)
 go asns (Equal x y) = liftA2 Equal (go asns x) (go asns y)
 go asns (Not x) = fmap Not (go asns x)
+go asns (Mul x y) = liftA2 Mul (go asns x) (go asns y)
+go asns (Lt x y) = liftA2 Lt (go asns x) (go asns y)
+go asns (Le x y) = liftA2 Le (go asns x) (go asns y)
+go asns (Div x y) = liftA2 Div (go asns x) (go asns y)
+go asns (Mod x y) = liftA2 Mod (go asns x) (go asns y)
 go asns (And x y) = liftA2 And (go asns x) (go asns y)
 go asns (App f sz xs) = App f sz <$> mapM (go asns) xs
 go asns (WithIn (SslAssertion asnBnd) bodyBnd) = do
