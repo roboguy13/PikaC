@@ -1,0 +1,50 @@
+predicate Sll(loc x1)
+{
+| x1 == 0 => { emp }
+| not (x1 == 0) => { [x1,2] **
+                     x1 :-> head3 **
+                     (x1 + 1) :-> nxt4 **
+                     Sll(nxt4) }
+}
+predicate SetLayout(loc x1)
+{
+| x1 == 0 => { emp }
+| not (x1 == 0) => { [x1,3] **
+                     x1 :-> p6 **
+                     (x1 + 1) :-> v3 **
+                     (x1 + 2) :-> q5 **
+                     SetLayout(p6) **
+                     SetLayout(q5) }
+}
+predicate member(loc i1, loc x, loc b2)
+{
+| x == 0 => { b2 == 0 ; emp }
+| (not (x == 0)) && (i1 < a) => { ((zz4 == i1) && (zz5 == p23))
+                                  &&
+                                  (b2 == b3) ; [x,3] **
+                                               SetLayout(q24) **
+                                               x :-> p23 **
+                                               (x + 1) :-> a **
+                                               (x + 2) :-> q24 **
+                                               member(zz4, zz5, b3) }
+| (not (x == 0)) && (a < i1) => { ((zz7 == i1) && (zz8 == q41))
+                                  &&
+                                  (b2 == b6) ; [x,3] **
+                                               SetLayout(p40) **
+                                               x :-> p40 **
+                                               (x + 1) :-> a **
+                                               (x + 2) :-> q41 **
+                                               member(zz7, zz8, b6) }
+| (not (x == 0)) && ((not (i1 < a)) && (not (a < i1))) => { b2
+                                                            ==
+                                                            1 ; [x,3] **
+                                                                SetLayout(p57) **
+                                                                SetLayout(q58) **
+                                                                x :-> p57 **
+                                                                (x + 1) :-> a **
+                                                                (x + 2) :-> q58 }
+}
+void member(loc i1, loc x, loc b2)
+  {SetLayout(x) ** b2 :-> b3}
+  {member(i1, x, b4) ** b2 :-> b4}
+{ ?? }

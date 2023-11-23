@@ -1,0 +1,60 @@
+predicate Sll(loc x1)
+{
+| x1 == 0 => { emp }
+| not (x1 == 0) => { [x1,2] **
+                     x1 :-> head3 **
+                     (x1 + 1) :-> nxt4 **
+                     Sll(nxt4) }
+}
+predicate SetLayout(loc x1)
+{
+| x1 == 0 => { emp }
+| not (x1 == 0) => { [x1,3] **
+                     x1 :-> p6 **
+                     (x1 + 1) :-> v3 **
+                     (x1 + 2) :-> q5 **
+                     SetLayout(p6) **
+                     SetLayout(q5) }
+}
+predicate insert(loc i1, loc x, loc x2)
+{
+| x == 0 => { x2 == 0 ; [x2,3] **
+                        (x2 + 1) :-> i1 **
+                        (x2 + 2) :-> 0 }
+| (not (x == 0)) && (i1 < a) => { [x2,3] **
+                                  [x,3] **
+                                  SetLayout(q41) **
+                                  x :-> p40 **
+                                  (x + 1) :-> a **
+                                  (x + 2) :-> q41 **
+                                  insert(i1, p40, p6) **
+                                  x2 :-> p6 **
+                                  (x2 + 1) :-> a **
+                                  (x2 + 2) :-> q41 }
+| (not (x == 0)) && (a < i1) => { [x2,3] **
+                                  [x,3] **
+                                  SetLayout(p65) **
+                                  x :-> p65 **
+                                  (x + 1) :-> a **
+                                  (x + 2) :-> q66 **
+                                  insert(i1, q66, q8) **
+                                  x2 :-> p65 **
+                                  (x2 + 1) :-> a **
+                                  (x2 + 2) :-> q8 }
+| (not (x == 0))
+  &&
+  ((not (i1 < a)) && (not (a < i1))) => { [x2,3] **
+                                          [x,3] **
+                                          SetLayout(p90) **
+                                          SetLayout(q91) **
+                                          x :-> p90 **
+                                          (x + 1) :-> a **
+                                          (x + 2) :-> q91 **
+                                          x2 :-> p90 **
+                                          (x2 + 1) :-> a **
+                                          (x2 + 2) :-> q91 }
+}
+void insert(loc i1, loc x, loc x2)
+  {SetLayout(x) ** x2 :-> x3}
+  {insert(i1, x, x4) ** x2 :-> x4}
+{ ?? }

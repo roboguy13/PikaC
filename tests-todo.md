@@ -1,6 +1,6 @@
 | Test name | Required Fixes |
 | --------- | -------------- |
-| `set.pika` | SuSLik translation bug |
+| `set.pika` | SuSLik translation bug, member works, insert fails |
 | `fact.pika` | Store base-type results properly; fold-like functions (?) |
 | `heap.pika` | fold-like functions (?) |
 | `anagram.pika` | fold-like functions (?) |
