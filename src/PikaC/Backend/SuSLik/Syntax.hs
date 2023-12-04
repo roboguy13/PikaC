@@ -233,7 +233,7 @@ instance Ppr PredicateBranch where
                        (map ppr asn)))
     in
     text "|" <+>
-    ppr (_predBranchCond branch)
+    (case _predBranchCond branch of BoolLit True -> text "true"; BoolLit False -> text "false"; _ -> ppr (_predBranchCond branch))
       <+> text "=>"
       <+>
       nest 2
