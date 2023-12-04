@@ -303,6 +303,7 @@ data CompoundAsn = CompoundAsn { _purePart :: Expr, _spatialPart :: Assertion }
   deriving (Show, Generic)
 
 makeLenses ''CompoundAsn
+makeLenses ''PredicateBranch
 
 pattern xs :& ys = CompoundAsn xs ys
 

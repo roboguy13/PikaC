@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 
 module PikaC.Backend.SuSLik.CodeGen
   (codeGenSynth
@@ -26,6 +27,7 @@ import PikaC.Stage
 
 import PikaC.Ppr
 import PikaC.Utils
+import PikaC.Equality
 import PikaC.Backend.Utils
 
 import qualified PikaC.Backend.SuSLik.Syntax as SuSLik
@@ -255,7 +257,18 @@ codeGenIndPred fnDef0 = runFreshM $ do
 
   let outSizes = PikaCore._fnDefOutputSizes fnDef
 
-  branches' <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
+  branches0 <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
+
+  let (origOut:_) = unmodedOutParams
+
+  branches' <-
+    if not (runEquiv (anyM (mapAssertionWithEquiv (varUsedLHS origOut)) branches0))
+    then do
+      -- Intermediate output variable:
+      outV <- fresh (string2Name "out")
+      map (SuSLik.predBranchAssertion %~ (PointsToS ((SuSLik.V origOut :+ 0) :-> (SuSLik.V outV)):)) -- result :-> out
+        <$> mapM (genBranch fnName outSizes nonBaseParams [outV]) branches
+    else mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
 
 
   pure 
@@ -268,6 +281,43 @@ codeGenIndPred fnDef0 = runFreshM $ do
     , SuSLik._indPredBody =
         (unmodedInParams ++ unmodedOutParams, branches')
     }
+
+anyM :: Monad f => (a -> f Bool) -> [a] -> f Bool
+anyM _ [] = pure False
+anyM f (x:xs) = do
+  f x >>= \case
+    True -> pure True
+    False -> anyM f xs
+
+-- | Build an Equiv using the pure part, then apply function to the
+-- assertion
+mapAssertionWithEquiv ::
+  (SuSLik.Assertion -> Equiv s SuSLik.Expr a) ->
+  SuSLik.PredicateBranch ->
+  Equiv s SuSLik.Expr a
+mapAssertionWithEquiv f branch = do
+  mkSuSLikEquiv $ SuSLik._predBranchPure branch
+  f (SuSLik._predBranchAssertion branch)
+
+-- anyA :: Applicative f => (a -> f Bool) -> 
+
+mkSuSLikEquiv :: SuSLik.Expr -> Equiv s SuSLik.Expr ()
+mkSuSLikEquiv = mkEquiv . getEqualities
+
+getEqualities :: SuSLik.Expr -> [(SuSLik.ExprName, SuSLik.ExprName)]
+getEqualities (SuSLik.And x y) = getEqualities x ++ getEqualities y
+getEqualities (SuSLik.Equal (SuSLik.V x) (SuSLik.V y)) = [(x, y)]
+getEqualities _ = []
+
+-- Checks to see if the given variable is used as the LHS of a points-to
+varUsedLHS :: SuSLik.ExprName -> SuSLik.Assertion -> Equiv s SuSLik.Expr Bool
+varUsedLHS v [] = pure False
+varUsedLHS v (PointsToS ((SuSLik.V lhs :+ _) :-> _) : rest) = do
+  here <- isSame @(SuSLik.ExprName, SuSLik.ExprName) @SuSLik.Expr v lhs
+  if here
+  then pure True
+  else varUsedLHS v rest
+varUsedLHS v (_ : rest) = varUsedLHS v rest
 
 genBranch :: Fresh m => String -> [Int] -> [ModedName SuSLik.Expr] -> [SuSLik.ExprName] -> PikaCore.FnDefBranch -> m SuSLik.PredicateBranch
 genBranch fnName outSizes modedAllNames outNames branch = do

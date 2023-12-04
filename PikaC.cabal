@@ -87,6 +87,7 @@ executable PikaC
       PikaC.Utils
       PikaC.Subst
       PikaC.FreshGen
+      PikaC.Equality
 
 
     -- LANGUAGE extensions used by modules in this package.
