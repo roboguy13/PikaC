@@ -72,6 +72,7 @@ go asns (Le x y) = liftA2 Le (go asns x) (go asns y)
 go asns (Div x y) = liftA2 Div (go asns x) (go asns y)
 go asns (Mod x y) = liftA2 Mod (go asns x) (go asns y)
 go asns (And x y) = liftA2 And (go asns x) (go asns y)
+go asns (IfThenElse x y z) = liftA3 IfThenElse (go asns x) (go asns y) (go asns z)
 go asns (App f sz xs) = App f sz <$> mapM (go asns) xs
 go asns (WithIn (SslAssertion asnBnd) bodyBnd) = do
   (asnVars, asn) <- unbind asnBnd

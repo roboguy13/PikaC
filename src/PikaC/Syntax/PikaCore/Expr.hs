@@ -77,6 +77,9 @@ data Expr' (s :: Stage)
   | Le (Expr' s) (Expr' s)
   | Not (Expr' s)
   | And (Expr' s) (Expr' s)
+
+  | IfThenElse (Expr' s) (Expr' s) (Expr' s)
+
   -- | App (Expr a) (LayoutArg a)
   | WithIn                -- with
       (Expr' s)
@@ -203,6 +206,7 @@ bindXV convertNameExpr convertNameAsn vars = go
     go (Le x y) = liftA2 Le (go x) (go y)
     go (Not x) = fmap Not (go x)
     go (And x y) = liftA2 And (go x) (go y)
+    go (IfThenElse x y z) = liftA3 IfThenElse (go x) (go y) (go z)
     go (SingletonSet x) = SingletonSet <$> go x
     go EmptySet = pure EmptySet
     go (SetUnion x y) = SetUnion <$> go x <*> go y
@@ -349,6 +353,7 @@ instance Plated Expr where
   plate f (Le x y) = Le <$> f x <*> f y
   plate f (Not x) = Not <$> f x
   plate f (And x y) = And <$> f x <*> f y
+  plate f (IfThenElse x y z) = IfThenElse <$> f x <*> f y <*> f z
   plate f (SingletonSet x) = SingletonSet <$> f x
   plate f EmptySet = pure EmptySet
   plate f (SetUnion x y) = SetUnion <$> plate f x <*> plate f y
@@ -460,6 +465,11 @@ pprExpr (And x y) = do
   xDoc <- pprExprP x
   yDoc <- pprExprP y
   pure $ sep [xDoc, text "&&", yDoc]
+pprExpr (IfThenElse x y z) = do
+  xDoc <- pprExpr x
+  yDoc <- pprExpr y
+  zDoc <- pprExpr z
+  pure $ sep [text "if", xDoc, text "then", yDoc, text "else", zDoc]
 pprExpr (App f sz x) = do
   xDoc <- mapM pprExprP x
   pure $ ppr f <+> (text "[" <> text (show sz) <> text "]") <+> hsep xDoc
@@ -493,6 +503,7 @@ instance IsNested (Expr' s) where
   isNested (Le {}) = True
   isNested (Not {}) = True
   isNested (And {}) = True
+  isNested (IfThenElse {}) = True
   isNested (App {}) = True
   isNested EmptySet = False
   isNested (SingletonSet {}) = False
@@ -515,6 +526,7 @@ isBasic (Lt x y) = True
 isBasic (Le x y) = True
 isBasic (Not x) = True
 isBasic (And x y) = True
+isBasic (IfThenElse {}) = True
 isBasic EmptySet = True
 isBasic (SingletonSet {}) = True
 isBasic (SetUnion {}) = True
@@ -616,6 +628,7 @@ getOutputCount (Mul {}) = 1
 getOutputCount (Sub {}) = 1
 getOutputCount (Equal {}) = 1
 getOutputCount (And {}) = 1
+getOutputCount (IfThenElse x y z) = maximum $ map getOutputCount [x, y, z]
 getOutputCount (Not {}) = 1
 getOutputCount (Lt {}) = 1
 getOutputCount (Le {}) = 1

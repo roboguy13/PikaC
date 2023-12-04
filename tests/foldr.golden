@@ -1,0 +1,10 @@
+void foldrAdd(loc i1, loc x, loc i2);
+void foldrAdd(loc i1, loc x, loc i2) {
+ if (x == 0) {
+  WRITE_LOC(i2, 0, i1);
+ } else {
+  loc n = READ_LOC(x, 1);
+  foldrAdd(i1, n, i2);
+  WRITE_LOC(x, 0, 0);
+ }
+}

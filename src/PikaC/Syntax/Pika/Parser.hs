@@ -272,6 +272,7 @@ parseExpr = label "expression" $ lexeme $
   try parseLayoutLambda <|>
   try parseApplyLayout <|>
   try parseApp <|>
+  try parseIfThenElse <|>
   try parseExpr'
 
 parseExpr' :: Parser Expr
@@ -426,6 +427,16 @@ parseLoc = label "location" $ lexeme $
       i <- parseInt
       symbol ")"
       pure (v :+ i)
+
+parseIfThenElse :: Parser Expr
+parseIfThenElse = label "if-then-else" $ lexeme $ do
+  keyword "if"
+  x <- parseExpr
+  keyword "then"
+  y <- parseExpr
+  keyword "else"
+  z <- parseExpr
+  pure $ IfThenElse x y z
 
 parseLayoutApply :: Parser (LayoutHeaplet Expr)
 parseLayoutApply = label "layout application" $ lexeme $ do

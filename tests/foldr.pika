@@ -1,0 +1,17 @@
+%generate foldrAdd
+
+Sll : layout[-x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  exists +nxt.
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+foldrAdd : Int -> Sll -> Int;
+foldrAdd z Nil := z;
+foldrAdd z (Cons h t) := h + (foldrAdd z t);
+
+-- cons : Int -> Sll -> Sll;
+-- cons i Nil := Cons i (Nil [Sll]) [Sll];
+-- cons i (Cons a as) := Cons i (Cons a as [Sll]) [Sll];

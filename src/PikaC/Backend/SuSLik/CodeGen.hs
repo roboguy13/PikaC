@@ -397,7 +397,7 @@ collectAssertions appOutNames0 fnName outVars (PikaCore.WithIn e bnd) = do
           ++
         filter (`elem` appOutNames) (toListOf (traversed . PikaCore._LayoutV . traversed . PikaCore._V) (children body))
       tempLocs = map (TempLoc . convertName) appOutUsages
-      tempLocAsn =
+      tempLocAsn = --mkSpatialPart tempLocs
         case body of
           PikaCore.App {} -> mkSpatialPart tempLocs
           _ -> mempty
@@ -479,6 +479,7 @@ convertBaseAsn outVar (PikaCore.Sub x y) = convertBin SuSLik.Sub outVar x y
 convertBaseAsn outVar (PikaCore.Div x y) = convertBin SuSLik.Div outVar x y
 convertBaseAsn outVar (PikaCore.Equal x y) = convertBin mkEqual outVar x y
 convertBaseAsn outVar (PikaCore.And x y) = convertBin SuSLik.Mul outVar x y
+convertBaseAsn outVar (PikaCore.IfThenElse x y z) = convert3 SuSLik.IfThenElse outVar x y z
 convertBaseAsn outVar (PikaCore.Lt x y) = convertBin SuSLik.Lt outVar x y
 convertBaseAsn outVar (PikaCore.Le x y) = convertBin SuSLik.Le outVar x y
 convertBaseAsn outVar (PikaCore.App (PikaCore.FnName f) [0] xs) = do
@@ -505,6 +506,24 @@ convertBin f outVar x y = do
   let newEq = mkEqual (SuSLik.V outVar) (f (SuSLik.V varX) (SuSLik.V varY))
   pure $ asnX <> asnY <> mkPurePart newEq
 
+convert3 :: Fresh m =>
+  (SuSLik.Expr -> SuSLik.Expr -> SuSLik.Expr -> SuSLik.Expr) ->
+  SuSLik.ExprName ->
+  PikaCore.Expr ->
+  PikaCore.Expr ->
+  PikaCore.Expr ->
+  m CompoundAsn
+convert3 f outVar x y z = do
+  varX <- fresh (string2Name "xx" :: SuSLik.ExprName)
+  varY <- fresh (string2Name "yy" :: SuSLik.ExprName)
+  varZ <- fresh (string2Name "zz" :: SuSLik.ExprName)
+  asnX <- convertBaseAsn varX x
+  asnY <- convertBaseAsn varY y
+  asnZ <- convertBaseAsn varZ z
+
+  let newEq = mkEqual (SuSLik.V outVar) (f (SuSLik.V varX) (SuSLik.V varY) (SuSLik.V varZ))
+  pure $ asnX <> asnY <> asnZ <> mkPurePart newEq
+
 convertBaseMaybe :: PikaCore.Expr -> Maybe SuSLik.Expr
 convertBaseMaybe (PikaCore.V x) = Just $ SuSLik.V $ convertName x
 convertBaseMaybe (PikaCore.LayoutV [x]) = convertBaseMaybe x
@@ -516,6 +535,7 @@ convertBaseMaybe (PikaCore.Mul x y) = liftA2 SuSLik.Mul (convertBaseMaybe x) (co
 convertBaseMaybe (PikaCore.Sub x y) = liftA2 SuSLik.Sub (convertBaseMaybe x) (convertBaseMaybe y)
 convertBaseMaybe (PikaCore.Equal x y) = liftA2 mkEqual (convertBaseMaybe x) (convertBaseMaybe y)
 convertBaseMaybe (PikaCore.And x y) = liftA2 mkAnd (convertBaseMaybe x) (convertBaseMaybe y)
+convertBaseMaybe (PikaCore.IfThenElse x y z) = liftA3 SuSLik.IfThenElse (convertBaseMaybe x) (convertBaseMaybe y) (convertBaseMaybe z)
 convertBaseMaybe (PikaCore.Not x) = fmap SuSLik.Not (convertBaseMaybe x)
 convertBaseMaybe (PikaCore.Lt x y) = liftA2 SuSLik.Lt (convertBaseMaybe x) (convertBaseMaybe y)
 convertBaseMaybe (PikaCore.Le x y) = liftA2 SuSLik.Le (convertBaseMaybe x) (convertBaseMaybe y)
