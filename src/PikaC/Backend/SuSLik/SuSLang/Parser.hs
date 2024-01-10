@@ -32,7 +32,7 @@ parseFunction = do
   keyword "void"
   fn <- parseName
   symbol "("
-  (types, params) <- unzip <$> parseParam `sepBy1` symbol ","
+  (types, params) <- Prelude.unzip <$> parseParam `sepBy1` symbol ","
   symbol ")"
   symbol "{"
   body <- many parseCommand

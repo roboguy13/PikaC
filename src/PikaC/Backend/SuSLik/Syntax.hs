@@ -40,6 +40,7 @@ data Expr
   | Equal Expr Expr
   | Lt Expr Expr
   | Le Expr Expr
+  | Mod Expr Expr
   | And Expr Expr
   | Not Expr
   | IfThenElse Expr Expr Expr
@@ -179,6 +180,7 @@ instance Ppr Expr where
   ppr (BoolLit False) = text "0"
   ppr (Add x y) = sep [pprP x, text "+", pprP y]
   ppr (Mul x y) = sep [pprP x, text "*", pprP y]
+  ppr (Mod x y) = sep [pprP x, text "%", pprP y]
   ppr (Div x y) = sep [pprP x, text "/", pprP y]
   ppr (Sub x y) = sep [pprP x, text "-", pprP y]
   ppr (Equal x y) = sep [pprP (fromBool x), text "==", pprP (fromBool y)]

@@ -186,6 +186,7 @@ test-suite PikaC-golden-tests
      PikaC.Subst
      PikaC.FreshGen
      PikaC.Stage.ToPikaCore.LayoutVOne
+     PikaC.Equality
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

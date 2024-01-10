@@ -538,6 +538,7 @@ convertBaseAsn outVar (PikaCore.App (PikaCore.FnName f) [0] xs) = do
   xsAsns <- zipWithM convertBaseAsn vars xs
   let resultSpatial = [SuSLik.RecApply f (map SuSLik.V vars ++ [SuSLik.V outVar])]
   pure $ mconcat xsAsns <> mkSpatialPart resultSpatial
+convertBaseAsn outVar (PikaCore.Mod x y) = convertBin SuSLik.Mod outVar x y
 convertBaseAsn outVar e =
     error $ "convertBaseAsn: " ++ ppr' e
 
