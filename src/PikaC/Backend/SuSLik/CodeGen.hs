@@ -420,7 +420,7 @@ collectAssertions appOutNames fnName outVars e
   | PikaCore.isBasic e =
       case outVars of
         [v] ->
-          convertBaseAsn v e
+          convertBaseAsn fnName v e
           -- pure $ mkSpatialPart [PointsToS ((SuSLik.V v :+ 0) :-> convertBase e)]
         _ -> error "Expected exactly one output parameter when translating a top-level basic expression"
 -- collectAssertions fnName outVars (PikaCore.WithIn (App f [0] args) bnd) = do
@@ -513,65 +513,74 @@ sequenceAssertions (x:xs) = do
 
 -- extendAssertionBind :: [ExprN
 
-convertBaseAsn :: Fresh m => SuSLik.ExprName -> PikaCore.Expr -> m CompoundAsn
+convertBaseAsn :: Fresh m => String -> SuSLik.ExprName -> PikaCore.Expr -> m CompoundAsn
 -- convertBaseAsn outVar e
 --   | Just r <- convertBaseMaybe e =
 --       pure $ mkPurePart (SuSLik.Equal (SuSLik.V outVar) r)
-convertBaseAsn outVar (PikaCore.V x) =
+convertBaseAsn recName outVar (PikaCore.V x) =
   pure $ mkPurePart (SuSLik.Equal (SuSLik.V outVar) (SuSLik.V (convertName x)))
-convertBaseAsn outVar (PikaCore.LayoutV [x]) = convertBaseAsn outVar x
-convertBaseAsn outVar (PikaCore.IntLit i) =
+convertBaseAsn recName outVar (PikaCore.LayoutV [x]) = convertBaseAsn recName outVar x
+convertBaseAsn recName outVar (PikaCore.IntLit i) =
   pure $ mkPurePart (SuSLik.Equal (SuSLik.V outVar) (SuSLik.IntLit i))
-convertBaseAsn outVar (PikaCore.BoolLit b) =
+convertBaseAsn recName outVar (PikaCore.BoolLit b) =
   pure $ mkPurePart (SuSLik.Equal (SuSLik.V outVar) (SuSLik.BoolLit b))
-convertBaseAsn outVar (PikaCore.Add x y) = convertBin SuSLik.Add outVar x y
-convertBaseAsn outVar (PikaCore.Mul x y) = convertBin SuSLik.Mul outVar x y
-convertBaseAsn outVar (PikaCore.Sub x y) = convertBin SuSLik.Sub outVar x y
-convertBaseAsn outVar (PikaCore.Div x y) = convertBin SuSLik.Div outVar x y
-convertBaseAsn outVar (PikaCore.Equal x y) = convertBin mkEqual outVar x y
-convertBaseAsn outVar (PikaCore.And x y) = convertBin SuSLik.Mul outVar x y
-convertBaseAsn outVar (PikaCore.IfThenElse x y z) = convert3 SuSLik.IfThenElse outVar x y z
-convertBaseAsn outVar (PikaCore.Lt x y) = convertBin SuSLik.Lt outVar x y
-convertBaseAsn outVar (PikaCore.Le x y) = convertBin SuSLik.Le outVar x y
-convertBaseAsn outVar (PikaCore.App (PikaCore.FnName f) [0] xs) = do
+convertBaseAsn recName outVar (PikaCore.Add x y) = convertBin recName SuSLik.Add outVar x y
+convertBaseAsn recName outVar (PikaCore.Mul x y) = convertBin recName SuSLik.Mul outVar x y
+convertBaseAsn recName outVar (PikaCore.Sub x y) = convertBin recName SuSLik.Sub outVar x y
+convertBaseAsn recName outVar (PikaCore.Div x y) = convertBin recName SuSLik.Div outVar x y
+convertBaseAsn recName outVar (PikaCore.Equal x y) = convertBin recName mkEqual outVar x y
+convertBaseAsn recName outVar (PikaCore.And x y) = convertBin recName SuSLik.Mul outVar x y
+convertBaseAsn recName outVar (PikaCore.IfThenElse x y z) = convert3 recName SuSLik.IfThenElse outVar x y z
+convertBaseAsn recName outVar (PikaCore.Lt x y) = convertBin recName SuSLik.Lt outVar x y
+convertBaseAsn recName outVar (PikaCore.Le x y) = convertBin recName SuSLik.Le outVar x y
+convertBaseAsn recName outVar (PikaCore.App (PikaCore.FnName f) [0] xs) = do
     -- TODO: Check to see if this is recursive call?
   vars <- mapM (fresh . string2Name . const "zz") xs
-  xsAsns <- zipWithM convertBaseAsn vars xs
-  let resultSpatial = [SuSLik.RecApply f (map SuSLik.V vars ++ [SuSLik.V outVar])]
+  xsAsns <- zipWithM (convertBaseAsn recName) vars xs
+  -- let resultSpatial = [SuSLik.RecApply f (map SuSLik.V vars ++ [SuSLik.V outVar])]
+  let resultSpatial = [mkAppS recName f (map SuSLik.V vars ++ [SuSLik.V outVar])]
   pure $ mconcat xsAsns <> mkSpatialPart resultSpatial
-convertBaseAsn outVar (PikaCore.Mod x y) = convertBin SuSLik.Mod outVar x y
-convertBaseAsn outVar e =
+convertBaseAsn recName outVar (PikaCore.Mod x y) = convertBin recName SuSLik.Mod outVar x y
+convertBaseAsn recName outVar e =
     error $ "convertBaseAsn: " ++ ppr' e
 
+mkAppS :: String -> String -> [SuSLik.Expr] -> SuSLik.HeapletS
+mkAppS recName fn args
+  | fn == recName = SuSLik.RecApply fn args
+  | otherwise     = SuSLik.ApplyS fn args
+
+
 convertBin :: Fresh m =>
+  String ->
   (SuSLik.Expr -> SuSLik.Expr -> SuSLik.Expr) ->
   SuSLik.ExprName ->
   PikaCore.Expr ->
   PikaCore.Expr ->
   m CompoundAsn
-convertBin f outVar x y = do
+convertBin recName f outVar x y = do
   varX <- fresh (string2Name "xx" :: SuSLik.ExprName)
   varY <- fresh (string2Name "yy" :: SuSLik.ExprName)
-  asnX <- convertBaseAsn varX x
-  asnY <- convertBaseAsn varY y
+  asnX <- convertBaseAsn recName varX x
+  asnY <- convertBaseAsn recName varY y
 
   let newEq = mkEqual (SuSLik.V outVar) (f (SuSLik.V varX) (SuSLik.V varY))
   pure $ asnX <> asnY <> mkPurePart newEq
 
 convert3 :: Fresh m =>
+  String ->
   (SuSLik.Expr -> SuSLik.Expr -> SuSLik.Expr -> SuSLik.Expr) ->
   SuSLik.ExprName ->
   PikaCore.Expr ->
   PikaCore.Expr ->
   PikaCore.Expr ->
   m CompoundAsn
-convert3 f outVar x y z = do
+convert3 recName f outVar x y z = do
   varX <- fresh (string2Name "xx" :: SuSLik.ExprName)
   varY <- fresh (string2Name "yy" :: SuSLik.ExprName)
   varZ <- fresh (string2Name "zz" :: SuSLik.ExprName)
-  asnX <- convertBaseAsn varX x
-  asnY <- convertBaseAsn varY y
-  asnZ <- convertBaseAsn varZ z
+  asnX <- convertBaseAsn recName varX x
+  asnY <- convertBaseAsn recName varY y
+  asnZ <- convertBaseAsn recName varZ z
 
   let newEq = mkEqual (SuSLik.V outVar) (f (SuSLik.V varX) (SuSLik.V varY) (SuSLik.V varZ))
   pure $ asnX <> asnY <> asnZ <> mkPurePart newEq
