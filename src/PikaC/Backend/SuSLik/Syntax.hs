@@ -144,6 +144,10 @@ data FnSpec
     }
   deriving (Show, Generic)
 
+toReadOnlyPointsTo :: HeapletS -> HeapletS
+toReadOnlyPointsTo (PointsToS p) = ReadOnlyPointsToS p
+toReadOnlyPointsTo x = x
+
 pprFnSigPrototype :: FnSig -> Doc
 pprFnSigPrototype fnSig =
     let (params, conds) = _fnSigConds fnSig

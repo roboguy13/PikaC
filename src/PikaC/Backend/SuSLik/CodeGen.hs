@@ -200,6 +200,7 @@ codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
 
     , SuSLik._predBranchAssertion =
         -- bind asnVars $
+        map SuSLik.toReadOnlyPointsTo $
           map convertAlloc branchAllocs ++
           convertLayoutBody useGhosts body
           -- map convertPointsTo (concat (getInputAsns inAsns))

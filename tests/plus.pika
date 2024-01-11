@@ -1,6 +1,12 @@
 %generate plus
 
-plus : Int -> Int -> Int;
-plus x y := x + y;
+data Id := MkId Int;
+
+IdLayout : layout[-x](Id);
+IdLayout (Id n) :=
+  x :-> n;
+
+plus : IdLayout -> IdLayout -> Int;
+plus (Id a) (Id b) := a + b;
 
 %test "plus1" Int: plus 2 2;
