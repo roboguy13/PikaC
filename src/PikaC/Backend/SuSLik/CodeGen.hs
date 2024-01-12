@@ -81,8 +81,10 @@ codeGenSynthSig layouts (Synth fn purePart args (GhostApp (LayoutId resultType) 
 
   let resultParams' = map (convertName . modedNameName) resultParams
 
-  (_, precondOuts) <- mkOutPointsTos resultParams'
-  (postCondOutVars, postCondOuts) <- mkOutPointsTos resultParams'
+  -- (_, precondOuts) <- mkOutPointsTos resultParams'
+  -- (postCondOutVars, postCondOuts) <- mkOutPointsTos resultParams'
+
+  (postCondOutVars, precondOuts, postCondOuts) <- mkOutPointsTosPrePost ZeroIndirect resultParams'
 
   let params = map (convertName . modedNameName) (concat argsParams) ++ map (convertName . modedNameName) resultParams
 
@@ -103,7 +105,9 @@ codeGenSynthSig layouts (Synth fn purePart args (GhostApp (LayoutId resultType) 
 
       spec = SuSLik.FnSpec
                { SuSLik._fnSpecPrecond = allocs ++ precondOuts
-               , SuSLik._fnSpecPostcond = (purePart', postCondOuts ++ outAllocs)
+               , SuSLik._fnSpecPostcond = (purePart',
+                                            postCondOuts ++
+                                            outAllocs)
                }
 
       purePart' = convertBase $ ToPikaCore.convertBasicExpr purePart
@@ -128,8 +132,10 @@ codeGenFnSig fnDef = runFreshM $ do
   let params = map (convertName . modedNameName) $ inParams ++ outParams
   let allocs = mkLayoutApps layouts
 
-  (_, precondOuts) <- mkOutPointsTos outParams'
-  (postCondOutVars, postCondOuts) <- mkOutPointsTos outParams'
+  (postCondOutVars, precondOuts, postCondOuts) <- mkOutPointsTosPrePost ZeroIndirect outParams'
+
+  -- (_, precondOuts) <- mkOutPointsTos outParams'
+  -- (postCondOutVars, postCondOuts) <- mkOutPointsTos outParams'
 
   let spec = SuSLik.FnSpec
               { SuSLik._fnSpecPrecond = allocs ++ precondOuts
@@ -223,13 +229,30 @@ convertLayoutBody useGhosts = map go . _unLayoutBody
       in
       RecApply n (map (mkVar . convertName . PikaCore.getV) args)
 
-mkOutPointsTos :: Fresh m => [SuSLik.ExprName] -> m ([SuSLik.ExprName], [HeapletS])
-mkOutPointsTos [] = pure ([], [])
-mkOutPointsTos (x:xs) = do
+mkOutPointsTos :: Fresh m => IndirectionLevel -> [SuSLik.ExprName] -> m ([SuSLik.ExprName], [HeapletS])
+mkOutPointsTos indirectLevel [] = pure ([], [])
+mkOutPointsTos indirectLevel (x:xs) = do
   x' <- fresh x
-  let p = bimap (x':) (PointsToS ((mkVar x :+ 0) :-> mkVar x') :)
-  rest <- mkOutPointsTos xs
+
+  let v = case indirectLevel of
+            ZeroIndirect -> x'
+            OneIndirect -> x
+
+  let p = bimap (v:) (PointsToS ((mkVar x :+ 0) :-> mkVar x') :)
+  rest <- mkOutPointsTos indirectLevel xs
   pure (p rest)
+
+mkOutPointsTosPrePost :: Fresh m => IndirectionLevel -> [SuSLik.ExprName] -> m ([SuSLik.ExprName], [HeapletS], [HeapletS])
+mkOutPointsTosPrePost indirectLevel xs = do
+  (_, precondOuts) <- mkOutPointsTos indirectLevel xs
+  (ys, postcondOuts0) <- mkOutPointsTos indirectLevel xs
+  let postcondOuts = case indirectLevel of
+                       ZeroIndirect -> []
+                       OneIndirect -> postcondOuts0
+  pure (ys, precondOuts, postcondOuts)
+
+data IndirectionLevel = ZeroIndirect | OneIndirect
+  deriving (Show)
 
 mkLayoutApps :: [Maybe PikaCore.ArgLayout] -> [HeapletS]
 mkLayoutApps = map go . catMaybes
