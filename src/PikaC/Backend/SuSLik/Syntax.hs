@@ -157,7 +157,7 @@ pprFnSigPrototype fnSig =
     in
     vcat
       [ (text "void" <+> text (_fnSigName fnSig))
-          <> parens (sep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes) params)))
+          <> parens (sep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes ++ repeat (text "loc")) params)))
       , nest 2 (ppr conds)
       ]
 
@@ -269,10 +269,10 @@ instance Ppr InductivePredicate where
     in -- trace ("(params, argTypes) = " ++ show (params, argTypes)) $
     vcat $
       [(text "predicate" <+> text (_indPredName indPred))
-        -- <> text "(" <> hsep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes ++ map ghostToSuSLikType ghostTypes) params)) <> text ")"
+        <> text "(" <> hsep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes ++ map ghostToSuSLikType ghostTypes ++ repeat (text "loc")) params)) <> text ")"
 
-        -- TODO: Find a nicer way
-        <> text "(" <> hsep (punctuate (text ",") (map (showParam (text "loc")) params)) <> text ")"
+        -- -- TODO: Find a nicer way
+        -- <> text "(" <> hsep (punctuate (text ",") (map (showParam (text "loc")) params)) <> text ")"
       ,text "{"
       ]
       ++

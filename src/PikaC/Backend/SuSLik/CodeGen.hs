@@ -13,7 +13,7 @@ import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import qualified PikaC.Syntax.PikaCore.FnDef as PikaCore
 import PikaC.Syntax.PikaCore.FnDef (inputNames, getInputAsns)
 import PikaC.Syntax.Heaplet
-import PikaC.Syntax.Type
+import PikaC.Syntax.Type as PikaCore
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.FnDef
@@ -143,7 +143,7 @@ codeGenFnSig fnDef = runFreshM $ do
 
   pure $ SuSLik.FnSig
     { SuSLik._fnSigName = fnName
-    , SuSLik._fnSigArgTypes = replicate (length params) (LayoutId "Unused")--argTypes
+    , SuSLik._fnSigArgTypes = argTypes ++ replicate (length outParams) (LayoutId "Unused")--argTypes
     , SuSLik._fnSigResultType = resultType
     , SuSLik._fnSigConds = (params, spec)
     }
@@ -273,7 +273,7 @@ codeGenIndPred fnDef0 = runFreshM $ do
 
 
   pure 
-    -- $ trace ("---\n" ++ ppr' fnDef)
+    -- $ trace ("fnName = " ++ fnName ++ ", argTypes = " ++ show argTypes)
     $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
     , SuSLik._indPredArgTypes = argTypes ++ [LayoutId "Unused"] -- TODO: We need a way to deal with layouts that have multiple parameters
