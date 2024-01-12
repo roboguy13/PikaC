@@ -84,7 +84,7 @@ codeGenSynthSig layouts (Synth fn purePart args (GhostApp (LayoutId resultType) 
   -- (_, precondOuts) <- mkOutPointsTos resultParams'
   -- (postCondOutVars, postCondOuts) <- mkOutPointsTos resultParams'
 
-  (postCondOutVars, precondOuts, postCondOuts) <- mkOutPointsTosPrePost ZeroIndirect resultParams'
+  (postCondOutVars, precondOuts, postCondOuts) <- mkOutPointsTosPrePost OneIndirect resultParams'
 
   let params = map (convertName . modedNameName) (concat argsParams) ++ map (convertName . modedNameName) resultParams
 
@@ -132,7 +132,7 @@ codeGenFnSig fnDef = runFreshM $ do
   let params = map (convertName . modedNameName) $ inParams ++ outParams
   let allocs = mkLayoutApps layouts
 
-  (postCondOutVars, precondOuts, postCondOuts) <- mkOutPointsTosPrePost ZeroIndirect outParams'
+  (postCondOutVars, precondOuts, postCondOuts) <- mkOutPointsTosPrePost OneIndirect outParams'
 
   -- (_, precondOuts) <- mkOutPointsTos outParams'
   -- (postCondOutVars, postCondOuts) <- mkOutPointsTos outParams'
@@ -235,8 +235,8 @@ mkOutPointsTos indirectLevel (x:xs) = do
   x' <- fresh x
 
   let v = case indirectLevel of
-            ZeroIndirect -> x'
-            OneIndirect -> x
+            ZeroIndirect -> x
+            OneIndirect -> x'
 
   let p = bimap (v:) (PointsToS ((mkVar x :+ 0) :-> mkVar x') :)
   rest <- mkOutPointsTos indirectLevel xs
@@ -246,9 +246,11 @@ mkOutPointsTosPrePost :: Fresh m => IndirectionLevel -> [SuSLik.ExprName] -> m (
 mkOutPointsTosPrePost indirectLevel xs = do
   (_, precondOuts) <- mkOutPointsTos indirectLevel xs
   (ys, postcondOuts0) <- mkOutPointsTos indirectLevel xs
+
   let postcondOuts = case indirectLevel of
                        ZeroIndirect -> []
                        OneIndirect -> postcondOuts0
+
   pure (ys, precondOuts, postcondOuts)
 
 data IndirectionLevel = ZeroIndirect | OneIndirect
