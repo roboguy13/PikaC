@@ -28,13 +28,14 @@ import PikaC.Stage.ToPikaCore.SimplifyM
 import qualified PikaC.Stage.ToPikaCore.Simplify as Simplify
 
 import PikaC.Backend.C.CodeGen
-import PikaC.Backend.C.Syntax (declFunction)
+import PikaC.Backend.C.Syntax (declFunction, CFunction)
 
 import PikaC.Backend.SuSLik.CodeGen
 import PikaC.Backend.SuSLik.Invoke
 
 import qualified PikaC.Backend.SuSLik.SuSLang.Parser as SuSLang
 import PikaC.Backend.SuSLik.SuSLang.ToC (functionToC)
+import qualified PikaC.Backend.SuSLik.Syntax as SuSLik
 
 import PikaC.Ppr
 
@@ -295,15 +296,15 @@ withModule opts pikaModule = do
             when (not (_optNoSuSLik opts)) $ do
               let layoutPreds = map (codeGenLayout False) convertedLayouts
                   fnIndPred = codeGenIndPred pikaCore
-                  fnSig = codeGenFnSig pikaCore
+                  fnSigAttempts = map (`codeGenFnSig` pikaCore) possibleIndirectionLevels
 
               putStrLn "\n- SuSLik:"
               mapM_ (putStrLn . ppr') layoutPreds
               putStrLn $ ppr' fnIndPred
-              putStrLn $ ppr' fnSig
+              mapM_ (putStrLn . ppr') fnSigAttempts
 
               putStrLn "\n- SuSLang:"
-              invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
+              invokeSuSLikAttempts [] (fnIndPred : layoutPreds) [] fnSigAttempts >>= \case
                 Left err -> error $ "SuSLik error: " ++ err
                 Right susLangFn -> do
                   -- putStrLn susLang

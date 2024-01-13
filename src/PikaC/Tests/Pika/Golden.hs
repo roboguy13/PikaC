@@ -183,7 +183,7 @@ runTest fileName = do
           convertedLayouts = map (runIdentity . runPikaConvert layouts [] (map getFnTypeSig fnDefs) . convertLayout) layouts
           layoutPreds = map (codeGenLayout False) convertedLayouts
           -- fnIndPred = codeGenIndPred pikaCore
-          fnSig = codeGenFnSig pikaCore
+          fnSigAttempts = map (`codeGenFnSig` pikaCore) possibleIndirectionLevels
 
       -- putStrLn "\n- SuSLik:"
       -- mapM_ (putStrLn . ppr') layoutPreds
@@ -193,9 +193,9 @@ runTest fileName = do
       -- putStrLn "\n- SuSLang:"
       let allPreds = fnIndPreds ++ layoutPreds
       -- putStrLn $ "predicates = " ++ show allPreds
-      (invokeSuSLikWithTimeout (Just timeoutMilli) [] allPreds [] fnSig) >>= \case
+      (invokeSuSLikAttemptsWithTimeout (Just timeoutMilli) [] allPreds [] fnSigAttempts) >>= \case
           Left err -> error $
-            unlines (map ppr' allPreds ++ [ppr' fnSig])
+            unlines (map ppr' allPreds ++ map ppr' fnSigAttempts)
             ++
             "\n=== SuSLik error: " ++ err
           Right susLangFn ->

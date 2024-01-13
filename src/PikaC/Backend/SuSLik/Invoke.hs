@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module PikaC.Backend.SuSLik.Invoke
   where
 
@@ -29,6 +31,21 @@ type SuSLikError = String
 timeoutOpt :: Maybe Int -> [String]
 timeoutOpt Nothing = []
 timeoutOpt (Just millis) = ["--timeout", show millis]
+
+invokeSuSLikAttempts :: [String] -> [InductivePredicate] -> [FnSig] -> [FnSig] -> IO (Either SuSLikError [SuSLang.Function])
+invokeSuSLikAttempts = invokeSuSLikAttemptsWithTimeout Nothing
+
+invokeSuSLikAttemptsWithTimeout :: Maybe Int -> [String] -> [InductivePredicate] -> [FnSig] -> [FnSig] -> IO (Either SuSLikError [SuSLang.Function])
+invokeSuSLikAttemptsWithTimeout timeout susOpts0 indPreds helperSigs = go
+  where
+    go (currAttempt:restAttempts) = 
+      invokeSuSLikWithTimeout timeout susOpts0 indPreds helperSigs currAttempt >>= \case
+        Left err ->
+          case restAttempts of
+            [] -> pure $ Left err
+            (_:_) -> go restAttempts
+        Right r -> pure $ Right r
+
 
 invokeSuSLik :: [String] -> [InductivePredicate] -> [FnSig] -> FnSig -> IO (Either SuSLikError [SuSLang.Function])
 invokeSuSLik = invokeSuSLikWithTimeout Nothing

@@ -121,8 +121,8 @@ genAndRun which fuel debug compiler pikaModule = do
       pikaCore <- getPikaCore fnSigs fnDef
       let layoutPreds = map (codeGenLayout False) convertedLayouts
           fnIndPred = codeGenIndPred pikaCore
-          fnSig = codeGenFnSig pikaCore
-      invokeSuSLik [] (fnIndPred : layoutPreds) [] fnSig >>= \case
+          fnSigAttempts = map (`codeGenFnSig` pikaCore) possibleIndirectionLevels
+      invokeSuSLikAttempts [] (fnIndPred : layoutPreds) [] fnSigAttempts >>= \case
         Left err -> error $ "SuSLik error: " ++ err
         Right susLang ->
           pure $ concatMap functionToC susLang

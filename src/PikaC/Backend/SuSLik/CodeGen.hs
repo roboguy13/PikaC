@@ -6,7 +6,10 @@ module PikaC.Backend.SuSLik.CodeGen
   ,codeGenSynthSig
   ,codeGenFnSig
   ,codeGenLayout
-  ,codeGenIndPred)
+  ,codeGenIndPred
+  ,IndirectionLevel (..)
+  ,possibleIndirectionLevels
+  )
   where
 
 import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
@@ -119,8 +122,8 @@ codeGenSynthSig layouts (Synth fn purePart args (GhostApp (LayoutId resultType) 
     , SuSLik._fnSigConds = (params, spec)
     }
 
-codeGenFnSig :: PikaCore.FnDef -> SuSLik.FnSig
-codeGenFnSig fnDef = runFreshM $ do
+codeGenFnSig :: IndirectionLevel -> PikaCore.FnDef -> SuSLik.FnSig
+codeGenFnSig indirectLevel fnDef = runFreshM $ do
   let PikaCore.FnName fnName = PikaCore._fnDefName fnDef
 
   (inParams, bnd1) <- unbind $ PikaCore._fnDefBranches fnDef
@@ -132,7 +135,7 @@ codeGenFnSig fnDef = runFreshM $ do
   let params = map (convertName . modedNameName) $ inParams ++ outParams
   let allocs = mkLayoutApps layouts
 
-  (postCondOutVars, precondOuts, postCondOuts) <- mkOutPointsTosPrePost OneIndirect outParams'
+  (postCondOutVars, precondOuts, postCondOuts) <- mkOutPointsTosPrePost indirectLevel outParams'
 
   -- (_, precondOuts) <- mkOutPointsTos outParams'
   -- (postCondOutVars, postCondOuts) <- mkOutPointsTos outParams'
@@ -255,6 +258,9 @@ mkOutPointsTosPrePost indirectLevel xs = do
 
 data IndirectionLevel = ZeroIndirect | OneIndirect
   deriving (Show)
+
+possibleIndirectionLevels :: [IndirectionLevel]
+possibleIndirectionLevels = [OneIndirect, ZeroIndirect]
 
 mkLayoutApps :: [Maybe PikaCore.ArgLayout] -> [HeapletS]
 mkLayoutApps = map go . catMaybes
