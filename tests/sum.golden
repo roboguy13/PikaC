@@ -3,8 +3,10 @@ void sum(loc x, loc i1) {
  if (x == 0) {
   WRITE_LOC(i1, 0, 0);
  } else {
+  loc h = READ_LOC(x, 0);
   loc n = READ_LOC(x, 1);
   sum(n, i1);
-  WRITE_LOC(x, 0, 0);
+  loc i = READ_LOC(i1, 0);
+  WRITE_LOC(i1, 0, (long)h + (long)i);
  }
 }

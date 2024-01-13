@@ -3,8 +3,10 @@ void foldrAdd(loc i1, loc x, loc i2) {
  if (x == 0) {
   WRITE_LOC(i2, 0, i1);
  } else {
+  loc h = READ_LOC(x, 0);
   loc n = READ_LOC(x, 1);
   foldrAdd(i1, n, i2);
-  WRITE_LOC(x, 0, 0);
+  loc i = READ_LOC(i2, 0);
+  WRITE_LOC(i2, 0, (long)h + (long)i);
  }
 }

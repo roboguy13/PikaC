@@ -289,18 +289,20 @@ codeGenIndPred fnDef0 = runFreshM $ do
 
   let outSizes = PikaCore._fnDefOutputSizes fnDef
 
-  branches0 <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
+  branches' <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
 
-  let (origOut:_) = unmodedOutParams
-
-  branches' <-
-    if not (runEquiv (anyM (mapAssertionWithEquiv (varUsedLHS origOut)) branches0))
-    then do
-      -- Intermediate output variable:
-      outV <- fresh (string2Name "out")
-      map (SuSLik.predBranchAssertion %~ (PointsToS ((SuSLik.V origOut :+ 0) :-> (SuSLik.V outV)):)) -- result :-> out
-        <$> mapM (genBranch fnName outSizes nonBaseParams [outV]) branches
-    else mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
+  -- branches0 <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
+  --
+  -- let (origOut:_) = unmodedOutParams
+  --
+  -- branches' <-
+  --   if not (runEquiv (anyM (mapAssertionWithEquiv (varUsedLHS origOut)) branches0))
+  --   then do
+  --     -- Intermediate output variable:
+  --     outV <- fresh (string2Name "out")
+  --     map (SuSLik.predBranchAssertion %~ (PointsToS ((SuSLik.V origOut :+ 0) :-> (SuSLik.V outV)):)) -- result :-> out
+  --       <$> mapM (genBranch fnName outSizes nonBaseParams [outV]) branches
+  --   else mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
 
 
   pure 
