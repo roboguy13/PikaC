@@ -9,6 +9,8 @@ module PikaC.Backend.SuSLik.Syntax
 import PikaC.Ppr
 import PikaC.Utils
 
+import PikaC.Equality (simplifyEqualities)
+
 import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Type
 import PikaC.Syntax.Pika.Layout (GhostType (..))
@@ -78,7 +80,7 @@ instance IsBase Expr where
   mkAnd = andS
 
 toBool :: Expr -> Expr
-toBool e = IfThenElse e (BoolLit True) (BoolLit False)
+toBool e = e --IfThenElse e (BoolLit True) (BoolLit False)
 
 data InductivePredicate
   = InductivePredicate
@@ -157,7 +159,7 @@ pprFnSigPrototype fnSig =
     in
     vcat
       [ (text "void" <+> text (_fnSigName fnSig))
-          <> parens (sep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes ++ repeat (text "loc")) params)))
+          <> parens (sep (punctuate (text ",") (zipWith showParam (map toSuSLikTypeName argTypes ++ repeat (text "loc")) params)))
       , nest 2 (ppr conds)
       ]
 
@@ -199,9 +201,12 @@ instance Ppr Expr where
   ppr (SetUnion x y) = pprP x <+> text "++" <+> pprP y
 
 fromBool :: Expr -> Expr
-fromBool (BoolLit True) = IntLit 1
-fromBool (BoolLit False) = IntLit 0
-fromBool e = e
+fromBool = id
+
+-- fromBool :: Expr -> Expr
+-- fromBool (BoolLit True) = IntLit 1
+-- fromBool (BoolLit False) = IntLit 0
+-- fromBool e = e
 
 instance IsNested Expr where
   isNested (V _) = False
@@ -248,11 +253,11 @@ instance Ppr PredicateBranch where
           <+> text "}"
         )
 
-toSuSLikType :: Type -> Doc
-toSuSLikType IntType = text "int"
-toSuSLikType BoolType = text "bool"
-toSuSLikType (LayoutId _) = text "loc"
-toSuSLikType t = error $  "toSuSLikType: " ++ show t
+toSuSLikTypeName :: Type -> Doc
+toSuSLikTypeName IntType = text "int"
+toSuSLikTypeName BoolType = text "bool"
+toSuSLikTypeName (LayoutId _) = text "loc"
+toSuSLikTypeName t = error $  "toSuSLikTypeName: " ++ show t
 
 ghostToSuSLikType :: GhostType -> Doc
 ghostToSuSLikType IntGhost = text "int"
@@ -260,6 +265,20 @@ ghostToSuSLikType SetGhost = text "set"
 
 showParam :: Doc -> ExprName -> Doc
 showParam ty param = ty <+> text (show param)
+
+simplifySuSLikEqns :: Expr -> Expr
+simplifySuSLikEqns =
+  mkSuSLikEqns . simplifyEqualities . collectSuSLikEqns
+
+collectSuSLikEqns :: Expr -> [(Name Expr, Expr)]
+collectSuSLikEqns (And x y) = collectSuSLikEqns x ++ collectSuSLikEqns y
+collectSuSLikEqns (Equal (V x) y) = [(x, y)]
+collectSuSLikEqns _ = []
+
+mkSuSLikEqns :: [(Name Expr, Expr)] -> Expr
+mkSuSLikEqns = foldr mkAnd (BoolLit True) . map mkEq
+  where
+    mkEq (x, y) = mkEqual (mkVar x) y
 
 instance Ppr InductivePredicate where
   ppr indPred =
@@ -269,7 +288,7 @@ instance Ppr InductivePredicate where
     in -- trace ("(params, argTypes) = " ++ show (params, argTypes)) $
     vcat $
       [(text "predicate" <+> text (_indPredName indPred))
-        <> text "(" <> hsep (punctuate (text ",") (zipWith showParam (map toSuSLikType argTypes ++ map ghostToSuSLikType ghostTypes ++ repeat (text "loc")) params)) <> text ")"
+        <> text "(" <> hsep (punctuate (text ",") (zipWith showParam (map toSuSLikTypeName argTypes ++ map ghostToSuSLikType ghostTypes ++ repeat (text "loc")) params)) <> text ")"
 
         -- -- TODO: Find a nicer way
         -- <> text "(" <> hsep (punctuate (text ",") (map (showParam (text "loc")) params)) <> text ")"

@@ -198,7 +198,7 @@ codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
   -- let outAllocs = zipWith Alloc outNames outSizes
   pure
     $ SuSLik.PredicateBranch
-    { SuSLik._predBranchPure =
+    { SuSLik._predBranchPure = SuSLik.simplifySuSLikEqns $
         if useGhosts
           then fromMaybe (boolLit True) $ fmap convertBase gCond
           else boolLit True
@@ -309,7 +309,7 @@ codeGenIndPred fnDef0 = runFreshM $ do
     -- $ trace ("fnName = " ++ fnName ++ ", argTypes = " ++ show argTypes)
     $ SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
-    , SuSLik._indPredArgTypes = argTypes ++ [LayoutId "Unused"] -- TODO: We need a way to deal with layouts that have multiple parameters
+    , SuSLik._indPredArgTypes = argTypes ++ [resultType] --[LayoutId "Unused"] -- TODO: We need a way to deal with layouts that have multiple parameters
     , SuSLik._indPredResultType = resultType
     , SuSLik._indPredGhostTypes = []
     , SuSLik._indPredBody =
@@ -379,7 +379,7 @@ genBranch fnName outSizes modedAllNames outNames branch = do
     -- trace ("!!! modedAllNames = " ++ show modedAllNames) $
     -- trace ("branchAllocs = " ++ show branchAllocs) $
     SuSLik.PredicateBranch
-    { SuSLik._predBranchPure = branchPurePart
+    { SuSLik._predBranchPure = SuSLik.simplifySuSLikEqns $ branchPurePart
     , SuSLik._predBranchCond =
         SuSLik.andS (computeModedBranchCondition modedAllNames branchNames)
                     (convertBase (PikaCore._fnDefBranchCondition branch))

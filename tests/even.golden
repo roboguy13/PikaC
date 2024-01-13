@@ -1,0 +1,4 @@
+void even(loc i, loc i1);
+void even(loc i, loc i1) {
+ WRITE_LOC(i1, 0, (long)i % (long)(2 == 0) ? 1 : 0);
+}
