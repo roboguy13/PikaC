@@ -223,7 +223,7 @@ main = do
         -- mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
 
         let checkEnv = mkCheckEnv pikaModule'
-        -- print $ moduleAdts pikaModule'
+        print pikaModule'
 
         -- let (_:firstFnDef:_) = moduleFnDefs pikaModule'
         -- case elaborateFnDef checkEnv firstFnDef of

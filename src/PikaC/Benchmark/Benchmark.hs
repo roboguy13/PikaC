@@ -144,7 +144,7 @@ toLaTeX results =
   unlines $
     [cmd "begin{tabular}{|c|c|c|c|c|c|}"
     ,cmd "hline"
-    ,"Name & Pika AST size & SuSLik AST size & Pika AST size / SuSLik AST size & Compilation time (s) & Synthesis time (s)\\\\"
+    ,"Name & Pika AST & SuSLik AST & Pika AST / SuSLik AST & Compilation time (s) & Synthesis time (s)\\\\"
     ,cmd "hline"
     ]
     ++ map toRow results ++
@@ -162,19 +162,6 @@ toLaTeX results =
     cmd s = "\\" <> s
 
     fromReport = printf "%.3f" . estPoint . anMean . reportAnalysis
-
--- runBenchmarks :: [PikaCompileBenchmark] -> Benchmark
--- runBenchmarks benchmarks =
---   let compiledBenchmarks = map compileBenchmark benchmarks
---   in
---   bgroup "main"
---     [bgroup "Compilation"
---       (map (toBenchmark benchmarkToCriterionCompile) benchmarks)
---
---     ,compiledBenchmarks `deepseq`
---       bgroup "Synthesis"
---         (map (toBenchmark benchmarkToCriterionSynth) compiledBenchmarks)
---     ]
 
 -- compileC :: [String] -> String -> C.CFunction -> FilePath -> IO ()
 -- compileC inputGenerators outputPrinter fn execFileName = undefined

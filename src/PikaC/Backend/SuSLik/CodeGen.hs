@@ -169,7 +169,7 @@ codeGenLayout useGhosts layout = runFreshM $ do
           then params' ++ map (convertName . getGhostName) ghosts
           else params'
 
-  pure $ SuSLik.InductivePredicate
+  pure $ reduceEqualities $ SuSLik.InductivePredicate
     { SuSLik._indPredName = _layoutName layout
     , SuSLik._indPredArgTypes = map (const (LayoutId "Unused")) params
     , SuSLik._indPredResultType = LayoutId "Unused2" --resultType
@@ -305,9 +305,9 @@ codeGenIndPred fnDef0 = runFreshM $ do
   --   else mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
 
 
-  pure 
+  pure $ reduceEqualities $
     -- $ trace ("fnName = " ++ fnName ++ ", argTypes = " ++ show argTypes)
-    $ SuSLik.InductivePredicate
+    SuSLik.InductivePredicate
     { SuSLik._indPredName = fnName
     , SuSLik._indPredArgTypes = argTypes ++ [resultType] --[LayoutId "Unused"] -- TODO: We need a way to deal with layouts that have multiple parameters
     , SuSLik._indPredResultType = resultType
@@ -663,6 +663,39 @@ getEquals v e = v : eqNames
     go (SuSLik.And x y) = go x *> go y
     go (SuSLik.Equal (SuSLik.V x) (SuSLik.V y)) = equate x y
     go _ = pure ()
+
+-- | Eliminated some unused equalities
+reduceEqualities :: SuSLik.InductivePredicate -> SuSLik.InductivePredicate
+reduceEqualities indPred =
+  let (_, branches) = SuSLik._indPredBody indPred
+  in
+  indPred
+    { SuSLik._indPredBody = (params, map go branches)
+    }
+  where
+    (params, _) = SuSLik._indPredBody indPred
+
+    go :: SuSLik.PredicateBranch -> SuSLik.PredicateBranch
+    go branch =
+      let vars = params ++ toListOf fv (SuSLik._predBranchCond branch)
+                        ++ toListOf fv (SuSLik._predBranchAssertion branch)
+      in
+      branch
+        { SuSLik._predBranchPure = SuSLik.mkSuSLikEqns $ overEqualities vars $ SuSLik.collectSuSLikEqns $ SuSLik._predBranchPure branch
+        }
+
+    overEqualities :: [SuSLik.ExprName] -> [(SuSLik.ExprName, SuSLik.Expr)] -> [(SuSLik.ExprName, SuSLik.Expr)]
+    overEqualities vars = go' 1
+      where
+        go' i xs =
+          case splitOff i xs of
+            Nothing -> xs
+            Just (ys, eqn, zs) ->
+              let allVars = vars ++ toListOf fv ys ++ toListOf fv zs
+              in
+              if fst eqn `notElem` allVars
+              then go' i (ys ++ zs)
+              else go' (i+1) (ys ++ [eqn] ++ zs)
 
 -- -- Get the x's such that there's
 -- --      with {x} := f e ...
