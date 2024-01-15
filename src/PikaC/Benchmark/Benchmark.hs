@@ -147,7 +147,7 @@ toLaTeX results =
       "verb|" ++ benchResultName ++ "| & " ++ fromReport benchResultCompileReport ++ " & "  ++ fromReport benchResultSynthReport ++ "\\\\"
 
     cmd :: String -> String
-    cmd s = "\\\\" <> s
+    cmd s = "\\" <> s
 
     fromReport = printf "%.2f" . estPoint . anMean . reportAnalysis
 
