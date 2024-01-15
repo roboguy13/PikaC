@@ -88,7 +88,6 @@ executable PikaC
       PikaC.Subst
       PikaC.FreshGen
       PikaC.Equality
-      PikaC.Benchmark.Benchmark
 
 
     -- LANGUAGE extensions used by modules in this package.
@@ -190,7 +189,6 @@ test-suite PikaC-golden-tests
      PikaC.FreshGen
      PikaC.Stage.ToPikaCore.LayoutVOne
      PikaC.Equality
-     PikaC.Benchmark.Benchmark
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
