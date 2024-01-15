@@ -144,7 +144,7 @@ toLaTeX results =
   unlines $
     [cmd "begin{tabular}{|c|c|c|c|c|c|}"
     ,cmd "hline"
-    ,"Name & Pika AST size & SuSLik AST size & Pika AST size / SuSLik AST size & Compilation (s) time & Synthesis time (s)\\\\"
+    ,"Name & Pika AST size & SuSLik AST size & Pika AST size / SuSLik AST size & Compilation time (s) & Synthesis time (s)\\\\"
     ,cmd "hline"
     ]
     ++ map toRow results ++
