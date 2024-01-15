@@ -134,7 +134,7 @@ toLaTeX results =
     [cmd "begin{table}"
     ,cmd "begin{tabular}{|c|c|c|}"
     ,cmd "hline"
-    ,cmd "Name & Compilation time & Synthesis time\\\\"
+    ,"Name & Compilation time & Synthesis time\\\\"
     ,cmd "hline"
     ]
     ++ map toRow results ++
@@ -144,12 +144,12 @@ toLaTeX results =
     ]
   where
     toRow BenchmarkResult { .. } =
-      "verb|" ++ benchResultName ++ "| & " ++ fromReport benchResultCompileReport ++ " & "  ++ fromReport benchResultSynthReport ++ "\\\\"
+      cmd "verb|" ++ benchResultName ++ "| & " ++ fromReport benchResultCompileReport ++ " & "  ++ fromReport benchResultSynthReport ++ "\\\\"
 
     cmd :: String -> String
     cmd s = "\\" <> s
 
-    fromReport = printf "%.2f" . estPoint . anMean . reportAnalysis
+    fromReport = printf "%.3f" . estPoint . anMean . reportAnalysis
 
 -- runBenchmarks :: [PikaCompileBenchmark] -> Benchmark
 -- runBenchmarks benchmarks =
