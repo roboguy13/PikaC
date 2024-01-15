@@ -5,6 +5,8 @@ module PikaC.Backend.SuSLik.SuSLang.Syntax
 
 import Unbound.Generics.LocallyNameless
 
+import Control.DeepSeq
+
 import GHC.Generics
 import GHC.Stack
 
@@ -52,6 +54,11 @@ data Function =
   , functionBody :: Bind [ExprName] [Command]
   }
   deriving (Show, Generic)
+
+instance NFData SuSType
+instance NFData Command
+instance NFData Expr
+instance NFData Function
 
 instance Alpha Expr
 instance Alpha Command

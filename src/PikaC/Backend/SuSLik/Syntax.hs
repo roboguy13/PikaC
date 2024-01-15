@@ -18,6 +18,8 @@ import PikaC.Syntax.Pika.Layout (GhostType (..))
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Unsafe
 
+import Control.DeepSeq
+
 import GHC.Generics
 import GHC.Stack
 
@@ -94,6 +96,9 @@ data InductivePredicate
     }
   deriving (Show, Generic)
 
+instance NFData InductivePredicate
+instance NFData PredicateBranch
+
 data HeapletS
   = PointsToS (PointsTo Expr)
   | ReadOnlyPointsToS (PointsTo Expr)
@@ -102,6 +107,9 @@ data HeapletS
   | BlockS (Name Expr) Int
   | TempLoc (Name Expr)
   deriving (Show, Generic)
+
+instance NFData HeapletS
+instance NFData Expr
 
 nubBlocks :: [HeapletS] -> [HeapletS]
 nubBlocks = nubBy go
@@ -137,6 +145,8 @@ data FnSig
     }
   deriving (Show, Generic)
 
+instance NFData FnSig
+
 data FnSpec
   = FnSpec
     { _fnSpecPrecond :: [HeapletS]
@@ -145,6 +155,8 @@ data FnSpec
         ,Assertion)
     }
   deriving (Show, Generic)
+
+instance NFData FnSpec
 
 toReadOnlyPointsTo :: HeapletS -> HeapletS
 toReadOnlyPointsTo (PointsToS p) = ReadOnlyPointsToS p

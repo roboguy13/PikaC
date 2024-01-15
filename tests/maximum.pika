@@ -10,8 +10,10 @@ Sll (Cons head tail) :=
   Sll tail [nxt];
 
 max : Int -> Int -> Int;
-max x y | x < y := y;
-max x y | not (x < y) := x;
+max x y := if x < y then y else x;
+
+-- max x y | x < y := y;
+-- max x y | not (x < y) := x;
 
 maximum : Sll -> Int;
 maximum Nil := 0;
