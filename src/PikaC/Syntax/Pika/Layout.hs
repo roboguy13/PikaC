@@ -86,6 +86,11 @@ data GhostType = SetGhost | IntGhost
 data Ghost a = Ghost GhostType (Name a)
   deriving (Show, Generic)
 
+instance Size (Ghost a) where
+  size (Ghost x y) = size x + size y
+
+instance Size GhostType where size _ = 1
+
 getGhostType :: Ghost a -> GhostType
 getGhostType (Ghost t _) = t
 
@@ -104,6 +109,9 @@ instance NFData a => NFData (Ghost a)
 data GhostCondition a b =
   GhostCondition { _ghostCond :: (Maybe a), _ghostCondBody :: b }
   deriving (Show, Generic)
+
+instance (Size a, Size b) => Size (GhostCondition a b) where
+  size (GhostCondition x y) = visibleNode $ size x + size y
 
 instance (Typeable a, Alpha a, Typeable b, Alpha b) => Alpha (GhostCondition a b)
 
@@ -142,12 +150,21 @@ instance NFData a => NFData (LayoutBody a)
 instance NFData a => NFData (LayoutHeaplet a)
 instance NFData Mode
 
+instance Size a => Size (Layout a) where
+  size (Layout _ y z) = visibleNode $ 1 + size y + size z
+
+instance Size a => Size (LayoutBranch a) where
+  size (LayoutBranch x) = visibleNode $ size x
+
 
 -- | A layout where the layout parameters have been substituted
 type OpenedLayout a = [LayoutBranch a]
 
 data Moded' (s :: Stage) a = Moded' (XModed s) Mode a
   deriving (Generic, Functor)
+
+instance (Size (XModed s), Size a) => Size (Moded' s a) where
+  size (Moded' x y z) = visibleNode $ size x + size y + size z
 
 deriving instance (Show (XModed s), Show a) => Show (Moded' s a)
 
@@ -164,6 +181,8 @@ type ModedName a = Moded (Name a)
 
 data Mode = In | Out
   deriving (Show, Generic, Eq)
+
+instance Size Mode where size _ = 1
 
 type ModeEnv a = [ModedName a]
 
@@ -200,6 +219,9 @@ instance Alpha Mode
 newtype Exists a = Exists { getExists :: ModedName a }
   deriving (Show, Generic)
 
+instance Size a => Size (Exists a) where
+  size (Exists x) = visibleNode $ size x
+
 instance (Typeable a) => Alpha (Exists a)
 -- instance Subst a (ModedName a) => Subst a (Exists a)
 
@@ -229,6 +251,9 @@ layoutBranchPattern = patternMatchPat . _layoutMatch
 newtype LayoutBody a = LayoutBody { _unLayoutBody :: [LayoutHeaplet a] }
   deriving (Show, Generic, Semigroup, Monoid)
 
+instance Size a => Size (LayoutBody a) where
+  size (LayoutBody x) = size x
+
 data LayoutHeaplet a
   = LPointsTo (PointsTo a)
   | LApply
@@ -238,6 +263,11 @@ data LayoutHeaplet a
       [a]    -- Layout variables
       -- [LocVar]    -- Layout variables
   deriving (Show, Generic)
+
+instance Size a => Size (LayoutHeaplet a) where
+  size (LPointsTo x) = size x
+  size (LApply a b c d) =
+    visibleNode $ size a + size b + size c + size d
 
 -- | Split into points-to and applications
 splitLayoutHeaplets ::

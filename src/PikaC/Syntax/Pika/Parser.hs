@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module PikaC.Syntax.Pika.Parser
   where
@@ -61,6 +62,10 @@ data PikaModule' f =
   deriving (Generic)
 
 deriving instance Show (f [FnDefBranch]) => Show (PikaModule' f)
+
+instance Size (FnDef' f) => Size (PikaModule' f) where
+  size PikaModule { .. } =
+    sizeList moduleAdts + size moduleLayouts + sizeList moduleFnDefs + size moduleSynths + size moduleGenerates + size moduleTests
 
 type PikaModule = PikaModule' TypeSig'
 type PikaModuleElaborated = PikaModule' Typed

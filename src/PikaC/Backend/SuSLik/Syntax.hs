@@ -55,6 +55,26 @@ data Expr
   | SetUnion Expr Expr
   deriving (Show, Generic)
 
+instance Size Expr where
+  size (V x) = size x
+  size (IntLit x) = size x
+  size (BoolLit x) = size x
+  size (Div x y) = visibleNode $ size x + size y
+  size (Mod x y) = visibleNode $ size x + size y
+  size (Add x y) = visibleNode $ size x + size y
+  size (And x y) = visibleNode $ size x + size y
+  size (IfThenElse x y z) = visibleNode $ size x + size y + size z
+  size (Mul x y) = visibleNode $ size x + size y
+  size (Sub x y) = visibleNode $ size x + size y
+  size (Equal x y) = visibleNode $ size x + size y
+  size (Lt x y) = visibleNode $ size x + size y
+  size (Le x y) = visibleNode $ size x + size y
+  size (Not x) = visibleNode $ size x
+  size EmptySet = 1
+  size (SingletonSet x) = visibleNode $ size x
+  size (SetUnion x y) = visibleNode $ size x + size y
+
+
 getV :: HasCallStack => Expr -> ExprName
 getV (V x) = x
 
@@ -96,6 +116,10 @@ data InductivePredicate
     }
   deriving (Show, Generic)
 
+instance Size InductivePredicate where
+  size (InductivePredicate a b c d e) =
+    visibleNode $ size a + size b + size c + size d + size e
+
 instance NFData InductivePredicate
 instance NFData PredicateBranch
 
@@ -107,6 +131,14 @@ data HeapletS
   | BlockS (Name Expr) Int
   | TempLoc (Name Expr)
   deriving (Show, Generic)
+
+instance Size HeapletS where
+  size (PointsToS x) = size x
+  size (ReadOnlyPointsToS x) = size x
+  size (ApplyS x y) = visibleNode $ size x + size y
+  size (RecApply x y) = visibleNode $ size x + size y
+  size (BlockS x y) = visibleNode $ size x + size y
+  size (TempLoc x) = size x
 
 instance NFData HeapletS
 instance NFData Expr
@@ -131,6 +163,9 @@ data PredicateBranch
     }
   deriving (Show, Generic)
 
+instance Size PredicateBranch where
+  size (PredicateBranch x y z) = visibleNode $ size x + size y + size z
+
 data FnSig
   = FnSig
     { _fnSigName :: String
@@ -145,6 +180,9 @@ data FnSig
     }
   deriving (Show, Generic)
 
+instance Size FnSig where
+  size (FnSig a b c d) = visibleNode $ size a + size b + size c + size d
+
 instance NFData FnSig
 
 data FnSpec
@@ -155,6 +193,9 @@ data FnSpec
         ,Assertion)
     }
   deriving (Show, Generic)
+
+instance Size FnSpec where
+  size (FnSpec x y) = visibleNode $ size x + size y
 
 instance NFData FnSpec
 

@@ -19,12 +19,15 @@ import PikaC.Syntax.ParserUtils
 import PikaC.Stage.ToPikaCore.Monad
 import PikaC.Stage.ToPikaCore.SimplifyM
 import PikaC.Stage.ToPikaCore
+import PikaC.Utils
 
 import Control.Monad.Identity
 
 import System.FilePath
 import Data.String
 import Text.Printf
+
+import Data.List
 
 import Criterion
 import Criterion.Types
@@ -64,6 +67,8 @@ data BenchmarkResult =
   { benchResultName :: String
   , benchResultCompileReport :: Report
   , benchResultSynthReport :: Report
+  , benchResultCompileAstSize :: Int
+  , benchResultSynthAstSize :: Int
   -- , benchResultCTime :: Double
   }
   deriving (Show)
@@ -117,12 +122,18 @@ toBenchmark f theBenchmark@PikaBenchmark { .. } =
 runBenchmarks :: [PikaCompileBenchmark] -> IO [BenchmarkResult]
 runBenchmarks benchmarks = do
   let compiledBenchmarks = map compileBenchmark benchmarks
-      synthConfig = defaultConfig { resamples = 2 }
+      synthConfig = defaultConfig { resamples = 1 }
+
+      parsed :: [PikaModule]
+      parsed = map toParsed  benchmarks
+
+      compiled :: [Compiled]
+      compiled = map benchContents compiledBenchmarks
+
   compileReports <- traverse (benchmarkGo "compile" defaultConfig benchmarkToCriterionCompile) benchmarks
-  synthReports <- compiledBenchmarks `deepseq` traverse (benchmarkGo "synthesize" synthConfig benchmarkToCriterionSynth) compiledBenchmarks --(benchmarkWith' synthConfig . benchmarkToCriterionSynth) compiledBenchmarks
+  synthReports <- compiledBenchmarks `deepseq` traverse (benchmarkGo "synthesize" synthConfig benchmarkToCriterionSynth) compiledBenchmarks
 
-  pure $ zipWith3 BenchmarkResult (map benchName benchmarks) compileReports synthReports
-
+  pure $ zipWith5 BenchmarkResult (map benchName benchmarks) compileReports synthReports (map size parsed) (map size compiled)
   where
     benchmarkGo prefix config f x = do
       putStrLn $ "benchmark: " ++ prefix ++ "/" ++ benchName x
@@ -133,7 +144,7 @@ toLaTeX results =
   unlines $
     [cmd "begin{tabular}{|c|c|c|}"
     ,cmd "hline"
-    ,"Name & Compilation (s) time & Synthesis time (s)\\\\"
+    ,"Name & Pika AST size & SuSLik AST size & Pika AST size / SuSLik AST size & Compilation (s) time & Synthesis time (s)\\\\"
     ,cmd "hline"
     ]
     ++ map toRow results ++
@@ -142,7 +153,10 @@ toLaTeX results =
     ]
   where
     toRow BenchmarkResult { .. } =
-      cmd "verb|" ++ benchResultName ++ "| & " ++ fromReport benchResultCompileReport ++ " & "  ++ fromReport benchResultSynthReport ++ "\\\\"
+      let astRatio :: Double
+          astRatio = fromIntegral benchResultCompileAstSize / fromIntegral benchResultSynthAstSize
+      in
+      cmd "verb|" ++ benchResultName ++ "| & "  ++ show benchResultCompileAstSize ++ " & " ++ show benchResultSynthAstSize ++ " & " ++ printf "%.3f" astRatio  ++ " & " ++ fromReport benchResultCompileReport ++ " & "  ++ fromReport benchResultSynthReport ++ "\\\\"
 
     cmd :: String -> String
     cmd s = "\\" <> s
@@ -174,6 +188,9 @@ synthesize (Compiled indPreds (fnSigAttemptLists)) =
 data Compiled = Compiled [InductivePredicate] [[FnSig]]
   deriving (Generic)
 
+instance Size Compiled where
+  size (Compiled xs ys) = size xs + size (map head ys)
+
 instance Semigroup Compiled where
   Compiled xs1 ys1 <> Compiled xs2 ys2 =
     Compiled (xs1 <> xs2) (ys1 <> ys2)
@@ -200,6 +217,10 @@ compileFnToSuSLik pikaModule fnName =
       allPreds = fnPreds ++ layoutPreds
   in
   Compiled allPreds [fnSigAttempts]
+
+toParsed :: PikaCompileBenchmark -> PikaModule
+toParsed PikaBenchmark { .. } =
+  parse'' "<>" parsePikaModule (pikaCodeFileData benchContents)
 
 compileToSuSLik :: FilePath -> String -> Compiled
 compileToSuSLik fileName fileData =

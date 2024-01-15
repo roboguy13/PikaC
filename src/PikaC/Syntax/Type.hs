@@ -49,6 +49,19 @@ data Type
   | PlaceholderVar TypeName -- These should be replaced by actual TyVars or LayoutIds
   deriving (Show, Generic)
 
+instance Size Type where
+  size IntType = 1
+  size BoolType = 1
+  size (FnType x y) = visibleNode $ size x + size y
+  size (TyVar _) = 1
+  size (LayoutId _) = 1
+  size (ForAll bnd) = visibleNode $ size bnd
+  size (GhostApp t xs) = visibleNode $ size t + length xs
+  size (PlaceholderVar _) = 1
+
+instance Size AdtName where
+  size _ = 1
+
 type TypeName = Name Type
 
 newtype AdtName = AdtName { unAdtName :: String }
@@ -116,6 +129,9 @@ data TypeSig' a =
   }
   deriving (Show, Generic)
 
+instance Size a => Size (TypeSig' a) where
+  size (TypeSig x) = visibleNode $ size x
+
 type TypeSig = TypeSig' ()
 
 data ConstrainedType =
@@ -124,6 +140,9 @@ data ConstrainedType =
   , _ctypeTy :: Type
   }
   deriving (Show, Generic)
+
+instance Size ConstrainedType where
+  size (ConstrainedType x y) = visibleNode $ size x + size y
 
 instance TypePair TypeSig' where
   type TypePairType TypeSig' = TypeSig
@@ -230,12 +249,18 @@ data Adt =
   }
   deriving (Show, Generic)
 
+instance Size Adt where
+  size (Adt _ xs) = visibleNode $ 1 + sizeList xs
+
 data Constructor =
   Constructor
   { _constructorName :: String
   , _constructorType :: Type
   }
   deriving (Show, Generic)
+
+instance Size Constructor where
+  size (Constructor _ t) = visibleNode $ 1 + size t
 
 -- | Build the appropriate layout polymorphic type, assuming
 -- that one layout is used for each type.
@@ -289,6 +314,9 @@ instance Alpha AdtName
 
 data LayoutConstraint = TypeName :~ AdtName
   deriving (Show, Generic)
+
+instance Size LayoutConstraint where
+  size (x :~ y) = visibleNode $ size x + size y
 
 -- instance Bound LayoutTypeArg where
 

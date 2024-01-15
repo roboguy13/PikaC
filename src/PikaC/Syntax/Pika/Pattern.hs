@@ -40,6 +40,10 @@ data Pattern a
   | Pattern String [Name a]
   deriving (Show, Generic)
 
+instance Size (Pattern a) where
+  size (PatternVar _) = 1
+  size (Pattern _ xs) = 1 + size xs
+
 instance NFData a => NFData (Pattern a)
 
 makeLenses ''Pattern
@@ -66,6 +70,12 @@ newtype PatternMatch a b =
 newtype PatternMatches a b =
   PatternMatches { getPatternMatches :: Bind [Pattern a] b }
   deriving (Show, Generic)
+
+instance Size b => Size (PatternMatch a b) where
+  size (PatternMatch m) = size m
+
+instance Size b => Size (PatternMatches a b) where
+  size (PatternMatches xs) = size xs
 
 instance (NFData a, NFData b) => NFData (PatternMatch a b)
 instance (NFData a, NFData b) => NFData (PatternMatches a b)

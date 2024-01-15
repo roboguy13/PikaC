@@ -10,5 +10,6 @@ main = do
   benchmarks <- parseBenchmarks benchmarkConfigPath
   results <- runBenchmarks benchmarks
   putStrLn $ toLaTeX results
+  -- print results
   -- defaultMain [runBenchmarks benchmarks]
 

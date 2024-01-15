@@ -51,6 +51,9 @@ instance Ppr a => Ppr (LayoutArg a) where
 data PointsTo a = Loc a :-> a
   deriving (Show, Generic, Eq, Ord)
 
+instance Size a => Size (PointsTo a) where
+  size (x :-> y) = visibleNode $ size x + size y
+
 instance Subst a b => Subst a (PointsTo b)
 instance Subst a b => Subst a (Loc b)
 
@@ -65,6 +68,9 @@ pointsToRhsLens =
 -- data Loc = LocName :+ Int
 data Loc a = a :+ Int
   deriving (Show, Functor, Eq, Ord, Generic)
+
+instance Size a => Size (Loc a) where
+  size (x :+ y) = visibleNode $ size x + size y
 
 mapPointsTo :: (a -> b) -> PointsTo a -> PointsTo b
 mapPointsTo f ((x :+ i) :-> y) = (f x :+ i) :-> f y

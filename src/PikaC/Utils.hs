@@ -341,6 +341,44 @@ discardM = discard --pure undefined `suchThat` const False
 isConstructor :: String -> Bool
 isConstructor = isUpper . head
 
+class Size a where
+  size :: a -> Int
+
+instance (Size a, Size b) => Size (a, b) where
+  size (x, y) = size x + size y
+
+instance (Size a, Size b) => Size (Bind a b) where
+  size (B x y) = size x + size y
+
+instance Size (Name a) where
+  size _ = 1
+
+instance Size a => Size (Embed a) where
+  size _ = 1
+
+instance Size [Char] where
+  size _ = 1
+
+instance {-# OVERLAPPABLE #-} Size a => Size [a] where
+  size = sum . map size
+
+instance Size () where size _ = 1
+
+instance Size a => Size (Maybe a) where
+  size Nothing = 1
+  size (Just x) = size x
+
+instance Size Int where size _ = 1
+instance Size Bool where size _ = 1
+
+-- | Use in @size@ definition when the node is visible in the AST when it's
+-- printed out
+visibleNode :: Int -> Int
+visibleNode x = x + 1
+
+sizeList :: Size a => [a] -> Int
+sizeList = sum . map size
+
 -- deriving instance (Data a, Data b) => Data (Bind a b)
 -- deriving instance Data a => Data (Name a)
 -- instance (Data a, Data b) => Plated (Bind a b)

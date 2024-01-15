@@ -71,6 +71,29 @@ data Expr
   | SetUnion Expr Expr
   deriving (Show, Generic)
 
+instance Size Expr where
+  size (V _) = 1
+  size (IntLit _) = 1
+  size (BoolLit _) = 1
+  size (LayoutLambda x y) = visibleNode $ size x + size y
+  size (ApplyLayout x y) = visibleNode $ size x + size y
+  size (App f xs) = visibleNode $ size f + size xs
+  size (Div x y) = visibleNode $ size x + size y
+  size (Mod x y) = visibleNode $ size x + size y
+  size (Add x y) = visibleNode $ size x + size y
+  size (And x y) = visibleNode $ size x + size y
+  size (IfThenElse x y z) = visibleNode $ size x + size y + size z
+  size (Mul x y) = visibleNode $ size x + size y
+  size (Sub x y) = visibleNode $ size x + size y
+  size (Equal x y) = visibleNode $ size x + size y
+  size (Lt x y) = visibleNode $ size x + size y
+  size (Le x y) = visibleNode $ size x + size y
+  size (Not x) = visibleNode $ size x
+  size EmptySet = 1
+  size (SingletonSet x) = visibleNode $ size x
+  size (SetUnion x y) = visibleNode $ size x + size y
+  
+
 data Test a =
   Test
   { _testName :: String
@@ -78,6 +101,9 @@ data Test a =
   , _testResultType :: Type
   }
   deriving (Show, Generic)
+
+-- NOTE: We completely exclude test directives from the AST node count
+instance Size (Test a) where size _ = 0
 
 instance NFData Expr
 instance NFData a => NFData (Test a)

@@ -39,6 +39,9 @@ data FnDef' f =
     }
   deriving (Generic)
 
+instance Size (f [FnDefBranch]) => Size (FnDef' f) where
+  size (FnDef x y) = visibleNode $ size x + size y
+
 overTypedBranches :: (f [FnDefBranch] -> g [FnDefBranch]) -> FnDef' f -> FnDef' g
 overTypedBranches f (FnDef x y) = FnDef x (f y)
 
@@ -52,6 +55,9 @@ data GuardedExpr =
     Expr -- Body
   deriving (Show, Generic)
 
+instance Size GuardedExpr where
+  size (GuardedExpr x y) = visibleNode $ size x + size y
+
 newtype FnDefBranch =
   FnDefBranch
   { fnBranchMatch :: PatternMatches Expr GuardedExpr
@@ -60,6 +66,9 @@ newtype FnDefBranch =
     -- , fnBranchBody :: Bind [ExprName] Expr
     -- }
   deriving (Show, Generic)
+
+instance Size FnDefBranch where
+  size (FnDefBranch x) = size x
 
 getFnTypeSig :: FnDef -> (String, Type)
 getFnTypeSig fnDef = (fnDefName fnDef, typePairType $ fnDefTypedBranches fnDef)
@@ -72,6 +81,9 @@ data Synth =
     [Type]   -- | Argument types
     Type     -- | Result type
   deriving (Show, Generic)
+
+instance Size Synth where
+  size (Synth a b c d) = visibleNode $ size a + size b + size c + size d
 
 getSynthTypeSig :: Synth -> (String, Type)
 getSynthTypeSig (Synth f _ argTypes resultType) =
