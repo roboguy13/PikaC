@@ -117,7 +117,7 @@ toBenchmark f theBenchmark@PikaBenchmark { .. } =
 runBenchmarks :: [PikaCompileBenchmark] -> IO [BenchmarkResult]
 runBenchmarks benchmarks = do
   let compiledBenchmarks = map compileBenchmark benchmarks
-      synthConfig = defaultConfig { resamples = 3 }
+      synthConfig = defaultConfig { resamples = 2 }
   compileReports <- traverse (benchmarkGo "compile" defaultConfig benchmarkToCriterionCompile) benchmarks
   synthReports <- compiledBenchmarks `deepseq` traverse (benchmarkGo "synthesize" synthConfig benchmarkToCriterionSynth) compiledBenchmarks --(benchmarkWith' synthConfig . benchmarkToCriterionSynth) compiledBenchmarks
 
@@ -131,16 +131,14 @@ runBenchmarks benchmarks = do
 toLaTeX :: [BenchmarkResult] -> String
 toLaTeX results =
   unlines $
-    [cmd "begin{table}"
-    ,cmd "begin{tabular}{|c|c|c|}"
+    [cmd "begin{tabular}{|c|c|c|}"
     ,cmd "hline"
-    ,"Name & Compilation time & Synthesis time\\\\"
+    ,"Name & Compilation (s) time & Synthesis time (s)\\\\"
     ,cmd "hline"
     ]
     ++ map toRow results ++
     [cmd "hline"
     ,cmd "end{tabular}"
-    ,cmd "end{table}"
     ]
   where
     toRow BenchmarkResult { .. } =
