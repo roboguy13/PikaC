@@ -69,7 +69,10 @@ cCompiler :: FilePath
 cCompiler = "gcc"
 
 includePath :: FilePath
-includePath = "tests/c"
+includePath = "tests" </> "c"
+
+haskellIncludePath :: FilePath
+haskellIncludePath = "tests" </> "haskell"
 
 haskellCompiler :: FilePath
 haskellCompiler = "ghc"
@@ -327,7 +330,7 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
           -- putStrLn code
 
           systemQuiet $ cCompiler ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
-          systemQuiet $ haskellCompiler ++ " " ++ ghcOpts ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
+          systemQuiet $ haskellCompiler ++ " -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
 
           (cReport, haskellReport) <- diffBenchmarkResults name diff (execTempName, []) (execHaskellTempName, [])
 
@@ -391,7 +394,7 @@ diffBenchmarkResults name diff cCmd haskellCmd = do
 
                 if (cOut /= haskellOut)
                   then do
-                    putStrLn $ "ERROR: Benchmark results differ between C and Haskell."
+                    putStrLn $ "ERROR: Benchmark results differ between C and Haskell for benchmark " ++ show name
                     exitFailure
                   else pure ((), ())))
 

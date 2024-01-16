@@ -1,5 +1,4 @@
-theList :: [Int]
-theList = [1..100000]
+import Common
 
 filterLt :: Int -> [Int] -> [Int]
 filterLt n [] = []

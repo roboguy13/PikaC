@@ -1,0 +1,4 @@
+#define LIST_MAX 100000
+#define DEFAULT_NAT 5000
+#define BINARY_TREE_SIZE 15
+

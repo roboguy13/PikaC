@@ -2,6 +2,7 @@
 #define GENERATORS_H
 
 #include "common.h"
+#include "../../haskell/Defaults.hs"
 
 loc _generateInt() {
   static int i = 0;
@@ -61,8 +62,6 @@ void _printIntList(loc x)
 //
 //   return;
 // }
-
-#define LIST_MAX 100000
 
 loc _generateIntListHelper(int i, int len) {
   if (len == 0) return NULL;
@@ -132,7 +131,7 @@ loc _generateNatN(int n) {
 }
 
 loc _generateNat() {
-  return _generateNatN(5000);
+  return _generateNatN(DEFAULT_NAT);
 }
 
 loc createBinaryTree(int depth) {
@@ -154,7 +153,7 @@ loc createBinaryTree(int depth) {
 }
 
 loc _generateBinaryTree() {
-  return createBinaryTree(15);
+  return createBinaryTree(BINARY_TREE_SIZE);
 }
 
 #endif
