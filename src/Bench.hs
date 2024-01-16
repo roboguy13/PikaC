@@ -10,7 +10,7 @@ import Control.Monad
 import Data.Maybe (catMaybes)
 
 performSanityCheck :: Bool
-performSanityCheck = False
+performSanityCheck = True
 
 main :: IO ()
 main = do

@@ -1,27 +1,42 @@
 #include "common/common.h"
 #include "common/generators.h"
 
-void treeSize(loc x, loc i1) {
+void take(loc x1, loc x, loc x2) {
  if (x == 0) {
-  WRITE_LOC(i1, 0, 1);
+  if (x1 == 0) {
+   WRITE_LOC(x2, 0, 0);
+  } else {
+   WRITE_LOC(x2, 0, 0);
+  }
  } else {
-  loc p = READ_LOC(x, 1);
-  loc q = READ_LOC(x, 2);
-  treeSize(p, i1);
-  loc i3 = READ_LOC(i1, 0);
-  treeSize(q, i1);
-  loc i = READ_LOC(i1, 0);
-  WRITE_LOC(i1, 0, (long)((long)1 + (long)i3) + (long)i);
+  loc h = READ_LOC(x, 0);
+  loc nx = READ_LOC(x, 1);
+  if (x1 == 0) {
+   WRITE_LOC(x2, 0, 0);
+  } else {
+   loc n = READ_LOC(x1, 0);
+   take(n, nx, x2);
+   loc x4 = READ_LOC(x2, 0);
+   loc x = (loc)malloc(2 * sizeof(loc));
+   WRITE_LOC(x2, 0, x);
+   WRITE_LOC(x, 1, x4);
+   WRITE_LOC(x, 0, h);
+  }
  }
 }
 
 int main() {
   loc _out = malloc(sizeof(loc));
   loc _x0 = 0;
-  _x0 = _generateBinaryTree();
-  treeSize(_x0, _out);
-  loc _derefOut = READ_LOC(_out, 0);
-  _printInt(_derefOut);
+  loc _x1 = 0;
+  _x0 = _generateNat();
+  _x1 = _generateBinaryTree();
+  for (int i = 0; i < TEST_ITERATIONS; ++i) {
+  take(_x0, _x1, _out);
+    loc _derefOut = READ_LOC(_out, 0);
+  _printIntList(_derefOut);
 
+    printf("\n");
+  }
   return 0;
 }

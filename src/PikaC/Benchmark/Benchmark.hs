@@ -26,18 +26,26 @@ import PikaC.Stage.ToPikaCore
 import PikaC.Utils
 import PikaC.Ppr
 
+import GHC.IO.Exception
+import System.IO.Error
+import Foreign.C.Error
+
+import Control.Concurrent
+
 import Data.Maybe (catMaybes)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Lazy as LBS
 
 import Data.Bifunctor
 
 import qualified System.Process.Typed as Typed
+import System.Process
 
 import Control.Monad.Identity
 import Control.Monad
-import Control.Arrow (first, second, (***), (&&&))
+import Control.Arrow ((***), (&&&))
 import Data.Tuple.Extra (firstM)
 
 import System.Process
@@ -369,9 +377,14 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
 
           -- putStrLn code
 
+          let sanityOpt =
+                case diff of
+                  SanityCheck -> " -DSANITY_CHECK=1"
+                  NoDiff -> mempty
+ 
           flip finally cleanUp $ do
-            system $ cCompiler ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
-            system $ haskellCompiler ++ " -no-keep-o-files -no-keep-hi-files" ++ " -package deepseq" ++ " -fforce-recomp -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
+            system $ cCompiler ++ sanityOpt ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
+            system $ haskellCompiler ++ sanityOpt ++ " -no-keep-o-files -no-keep-hi-files" ++ " -package deepseq" ++ " -fforce-recomp -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
 
             (cReport, haskellReport) <- diffBenchmarkResults name diff (execTempName, []) (execHaskellTempName, [])
 
@@ -509,13 +522,16 @@ systemVeryQuiet cmd = systemQuiet (cmd ++ " >/dev/null")
 --   undefined
 
 readProcessText :: FilePath -> [String] -> IO T.Text
-readProcessText cmd args = do
-  let input = mempty
-      processConfig = Typed.setStdin (Typed.byteStringInput $ LBS.fromStrict $ T.encodeUtf8 input) $
-                      Typed.setStdout Typed.byteStringOutput $
-                      Typed.proc cmd args
-  (exitCode, output) <- Typed.readProcessStdout processConfig
-  return $ T.decodeUtf8 $ LBS.toStrict output
+readProcessText cmd args =
+  readCreateProcessText
+    (proc cmd args)
+    mempty
+  -- let input = mempty
+  --     processConfig = Typed.setStdin (Typed.byteStringInput $ LBS.fromStrict $ T.encodeUtf8 input) $
+  --                     Typed.setStdout Typed.byteStringOutput $
+  --                     Typed.proc cmd args
+  -- (exitCode, output) <- Typed.readProcessStdout processConfig
+  -- return $ T.decodeUtf8 $ LBS.toStrict output
 
 systemQuiet :: String -> IO ()
 systemQuiet cmd = do
@@ -570,4 +586,95 @@ getPred pikaModule fnName =
   let pikaCore = getPikaCore pikaModule $ moduleLookupFn pikaModule fnName
   in
   codeGenIndPred pikaCore
+
+-- NOTE: Modified from System.Process (changed to produce Text instead of
+-- String)
+--
+-- TODO: This should be moved into another module
+-- Eventually, it should be moved upstream into another package.
+readCreateProcessText
+    :: CreateProcess
+    -> String                   -- ^ standard input
+    -> IO Text                  -- ^ stdout
+readCreateProcessText cp input = do
+    let cp_opts = cp {
+                    std_in  = CreatePipe,
+                    std_out = CreatePipe
+                  }
+    (ex, output) <- withCreateProcess_ "readCreateProcess" cp_opts $
+      \mb_inh mb_outh _ ph ->
+        case (mb_inh, mb_outh) of
+          (Just inh, Just outh) -> do
+
+            -- fork off a thread to start consuming the output
+            output  <- T.hGetContents outh
+            withForkWait (evaluate $ rnf output) $ \waitOut -> do
+
+              -- now write any input
+              unless (null input) $
+                ignoreSigPipe $ hPutStr inh input
+              -- hClose performs implicit hFlush, and thus may trigger a SIGPIPE
+              ignoreSigPipe $ hClose inh
+
+              -- wait on the output
+              waitOut
+              hClose outh
+
+            -- wait on the process
+            ex <- waitForProcess ph
+            return (ex, output)
+
+          (Nothing,_) -> error "readCreateProcess: Failed to get a stdin handle."
+          (_,Nothing) -> error "readCreateProcess: Failed to get a stdout handle."
+
+    case ex of
+     ExitSuccess   -> return output
+     ExitFailure r -> processFailedException "readCreateProcess" cmd args r
+  where
+    cmd = case cp of
+            CreateProcess { cmdspec = ShellCommand sc } -> sc
+            CreateProcess { cmdspec = RawCommand fp _ } -> fp
+    args = case cp of
+             CreateProcess { cmdspec = ShellCommand _ } -> []
+             CreateProcess { cmdspec = RawCommand _ args' } -> args'
+
+ignoreSigPipe :: IO () -> IO ()
+ignoreSigPipe = handle $ \e -> case e of
+                                   IOError { ioe_type  = ResourceVanished
+                                           , ioe_errno = Just ioe }
+                                     | Errno ioe == ePIPE -> return ()
+                                   _ -> throwIO e
+
+processFailedException :: String -> String -> [String] -> Int -> IO a
+processFailedException fun cmd args exit_code =
+      ioError (mkIOError OtherError (fun ++ ": " ++ cmd ++
+                                     concatMap ((' ':) . show) args ++
+                                     " (exit " ++ show exit_code ++ ")")
+                                 Nothing Nothing)
+
+
+-- wrapper so we can get exceptions with the appropriate function name.
+withCreateProcess_
+  :: String
+  -> CreateProcess
+  -> (Maybe Handle -> Maybe Handle -> Maybe Handle -> ProcessHandle -> IO a)
+  -> IO a
+withCreateProcess_ fun c action =
+    bracketOnError (createProcess_ fun c) cleanupProcess
+                     (\(m_in, m_out, m_err, ph) -> action m_in m_out m_err ph)
+
+-- | Fork a thread while doing something else, but kill it if there's an
+-- exception.
+--
+-- This is important in the cases above because we want to kill the thread
+-- that is holding the Handle lock, because when we clean up the process we
+-- try to close that handle, which could otherwise deadlock.
+--
+withForkWait :: IO () -> (IO () ->  IO a) -> IO a
+withForkWait async body = do
+  waitVar <- newEmptyMVar :: IO (MVar (Either SomeException ()))
+  mask $ \restore -> do
+    tid <- forkIO $ try (restore async) >>= putMVar waitVar
+    let wait = takeMVar waitVar >>= either throwIO return
+    restore (body wait) `onException` killThread tid
 
