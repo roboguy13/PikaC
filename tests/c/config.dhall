@@ -55,7 +55,11 @@ in
  }
 
 ,{fileName = "mapAdd.pika"
- ,cTest = None CTest
+ ,cTest = Some
+            { haskellFile = "tests/haskell/MapAdd.hs"
+            , inputGenerators = [CType.CInt, CType.CNoPtr "_generateIntList"]
+            , outputPrinter = CType.CPtr "_printIntList"
+            }
  }
 
 ,{fileName = "leftList.pika"
