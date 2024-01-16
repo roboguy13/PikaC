@@ -37,6 +37,10 @@ main = do
   putStrLn "generating C benchmarks..."
   cbenchResultsUnoptimized <- runCBenchmarks NoDiff CUnoptimized HaskellUnoptimized (catMaybes synthedBenchmarks)
   cbenchResultsOptimized <- runCBenchmarks NoDiff CO3 HaskellO2 (catMaybes synthedBenchmarks)
+
+  writeFile "benchmarkPlot.py"
+    $ genPythonPlot cbenchResultsUnoptimized cbenchResultsOptimized
+
   putStrLn "...C benchmarks generated."
 
   let printCBenchResults = do

@@ -9,7 +9,7 @@ filterLt n (x:xs)
 go :: Int -> IO ()
 go 0 = pure ()
 go n = do
-  print $ filterLt 7 theList
+  print $ filterLt theInt theList
   go (n - 1)
 
 main :: IO ()

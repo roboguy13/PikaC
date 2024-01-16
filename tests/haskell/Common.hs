@@ -41,7 +41,10 @@ instance NFData Tree
 instance NFData Nat
 
 theNat :: Nat
-theNat = force $ fromInt DEFAULT_NAT
+theNat = force $ fromInt theInt
+
+theInt :: Int
+theInt = DEFAULT_NAT
 
 -- -- NOTE: Taken from 'criterion' module 'Criterion.Measurement.Types':
 -- --

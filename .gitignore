@@ -1,6 +1,8 @@
+benchmarkPlot.py
 dist-newstyle
 dist
 PikaC.prof
+__pystore__
 **/.DS_Store
 .stack-work
 .stack-work/*
@@ -8,6 +10,7 @@ PikaC.prof
 **/*.hi
 **/*~
 **/*.agdai
+**/*.png
 
 temp/*
 !temp/

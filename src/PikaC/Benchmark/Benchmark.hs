@@ -225,6 +225,30 @@ runBenchmarks benchmarks = do
       putStrLn $ "benchmark: " ++ prefix ++ "/" ++ benchName x
       benchmarkWith' config $ f x
 
+genPythonPlot :: [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> String
+genPythonPlot unoptResults optResults =
+  unlines $
+    ["from benchmarkPlotLib import *"
+    ,""
+    ,"if __name__ == '__main__':"
+    ,"  " ++ makePlot (map cbenchResultName unoptResults) theData ["C (-O0)", "Haskell (-O0)", "C (-O3)", "Haskell (-O2)"]
+    ]
+  where
+    theData :: [[Double]]
+    theData =
+      [map (secToMilli . reportMean . cbenchResultCTime) unoptResults
+      ,map (secToMilli . reportMean . cbenchResultHaskellTime) unoptResults
+      ,map (secToMilli . reportMean . cbenchResultCTime) optResults
+      ,map (secToMilli . reportMean . cbenchResultHaskellTime) optResults
+      ]
+
+    secToMilli :: Double -> Double
+    secToMilli = (*1000)
+
+    makePlot :: [String] -> [[Double]] -> [String] -> String
+    makePlot testCaseNames runTimes toolNames =
+      "makePlot(" ++ show testCaseNames ++ ", " ++ show runTimes ++ ", " ++ show toolNames ++ ")"
+
 cBenchmarkToLaTeX :: [CBenchmarkResult Report] -> String
 cBenchmarkToLaTeX results =
   unlines $
@@ -264,7 +288,10 @@ toLaTeX results =
       cmd "verb|" ++ benchResultName ++ "| & "  ++ show benchResultCompileAstSize ++ " & " ++ show benchResultSynthAstSize ++ " & " ++ printf "%.3f" astRatio  ++ " & " ++ fromReport benchResultCompileReport ++ " & "  ++ fromReport benchResultSynthReport ++ "\\\\"
 
 fromReport :: Report -> String
-fromReport = printf "%.3f" . estPoint . anMean . reportAnalysis
+fromReport = printf "%.3f" . reportMean
+
+reportMean :: Report -> Double
+reportMean = estPoint . anMean . reportAnalysis
 
 cmd :: String -> String
 cmd s = "\\" <> s
@@ -419,13 +446,13 @@ showFirstChars n txt
 
 
 applyInputGenerator :: CType -> String -> String
-applyInputGenerator CInt arg = "  " <> arg <> " = 7;"
+applyInputGenerator CInt arg = "  " <> arg <> " = _generateInt();"
 applyInputGenerator (CNoPtr generator) arg = "  " <> arg <> " = " <> generator <> "();"
 applyInputGenerator (CPtr _) _ = error "applyInputGenerator: CPtr: TODO: Implement"
 -- applyInputGenerator (CNoPtr generator) arg = "  " <> arg <> " = " <> generator <> "();"
 
 applyOutputPrinter :: CType -> String -> String
-applyOutputPrinter CInt arg = "  printf(%d, " <> arg <> ");"
+applyOutputPrinter CInt arg = "  printf(%ld, " <> arg <> ");"
 applyOutputPrinter (CNoPtr printer) arg = "  " <> printer <> "(" <> arg <> ");"
 applyOutputPrinter (CPtr printer) arg =
   unlines

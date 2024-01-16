@@ -8,7 +8,7 @@ myTake (S _) xs = xs
 go :: Int -> IO ()
 go 0 = pure ()
 go n = do
-  print $ myTake (fromInt 5000) theList
+  print $ myTake theNat theList
   go (n - 1)
 
 main :: IO ()

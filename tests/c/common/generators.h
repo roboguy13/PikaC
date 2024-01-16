@@ -4,12 +4,16 @@
 #include "common.h"
 #include "../../haskell/Defaults.hs"
 
-loc _generateInt() {
-  static int i = 0;
-  loc p = (loc)malloc(sizeof(loc));
-  WRITE_INT(p, 0, i);
-  return p;
+int _generateInt() {
+  return DEFAULT_NAT;
 }
+
+// loc _generateInt() {
+//   static int i = 0;
+//   loc p = (loc)malloc(sizeof(loc));
+//   WRITE_INT(p, 0, i);
+//   return p;
+// }
 
 void _printIntList(loc x)
 {
