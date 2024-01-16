@@ -1,4 +1,5 @@
 import Common
+import Control.Monad
 
 filterLt :: Int -> [Int] -> [Int]
 filterLt n [] = []
@@ -7,5 +8,5 @@ filterLt n (x:xs)
   | otherwise = x : filterLt n xs
 
 main :: IO ()
-main = print $ filterLt 7 theList
+main = testLoop $ print $ filterLt 7 theList
 

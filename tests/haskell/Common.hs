@@ -1,6 +1,14 @@
 module Common where
 
+import Control.Monad
+
 #include "Defaults.hs"
+
+testIterations :: Int
+testIterations = TEST_ITERATIONS
+
+testLoop :: IO () -> IO ()
+testLoop = replicateM_ testIterations
 
 data Tree = Leaf | Node Int Tree Tree
   deriving (Show)

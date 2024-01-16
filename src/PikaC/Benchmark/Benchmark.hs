@@ -313,10 +313,12 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
           ,"int main() {"
           ]
           ++ decls
-          ++ zipWith applyInputGenerator inputGenerators params
+          ++ ["  for (int i = 0; i < TEST_ITERATIONS; ++i) {"]
+          ++ map ("  " ++) (zipWith applyInputGenerator inputGenerators params)
           ++ ["  " ++ C.cfunctionName fn ++ "(" ++ (intercalate ", " params) ++ ", " ++ out ++ ");"]
-          ++ [applyOutputPrinter outputPrinter out]
-          ++ ["printf(\"\\n\");"]
+          ++ ["  " ++ applyOutputPrinter outputPrinter out]
+          ++ ["    printf(\"\\n\");"]
+          ++ ["  }"]
           ++
           ["  return 0;"
           ,"}"
