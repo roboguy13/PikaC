@@ -325,5 +325,6 @@ benchmark PikaC-bench
                       statistics,
                       extra,
                       typed-process,
+                      Diff,
     hs-source-dirs:   src
     default-language: GHC2021

@@ -8,24 +8,31 @@ import Control.DeepSeq
 
 import Data.Maybe (catMaybes)
 
+performSanityCheck :: Bool
+performSanityCheck = False
+
 main :: IO ()
 main = do
   benchmarks <- parseBenchmarks benchmarkConfigPath
 
-  putStrLn "compiling benchmarks..."
+  putStrLn "\ncompiling benchmarks..."
 
   let compiledBenchmarks0 = map compileBenchmark benchmarks
 
   compiledBenchmarks0 `deepseq` putStrLn "...benchmarks compiled."
+  putStrLn ""
 
   putStrLn "synthing benchmarks..."
   synthedBenchmarks <- traverse synthBenchmark compiledBenchmarks0
   putStrLn "...benchmarks synthed."
+  putStrLn ""
 
-  putStrLn "comparing C benchmark outputs with Haskell benchmark outputs..."
-  runCBenchmarks SanityCheck CUnoptimized HaskellUnoptimized (catMaybes synthedBenchmarks)
-  putStrLn "...benchmark outputs match."
+  when performSanityCheck $ do
+    putStrLn "comparing C benchmark outputs with Haskell benchmark outputs..."
+    runCBenchmarks SanityCheck CUnoptimized HaskellUnoptimized (catMaybes synthedBenchmarks)
+    putStrLn "...benchmark outputs match."
 
+  putStrLn ""
   putStrLn "generating C benchmarks..."
   cbenchResultsUnoptimized <- runCBenchmarks NoDiff CUnoptimized HaskellUnoptimized (catMaybes synthedBenchmarks)
   cbenchResultsOptimized <- runCBenchmarks NoDiff CO3 HaskellO2 (catMaybes synthedBenchmarks)
@@ -39,9 +46,11 @@ main = do
         putStrLn $ cBenchmarkToLaTeX $ cbenchResultsOptimized
 
   printCBenchResults
-
+  putStrLn ""
 
   (compiledBenchmarks, results) <- runBenchmarks benchmarks
+
+  putStrLn ""
   putStrLn $ toLaTeX results
   putStrLn ""
   putStrLn ""

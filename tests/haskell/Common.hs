@@ -6,7 +6,7 @@ data Tree = Leaf | Node Int Tree Tree
   deriving (Show)
 
 theList :: [Int]
-theList = [1 .. LIST_MAX]
+theList = [0 .. LIST_MAX-1]
 
 mkCompleteTree :: Int -> Tree
 mkCompleteTree 0 = Leaf

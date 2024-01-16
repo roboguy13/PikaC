@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module PikaC.Benchmark.Benchmark
   where
@@ -30,6 +31,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Lazy as LBS
 
+import Data.Bifunctor
+
 import qualified System.Process.Typed as Typed
 
 import Control.Monad.Identity
@@ -53,6 +56,9 @@ import Criterion
 import Criterion.Types
 import Criterion.Main.Options
 import Statistics.Types
+
+import Data.Algorithm.Diff
+import Data.Algorithm.DiffOutput
 
 import Control.DeepSeq
 
@@ -263,7 +269,7 @@ fromReport = printf "%.3f" . estPoint . anMean . reportAnalysis
 cmd :: String -> String
 cmd s = "\\" <> s
 
-runCBenchmarksCompiled :: Diff a -> COpts -> HaskellOpts -> [PikaSynthBenchmark] -> IO [CBenchmarkResult a]
+runCBenchmarksCompiled :: BenchCheck a -> COpts -> HaskellOpts -> [PikaSynthBenchmark] -> IO [CBenchmarkResult a]
 runCBenchmarksCompiled diff cOpts haskellOpts = (runCBenchmarks diff cOpts haskellOpts . catMaybes) <=< traverse synthBenchmark
 
 data HaskellOpts = HaskellUnoptimized | HaskellO2
@@ -280,7 +286,7 @@ instance Ppr COpts where
   ppr CUnoptimized = text "-O0"
   ppr CO3 = text "-O3"
 
-runCBenchmarks :: Diff a -> COpts -> HaskellOpts -> [PikaCBenchmark] -> IO [CBenchmarkResult a]
+runCBenchmarks :: BenchCheck a -> COpts -> HaskellOpts -> [PikaCBenchmark] -> IO [CBenchmarkResult a]
 runCBenchmarks diff cOpts haskellOpts =
   mapM $ \bench -> do
     benchC (benchName bench)
@@ -292,7 +298,7 @@ runCBenchmarks diff cOpts haskellOpts =
            (firstSynthed (fst (benchContents bench)))
            (haskellFile $ runIdentity $ cTest (snd (benchContents bench)))
 
-benchC :: String -> Diff a -> String -> String -> [CType] -> CType -> C.CFunction -> FilePath -> IO (CBenchmarkResult a)
+benchC :: String -> BenchCheck a -> String -> String -> [CType] -> CType -> C.CFunction -> FilePath -> IO (CBenchmarkResult a)
 benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile =
   let params = zipWith const (map (("_x" ++) . show) [0..]) inputGenerators
       out = "_out"
@@ -310,6 +316,7 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
           ++ zipWith applyInputGenerator inputGenerators params
           ++ ["  " ++ C.cfunctionName fn ++ "(" ++ (intercalate ", " params) ++ ", " ++ out ++ ");"]
           ++ [applyOutputPrinter outputPrinter out]
+          ++ ["printf(\"\\n\");"]
           ++
           ["  return 0;"
           ,"}"
@@ -327,36 +334,41 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
           hPutStrLn cCodeHandle code
           hClose cCodeHandle
 
+          let cleanUp = do
+                          removeFile execTempName
+                          removeFile execHaskellTempName
+
           -- putStrLn code
 
-          systemQuiet $ cCompiler ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
-          systemQuiet $ haskellCompiler ++ " -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
+          flip finally cleanUp $ do
+            systemQuiet $ cCompiler ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
+            systemQuiet $ haskellCompiler ++ " -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
 
-          (cReport, haskellReport) <- diffBenchmarkResults name diff (execTempName, []) (execHaskellTempName, [])
+            (cReport, haskellReport) <- diffBenchmarkResults name diff (execTempName, []) (execHaskellTempName, [])
 
-          -- cReport <- benchmark' $ nfIO $ systemVeryQuiet $ execTempName -- ++ " > " ++ cOutName
-          -- haskellReport <- benchmark' $ nfIO $ systemVeryQuiet $ execHaskellTempName -- ++ " > " ++ haskellOutName
+            -- cReport <- benchmark' $ nfIO $ systemVeryQuiet $ execTempName -- ++ " > " ++ cOutName
+            -- haskellReport <- benchmark' $ nfIO $ systemVeryQuiet $ execHaskellTempName -- ++ " > " ++ haskellOutName
 
-          -- cOut <- hGetContents cOutHandle
-          -- haskellOut <- hGetContents haskellOutHandle
-          --
-          -- when (cOut /= haskellOut) $ do
-          --   putStrLn $ "ERROR: Benchmark results differ between C and Haskell."
-          --   exitFailure
+            -- cOut <- hGetContents cOutHandle
+            -- haskellOut <- hGetContents haskellOutHandle
+            --
+            -- when (cOut /= haskellOut) $ do
+            --   putStrLn $ "ERROR: Benchmark results differ between C and Haskell."
+            --   exitFailure
 
-          pure $ CBenchmarkResult
-            { cbenchResultName = name
-            , cbenchResultCTime = cReport
-            , cbenchResultHaskellTime = haskellReport
-            })
+            pure $ CBenchmarkResult
+              { cbenchResultName = name
+              , cbenchResultCTime = cReport
+              , cbenchResultHaskellTime = haskellReport
+              })
 
-data Diff a where
-  SanityCheck :: Diff ()
-  NoDiff :: Diff Report
+data BenchCheck a where
+  SanityCheck :: BenchCheck ()
+  NoDiff :: BenchCheck Report
 
-diffBenchmarkResults :: String -> Diff a -> (String, [String]) -> (String, [String]) -> IO (a, a)
+diffBenchmarkResults :: forall a. String -> BenchCheck a -> (String, [String]) -> (String, [String]) -> IO (a, a)
 diffBenchmarkResults name diff cCmd haskellCmd = do
-  let doSystem :: Diff a -> (String, [String]) -> IO ()
+  let doSystem :: BenchCheck a -> (String, [String]) -> IO ()
       doSystem = \case
           SanityCheck -> \(cmd, args) -> systemVeryQuiet $ unwords (cmd : args)
           NoDiff -> \(cmd, args) -> systemQuiet $ unwords (cmd : args)
@@ -372,15 +384,10 @@ diffBenchmarkResults name diff cCmd haskellCmd = do
           hClose haskellOutHandle
           removeFile haskellOutName)
         (\(haskellOutName, haskellOutHandle) -> do
-
-
-
-            let doBenchmark' :: Diff a -> IO () -> IO a
+            let doBenchmark' :: BenchCheck a -> IO () -> IO a
                 doBenchmark' = \case
                                  SanityCheck -> id
                                  NoDiff -> benchmark' . nfIO
-
-
 
             case diff of
               NoDiff -> do
@@ -395,8 +402,18 @@ diffBenchmarkResults name diff cCmd haskellCmd = do
                 if (cOut /= haskellOut)
                   then do
                     putStrLn $ "ERROR: Benchmark results differ between C and Haskell for benchmark " ++ show name
+                    putStrLn $ "Diff:"
+                    putStrLn $ ppDiff $ getGroupedDiff (map (:[]) (show cOut)) (map (:[]) (show haskellOut))
+                    putStrLn $ "=== C Output: " ++ showFirstChars 1000 cOut
+                    putStrLn ""
+                    putStrLn $ "=== Haskell Output: " ++ showFirstChars 1000 haskellOut
                     exitFailure
                   else pure ((), ())))
+
+showFirstChars :: Int -> T.Text -> String
+showFirstChars n txt
+  | n >= T.length txt = show txt
+  | otherwise         = show (T.take n txt) <> "..."
 
 
 applyInputGenerator :: CType -> String -> String
