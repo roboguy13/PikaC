@@ -371,7 +371,7 @@ diffBenchmarkResults name diff cCmd haskellCmd = do
   let doSystem :: BenchCheck a -> (String, [String]) -> IO ()
       doSystem = \case
           SanityCheck -> \(cmd, args) -> systemVeryQuiet $ unwords (cmd : args)
-          NoDiff -> \(cmd, args) -> systemQuiet $ unwords (cmd : args)
+          NoDiff -> \(cmd, args) -> systemVeryQuiet $ unwords (cmd : args)
 
 
   bracket (openTempFile "temp" "c-out.txt")
