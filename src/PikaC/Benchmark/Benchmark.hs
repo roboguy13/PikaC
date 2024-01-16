@@ -2,6 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module PikaC.Benchmark.Benchmark
   where
@@ -25,6 +26,11 @@ import PikaC.Utils
 import PikaC.Ppr
 
 import Data.Maybe (catMaybes)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.ByteString.Lazy as LBS
+
+import qualified System.Process.Typed as Typed
 
 import Control.Monad.Identity
 import Control.Monad
@@ -126,11 +132,11 @@ data BenchmarkResult =
   }
   deriving (Show)
 
-data CBenchmarkResult =
+data CBenchmarkResult a =
   CBenchmarkResult
   { cbenchResultName :: String
-  , cbenchResultCTime :: Report
-  , cbenchResultHaskellTime :: Report
+  , cbenchResultCTime :: a
+  , cbenchResultHaskellTime :: a
   }
 
 instance NFData CType
@@ -210,7 +216,7 @@ runBenchmarks benchmarks = do
       putStrLn $ "benchmark: " ++ prefix ++ "/" ++ benchName x
       benchmarkWith' config $ f x
 
-cBenchmarkToLaTeX :: [CBenchmarkResult] -> String
+cBenchmarkToLaTeX :: [CBenchmarkResult Report] -> String
 cBenchmarkToLaTeX results =
   unlines $
     [cmd "begin{tabular}{|c|c|c|}"
@@ -254,20 +260,37 @@ fromReport = printf "%.3f" . estPoint . anMean . reportAnalysis
 cmd :: String -> String
 cmd s = "\\" <> s
 
-runCBenchmarksCompiled :: [PikaSynthBenchmark] -> IO [CBenchmarkResult]
-runCBenchmarksCompiled = (runCBenchmarks . catMaybes) <=< traverse synthBenchmark
+runCBenchmarksCompiled :: Diff a -> COpts -> HaskellOpts -> [PikaSynthBenchmark] -> IO [CBenchmarkResult a]
+runCBenchmarksCompiled diff cOpts haskellOpts = (runCBenchmarks diff cOpts haskellOpts . catMaybes) <=< traverse synthBenchmark
 
-runCBenchmarks :: [PikaCBenchmark] -> IO [CBenchmarkResult]
-runCBenchmarks =
+data HaskellOpts = HaskellUnoptimized | HaskellO2
+  deriving (Show)
+
+data COpts = CUnoptimized | CO3
+  deriving (Show)
+
+instance Ppr HaskellOpts where
+  ppr HaskellUnoptimized = text "-O0"
+  ppr HaskellO2 = text "-O2"
+
+instance Ppr COpts where
+  ppr CUnoptimized = text "-O0"
+  ppr CO3 = text "-O3"
+
+runCBenchmarks :: Diff a -> COpts -> HaskellOpts -> [PikaCBenchmark] -> IO [CBenchmarkResult a]
+runCBenchmarks diff cOpts haskellOpts =
   mapM $ \bench -> do
     benchC (benchName bench)
+           diff
+           (ppr' cOpts)
+           (ppr' haskellOpts)
            (inputGenerators $ runIdentity $ cTest (snd (benchContents bench)))
            (outputPrinter $ runIdentity $ cTest (snd (benchContents bench)))
            (firstSynthed (fst (benchContents bench)))
            (haskellFile $ runIdentity $ cTest (snd (benchContents bench)))
 
-benchC :: String -> [CType] -> CType -> C.CFunction -> FilePath -> IO CBenchmarkResult
-benchC name inputGenerators outputPrinter fn haskellCodeFile =
+benchC :: String -> Diff a -> String -> String -> [CType] -> CType -> C.CFunction -> FilePath -> IO (CBenchmarkResult a)
+benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile =
   let params = zipWith const (map (("_x" ++) . show) [0..]) inputGenerators
       out = "_out"
       decls = ("  loc " ++ out ++ " = malloc(sizeof(loc));") : map (("  loc " <>) . (<> " = 0;")) (params)
@@ -301,37 +324,77 @@ benchC name inputGenerators outputPrinter fn haskellCodeFile =
           hPutStrLn cCodeHandle code
           hClose cCodeHandle
 
-          bracket (openTempFile "temp" "c-out.txt")
-            (\(cOutName, cOutHandle) -> do
-              hClose cOutHandle
-              removeFile cOutName)
-            (\(cOutName, cOutHandle) ->
-              bracket (openTempFile "temp" "haskell-out.txt")
-                (\(haskellOutName, haskellOutHandle) -> do
-                  hClose haskellOutHandle
-                  removeFile haskellOutName)
-                (\(haskellOutName, haskellOutHandle) -> do
+          -- putStrLn code
 
-                  putStrLn code
+          systemQuiet $ cCompiler ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
+          systemQuiet $ haskellCompiler ++ " " ++ ghcOpts ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
 
-                  systemQuiet $ cCompiler ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
-                  systemQuiet $ haskellCompiler ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
+          (cReport, haskellReport) <- diffBenchmarkResults name diff (execTempName, []) (execHaskellTempName, [])
 
-                  cReport <- benchmark' $ nfIO $ systemVeryQuiet $ execTempName -- ++ " > " ++ cOutName
-                  haskellReport <- benchmark' $ nfIO $ systemVeryQuiet $ execHaskellTempName -- ++ " > " ++ haskellOutName
+          -- cReport <- benchmark' $ nfIO $ systemVeryQuiet $ execTempName -- ++ " > " ++ cOutName
+          -- haskellReport <- benchmark' $ nfIO $ systemVeryQuiet $ execHaskellTempName -- ++ " > " ++ haskellOutName
 
-                  cOut <- hGetContents cOutHandle
-                  haskellOut <- hGetContents haskellOutHandle
+          -- cOut <- hGetContents cOutHandle
+          -- haskellOut <- hGetContents haskellOutHandle
+          --
+          -- when (cOut /= haskellOut) $ do
+          --   putStrLn $ "ERROR: Benchmark results differ between C and Haskell."
+          --   exitFailure
 
-                  when (cOut /= haskellOut) $ do
+          pure $ CBenchmarkResult
+            { cbenchResultName = name
+            , cbenchResultCTime = cReport
+            , cbenchResultHaskellTime = haskellReport
+            })
+
+data Diff a where
+  SanityCheck :: Diff ()
+  NoDiff :: Diff Report
+
+diffBenchmarkResults :: String -> Diff a -> (String, [String]) -> (String, [String]) -> IO (a, a)
+diffBenchmarkResults name diff cCmd haskellCmd = do
+  let doSystem :: Diff a -> (String, [String]) -> IO ()
+      doSystem = \case
+          SanityCheck -> \(cmd, args) -> systemVeryQuiet $ unwords (cmd : args)
+          NoDiff -> \(cmd, args) -> systemQuiet $ unwords (cmd : args)
+
+
+  bracket (openTempFile "temp" "c-out.txt")
+    (\(cOutName, cOutHandle) -> do
+      hClose cOutHandle
+      removeFile cOutName)
+    (\(cOutName, cOutHandle) ->
+      bracket (openTempFile "temp" "haskell-out.txt")
+        (\(haskellOutName, haskellOutHandle) -> do
+          hClose haskellOutHandle
+          removeFile haskellOutName)
+        (\(haskellOutName, haskellOutHandle) -> do
+
+
+
+            let doBenchmark' :: Diff a -> IO () -> IO a
+                doBenchmark' = \case
+                                 SanityCheck -> id
+                                 NoDiff -> benchmark' . nfIO
+
+
+
+            case diff of
+              NoDiff -> do
+                cReport <- doBenchmark' diff $ doSystem diff cCmd
+                haskellReport <- doBenchmark' diff $ doSystem diff haskellCmd
+
+                pure (cReport, haskellReport)
+              SanityCheck -> do
+                cOut <- uncurry readProcessText cCmd
+                haskellOut <- uncurry readProcessText haskellCmd
+
+                if (cOut /= haskellOut)
+                  then do
                     putStrLn $ "ERROR: Benchmark results differ between C and Haskell."
                     exitFailure
+                  else pure ((), ())))
 
-                  pure $ CBenchmarkResult
-                    { cbenchResultName = name
-                    , cbenchResultCTime = cReport
-                    , cbenchResultHaskellTime = haskellReport
-                    })))
 
 applyInputGenerator :: CType -> String -> String
 applyInputGenerator CInt arg = "  " <> arg <> " = 7;"
@@ -390,6 +453,20 @@ systemEchoed cmd = do
 
 systemVeryQuiet :: String -> IO ()
 systemVeryQuiet cmd = systemQuiet (cmd ++ " >/dev/null")
+
+-- systemWithOutHandle :: String -> [String] -> IO Text
+-- systemWithOutHandle cmd args = do
+--   readProcessText cmd args mempty
+--   undefined
+
+readProcessText :: FilePath -> [String] -> IO T.Text
+readProcessText cmd args = do
+  let input = mempty
+      processConfig = Typed.setStdin (Typed.byteStringInput $ LBS.fromStrict $ T.encodeUtf8 input) $
+                      Typed.setStdout Typed.byteStringOutput $
+                      Typed.proc cmd args
+  (exitCode, output) <- Typed.readProcessStdout processConfig
+  return $ T.decodeUtf8 $ LBS.toStrict output
 
 systemQuiet :: String -> IO ()
 systemQuiet cmd = do

@@ -1,6 +1,5 @@
 module Main
   where
-
 import PikaC.Benchmark.Benchmark
 import Criterion
 import Criterion.Main
@@ -23,15 +22,28 @@ main = do
   synthedBenchmarks <- traverse synthBenchmark compiledBenchmarks0
   putStrLn "...benchmarks synthed."
 
+  putStrLn "comparing C benchmark outputs with Haskell benchmark outputs..."
+  runCBenchmarks SanityCheck CUnoptimized HaskellUnoptimized (catMaybes synthedBenchmarks)
+  putStrLn "...benchmark outputs match."
+
   putStrLn "generating C benchmarks..."
-  cbenchResults <- runCBenchmarks (catMaybes synthedBenchmarks)
+  cbenchResultsUnoptimized <- runCBenchmarks NoDiff CUnoptimized HaskellUnoptimized (catMaybes synthedBenchmarks)
+  cbenchResultsOptimized <- runCBenchmarks NoDiff CO3 HaskellO2 (catMaybes synthedBenchmarks)
   putStrLn "...C benchmarks generated."
 
-  putStrLn $ cBenchmarkToLaTeX $ cbenchResults
+  let printCBenchResults = do
+        putStrLn "-- Unoptimized --"
+        putStrLn $ cBenchmarkToLaTeX $ cbenchResultsUnoptimized
+        putStrLn ""
+        putStrLn "-- C with -O3 and Haskell with -O2 --"
+        putStrLn $ cBenchmarkToLaTeX $ cbenchResultsOptimized
+
+  printCBenchResults
 
 
   (compiledBenchmarks, results) <- runBenchmarks benchmarks
   putStrLn $ toLaTeX results
-  -- print results
-  -- defaultMain [runBenchmarks benchmarks]
+  putStrLn ""
+  putStrLn ""
+  printCBenchResults
 

@@ -14,7 +14,7 @@ mkCompleteTree depth =
   Node depth subtree subtree
 
 tree :: Tree
-tree = mkCompleteTree 10
+tree = mkCompleteTree 15
 
 main :: IO ()
 main = print $ treeSize tree

@@ -73,7 +73,7 @@ in
 ,{fileName = "take.pika"
  ,cTest = Some
             { haskellFile = "tests/haskell/Take.hs"
-            , inputGenerators = [CType.CInt, CType.CNoPtr "_generateBinaryTree"]
+            , inputGenerators = [CType.CNoPtr "_generateNat", CType.CNoPtr "_generateBinaryTree"]
             , outputPrinter = CType.CPtr "_printIntList"
             }
  }

@@ -62,7 +62,7 @@ void _printIntList(loc x)
 //   return;
 // }
 
-#define LIST_MAX 10000
+#define LIST_MAX 100000
 
 loc _generateIntListHelper(int i, int len) {
   if (len == 0) return NULL;
@@ -122,27 +122,17 @@ void printNat(loc x) {
   printf("%d", i);
 }
 
-void generateNat(int num, loc x) {
-  loc head = malloc(sizeof(loc));
+loc _generateNatN(int n) {
+  if (n == 0) return NULL;
 
-  loc n = NULL;
-  for (int i = 0; i < num; ++i) {
-    if (i == 0) {
-      n = malloc(sizeof(loc));
-      WRITE_LOC(head, 0, n);
-    }
+  loc node = (loc)malloc(2 * sizeof(loc));
+  WRITE_LOC(node, 0, _generateNatN(n - 1));
+    
+  return node;
+}
 
-    if (i < num-1) {
-      loc next = malloc(sizeof(loc));
-      WRITE_LOC(n, 0, next);
-      n = next;
-    } else {
-      WRITE_LOC(n, 0, NULL);
-    }
-  }
-
-  loc r = READ_LOC(head, 0);
-  WRITE_LOC(x, 0, r);
+loc _generateNat() {
+  return _generateNatN(5000);
 }
 
 loc createBinaryTree(int depth) {
@@ -164,7 +154,7 @@ loc createBinaryTree(int depth) {
 }
 
 loc _generateBinaryTree() {
-  return createBinaryTree(10);
+  return createBinaryTree(15);
 }
 
 #endif
