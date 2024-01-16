@@ -3,75 +3,113 @@
 
 #include "common.h"
 
-void _generateInt(int* p) {
+loc _generateInt() {
   static int i = 0;
-  *p = i++;
+  loc p = (loc)malloc(sizeof(loc));
+  WRITE_INT(p, 0, i);
+  return p;
 }
 
 void _printIntList(loc x)
 {
-  loc curr = READ_LOC(x, 0);
+    if (x == 0) return;
 
-  printf("{");
+    printf("[");
 
-  while (curr != NULL) {
-    long num = (long)(READ_INT(curr, 0));
+    loc curr = x;  // Start from the head of the list
 
-    printf("%d", num);
+    while (curr != NULL) {
+        long num = READ_INT(curr, 0);  // Read the integer value
 
-    loc next = (loc)READ_LOC(curr, 1);
+        printf("%ld", num);  // Print the integer value
 
-    if (next != NULL) {
-      printf(", ");
+        curr = (loc)READ_LOC(curr, 1);  // Move to the next node
+
+        if (curr != NULL) {
+            printf(",");
+        }
     }
 
-    curr = next;
-  }
+    printf("]");
 
-  printf(" }");
-
-  return;
+    return;
 }
 
-void _generateIntListHelper(long start, long end, loc x) {
-  loc head = malloc(sizeof(loc));
+// void _printIntList(loc x)
+// {
+//   if (x == 0) return;
+//
+//   loc curr = READ_LOC(x, 0);
+//
+//   printf("{");
+//
+//   while (curr != NULL) {
+//     long num = (long)(READ_INT(curr, 0));
+//
+//     printf("%d", num);
+//
+//     loc next = (loc)READ_LOC(curr, 1);
+//
+//     if (next != NULL) {
+//       printf(", ");
+//     }
+//
+//     curr = next;
+//   }
+//
+//   printf(" }");
+//
+//   return;
+// }
 
-  loc n = NULL;
-  for (int i = start; i < end; ++i) {
-    if (i == start) {
-      n = malloc(2 * sizeof(loc));
+#define LIST_MAX 10000
 
-      WRITE_LOC(head, 0, n);
-    }
+loc _generateIntListHelper(int i, int len) {
+  if (len == 0) return NULL;
 
-    WRITE_LOC(n, 0, i);
-
-    if (i < end-1) {
-      loc next = malloc(2 * sizeof(loc));
-      WRITE_LOC(n, 1, next);
-      n = next;
-    } else {
-      WRITE_LOC(n, 1, NULL);
-    }
-  }
-
-  loc r = READ_LOC(head, 0);
-  WRITE_LOC(x, 0, r);
+  loc head = (loc)malloc(2 * sizeof(loc));
+  WRITE_INT(head, 0, i);
+  WRITE_LOC(head, 1, _generateIntListHelper(i + 1, len - 1));
+    
+  return head;
 }
 
-void _generateIntList(loc x) {
-  generateIntListHelper(0, 9, x);
+loc _generateIntList() {
+  return _generateIntListHelper(0, LIST_MAX);
 }
 
+// void _generateIntListHelper(long start, long end, loc x) {
+//   loc head = malloc(sizeof(loc));
+//
+//   loc n = NULL;
+//   for (int i = start; i < end; ++i) {
+//     if (i == start) {
+//       n = malloc(2 * sizeof(loc));
+//
+//       WRITE_LOC(head, 0, n);
+//     }
+//
+//     WRITE_LOC(n, 0, i);
+//
+//     if (i < end-1) {
+//       loc next = malloc(2 * sizeof(loc));
+//       WRITE_LOC(n, 1, next);
+//       n = next;
+//     } else {
+//       WRITE_LOC(n, 1, NULL);
+//     }
+//   }
+//
+//   loc r = READ_LOC(head, 0);
+//   WRITE_LOC(x, 0, r);
+// }
+//
+// void _generateIntList(loc x) {
+//   _generateIntListHelper(0, LIST_MAX, x);
+// }
+//
 void _generateBinaryTree(int** tree) {
   // TODO
-}
-
-void _printIntList(loc list) {
-  while (list != NULL) {
-    _printInt(list);
-    list = READ_LOC(list, 1);
-  }
 }
 
 // Peano naturals //
