@@ -375,7 +375,7 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
                           removeFile execTempName
                           removeFile execHaskellTempName
 
-          -- putStrLn code
+          putStrLn code
 
           let sanityOpt =
                 case diff of
@@ -465,7 +465,7 @@ applyInputGenerator (CPtr _) _ = error "applyInputGenerator: CPtr: TODO: Impleme
 -- applyInputGenerator (CNoPtr generator) arg = "  " <> arg <> " = " <> generator <> "();"
 
 applyOutputPrinter :: CType -> String -> String
-applyOutputPrinter CInt arg = "  printf(%ld, " <> arg <> ");"
+applyOutputPrinter CInt arg = "  printf(\"%ld\", " <> arg <> ");"
 applyOutputPrinter (CNoPtr printer) arg = "  " <> printer <> "(" <> arg <> ");"
 applyOutputPrinter (CPtr printer) arg =
   unlines

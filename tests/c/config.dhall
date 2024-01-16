@@ -39,7 +39,11 @@ in
  }
 
 ,{fileName = "sum.pika"
- ,cTest = None CTest
+ ,cTest = Some
+            { haskellFile = "tests/haskell/Sum.hs"
+            , inputGenerators = [CType.CNoPtr "_generateIntList"]
+            , outputPrinter = CType.CNoPtr "_printInt"
+            }
  }
 
 ,{fileName = "filterLt.pika"
