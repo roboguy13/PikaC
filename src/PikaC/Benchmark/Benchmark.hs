@@ -342,7 +342,7 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
 
           flip finally cleanUp $ do
             systemQuiet $ cCompiler ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
-            systemQuiet $ haskellCompiler ++ " -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
+            systemQuiet $ haskellCompiler ++ " -fforce-recomp -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
 
             (cReport, haskellReport) <- diffBenchmarkResults name diff (execTempName, []) (execHaskellTempName, [])
 
