@@ -5,6 +5,7 @@ import Criterion
 import Criterion.Main
 
 import Control.DeepSeq
+import Control.Monad
 
 import Data.Maybe (catMaybes)
 
