@@ -301,19 +301,37 @@ benchC name inputGenerators outputPrinter fn haskellCodeFile =
           hPutStrLn cCodeHandle code
           hClose cCodeHandle
 
-          putStrLn code
+          bracket (openTempFile "temp" "c-out.txt")
+            (\(cOutName, cOutHandle) -> do
+              hClose cOutHandle
+              removeFile cOutName)
+            (\(cOutName, cOutHandle) ->
+              bracket (openTempFile "temp" "haskell-out.txt")
+                (\(haskellOutName, haskellOutHandle) -> do
+                  hClose haskellOutHandle
+                  removeFile haskellOutName)
+                (\(haskellOutName, haskellOutHandle) -> do
 
-          systemEchoed $ cCompiler ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
-          systemEchoed $ haskellCompiler ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
+                  putStrLn code
 
-          cReport <- benchmark' $ nfIO $ systemEchoed execTempName
-          haskellReport <- benchmark' $ nfIO $ systemEchoed execHaskellTempName
+                  systemQuiet $ cCompiler ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
+                  systemQuiet $ haskellCompiler ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
 
-          pure $ CBenchmarkResult
-            { cbenchResultName = name
-            , cbenchResultCTime = cReport
-            , cbenchResultHaskellTime = haskellReport
-            })
+                  cReport <- benchmark' $ nfIO $ systemVeryQuiet $ execTempName -- ++ " > " ++ cOutName
+                  haskellReport <- benchmark' $ nfIO $ systemVeryQuiet $ execHaskellTempName -- ++ " > " ++ haskellOutName
+
+                  cOut <- hGetContents cOutHandle
+                  haskellOut <- hGetContents haskellOutHandle
+
+                  when (cOut /= haskellOut) $ do
+                    putStrLn $ "ERROR: Benchmark results differ between C and Haskell."
+                    exitFailure
+
+                  pure $ CBenchmarkResult
+                    { cbenchResultName = name
+                    , cbenchResultCTime = cReport
+                    , cbenchResultHaskellTime = haskellReport
+                    })))
 
 applyInputGenerator :: CType -> String -> String
 applyInputGenerator CInt arg = "  " <> arg <> " = 7;"
@@ -368,6 +386,13 @@ instance NFData Compiled
 systemEchoed :: String -> IO ()
 systemEchoed cmd = do
   putStrLn cmd
+  systemQuiet cmd
+
+systemVeryQuiet :: String -> IO ()
+systemVeryQuiet cmd = systemQuiet (cmd ++ " >/dev/null")
+
+systemQuiet :: String -> IO ()
+systemQuiet cmd = do
   hFlush stdout
   catch (system cmd) except >>= \case
     failure@(ExitFailure n) -> exitWith failure

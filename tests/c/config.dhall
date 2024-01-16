@@ -55,15 +55,27 @@ in
  }
 
 ,{fileName = "leftList.pika"
- ,cTest = None CTest
+ ,cTest = Some
+            { haskellFile = "tests/haskell/LeftList.hs"
+            , inputGenerators = [CType.CNoPtr "_generateBinaryTree"]
+            , outputPrinter = CType.CPtr "_printIntList"
+            }
  }
 
 ,{fileName = "treeSize.pika"
- ,cTest = None CTest
+ ,cTest = Some
+            { haskellFile = "tests/haskell/TreeSize.hs"
+            , inputGenerators = [CType.CNoPtr "_generateBinaryTree"]
+            , outputPrinter = CType.CNoPtr "_printInt"
+            }
  }
 
 ,{fileName = "take.pika"
- ,cTest = None CTest
+ ,cTest = Some
+            { haskellFile = "tests/haskell/Take.hs"
+            , inputGenerators = [CType.CInt, CType.CNoPtr "_generateBinaryTree"]
+            , outputPrinter = CType.CPtr "_printIntList"
+            }
  }
 ]
 

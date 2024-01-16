@@ -1,5 +1,5 @@
 theList :: [Int]
-theList = [1..100000]
+theList = [1..10000]
 
 filterLt :: Int -> [Int] -> [Int]
 filterLt n [] = []
