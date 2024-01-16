@@ -136,19 +136,13 @@ loc _generateNat() {
 
 loc createBinaryTree(int depth) {
     if (depth == 0) {
-        // Create a leaf node
-        loc leaf = (loc)malloc(3 * sizeof(union sslval)); // Allocate space for value and two children
-        WRITE_INT(leaf, 0, 0); // Set value to 0 or a sentinel value for leaves
-        WRITE_LOC(leaf, 1, NULL); // Left child is NULL
-        WRITE_LOC(leaf, 2, NULL); // Right child is NULL
-        return leaf;
+      return NULL;
     } else {
-        // Create an internal node
-        loc node = (loc)malloc(3 * sizeof(union sslval)); // Allocate space for value and two children
-        WRITE_INT(node, 0, depth); // Set the value of the node
-        WRITE_LOC(node, 1, createBinaryTree(depth - 1)); // Create left subtree
-        WRITE_LOC(node, 2, createBinaryTree(depth - 1)); // Create right subtree
-        return node;
+      loc node = malloc(3 * sizeof(loc));
+      WRITE_INT(node, 0, depth);
+      WRITE_LOC(node, 1, createBinaryTree(depth - 1));
+      WRITE_LOC(node, 2, createBinaryTree(depth - 1));
+      return node;
     }
 }
 

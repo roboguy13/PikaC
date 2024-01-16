@@ -230,7 +230,7 @@ cBenchmarkToLaTeX results =
   unlines $
     [cmd "begin{tabular}{|c|c|c|}"
     ,cmd "hline"
-    ,"Name & C Time (s) & GHC Time (s)\\\\"
+    ,"Name & C Time (s) & Haskell Time (s)\\\\"
     ,cmd "hline"
     ]
     ++ map toRow results ++
@@ -313,8 +313,8 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
           ,"int main() {"
           ]
           ++ decls
+          ++ zipWith applyInputGenerator inputGenerators params
           ++ ["  for (int i = 0; i < TEST_ITERATIONS; ++i) {"]
-          ++ map ("  " ++) (zipWith applyInputGenerator inputGenerators params)
           ++ ["  " ++ C.cfunctionName fn ++ "(" ++ (intercalate ", " params) ++ ", " ++ out ++ ");"]
           ++ ["  " ++ applyOutputPrinter outputPrinter out]
           ++ ["    printf(\"\\n\");"]
@@ -343,8 +343,8 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
           -- putStrLn code
 
           flip finally cleanUp $ do
-            systemQuiet $ cCompiler ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
-            systemQuiet $ haskellCompiler ++ " -fforce-recomp -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
+            system $ cCompiler ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
+            system $ haskellCompiler ++ " -no-keep-o-files -no-keep-hi-files" ++ " -package deepseq" ++ " -fforce-recomp -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
 
             (cReport, haskellReport) <- diffBenchmarkResults name diff (execTempName, []) (execHaskellTempName, [])
 
