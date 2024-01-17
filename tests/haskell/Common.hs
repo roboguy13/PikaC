@@ -16,8 +16,24 @@ testIterations = TEST_ITERATIONS
 data Tree = Leaf | Node Int Tree Tree
   deriving (Show, Generic)
 
-theList :: [Int]
-theList = force [0 .. LIST_MAX-1]
+data List = Nil | Cons Int List
+  deriving (Generic)
+
+instance Show List where
+  show Nil = "[]"
+  show (Cons x0 xs0) = '[' : go x0 xs0
+    where
+      go x Nil = show x ++ "]"
+      go x (Cons y ys) = show x ++ "," ++ go y ys
+
+theList :: List
+theList = force $ go 0
+  where
+    go n
+      | n < LIST_MAX = Cons n (go (n+1))
+      | otherwise    = Nil
+
+-- theList = force [0 .. LIST_MAX-1]
 
 mkCompleteTree :: Int -> Tree
 mkCompleteTree 0 = Leaf
@@ -38,6 +54,7 @@ fromInt 0 = Z
 fromInt n = S (fromInt (n - 1))
 
 instance NFData Tree
+instance NFData List
 instance NFData Nat
 
 theNat :: Nat

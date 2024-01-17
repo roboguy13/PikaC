@@ -1,8 +1,8 @@
 import Common
 
-myTake :: Nat -> [Int] -> [Int]
-myTake Z _ = []
-myTake (S n) (x:xs) = x : myTake n xs
+myTake :: Nat -> List -> List
+myTake Z _ = Nil
+myTake (S n) (Cons x xs) = Cons x (myTake n xs)
 myTake (S _) xs = xs
 
 go :: Int -> IO ()

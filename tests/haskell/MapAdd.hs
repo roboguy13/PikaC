@@ -1,8 +1,8 @@
 import Common
 
-mapAdd :: Int -> [Int] -> [Int]
-mapAdd _ [] = []
-mapAdd n (x:xs) = (x + n) : mapAdd n xs
+mapAdd :: Int -> List -> List
+mapAdd _ Nil = Nil
+mapAdd n (Cons x xs) = Cons (x + n) (mapAdd n xs)
 
 go :: Int -> IO ()
 go 0 = pure ()
