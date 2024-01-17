@@ -5,7 +5,11 @@ import numpy as np
 import numpy as np
 import matplotlib.pyplot as plt
 
-def makePlot(test_case_names, running_times, tool_names):
+import sys
+
+options = ['--no-show']
+
+def makePlot(file_name, test_case_names, running_times, tool_names):
     fig, ax = plt.subplots()
     width = 0.15
     x = np.arange(len(test_case_names))
@@ -22,7 +26,10 @@ def makePlot(test_case_names, running_times, tool_names):
     ax.legend()
 
 # Displaying the plot
-    plt.show()
+    plt.savefig(file_name, dpi=500)
+
+    if '--no-show' not in sys.argv:
+        plt.show()
 #
 # test_cases = ['tree_map_plus1', 'multilist_map_sum']
 # running_times = np.array([[363.2, 285], [54.837, 52.481], [54.450, 171.8], [45.902, 27.981]])

@@ -60,9 +60,9 @@ import Text.Printf
 
 import Data.List
 
-import Criterion
-import Criterion.Types
-import Criterion.Main.Options
+import Criterion hiding (List)
+import Criterion.Types hiding (List)
+import Criterion.Main.Options hiding (List)
 import Statistics.Types
 
 import Data.Algorithm.Diff
@@ -94,13 +94,19 @@ haskellCompiler = "ghc"
 data CType = CInt | CPtr String | CNoPtr String
   deriving (Generic, Show)
 
+data Kind = List | Tree
+  deriving (Show, Generic, Eq)
+
 instance FromDhall CType
+
+instance FromDhall Kind
 
 data CTest =
   CTest
   { haskellFile :: FilePath
   , inputGenerators :: [CType]
   , outputPrinter :: CType
+  , kind :: Kind
   }
   deriving (Generic, Show)
 
@@ -154,10 +160,12 @@ data CBenchmarkResult a =
   { cbenchResultName :: String
   , cbenchResultCTime :: a
   , cbenchResultHaskellTime :: a
+  , cbenchResultKind :: Kind
   }
 
 instance NFData CType
 instance NFData CTest
+instance NFData Kind
 instance NFData PikaTest
 instance NFData PikaCode
 instance NFData a => NFData (PikaBenchmark a)
@@ -233,29 +241,51 @@ runBenchmarks benchmarks = do
       putStrLn $ "benchmark: " ++ prefix ++ "/" ++ benchName x
       benchmarkWith' config $ f x
 
-genPythonPlot :: [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> String
-genPythonPlot unoptResults optResults =
+genPythonPlot :: FilePath -> IO ()
+genPythonPlot pyFile = do
+  system $ "python3 " ++ pyFile ++ " --no-show"
+  pure ()
+
+genPythonCode :: [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> String
+genPythonCode unoptResults0 optResults0 =
   unlines $
     ["from benchmarkPlotLib import *"
     ,""
     ,"if __name__ == '__main__':"
-    ,"  " ++ makePlot (map cbenchResultName unoptResults) theData ["C (-O0)", "Haskell (-O0)", "C (-O3)", "Haskell (-O2)"]
+    ,"  " ++ plot "c-benchmarks-list." listBenchmarksUnopt listBenchmarksOpt
+    ,"  " ++ plot "c-benchmarks-tree." treeBenchmarksUnopt treeBenchmarksOpt
     ]
   where
-    theData :: [[Double]]
-    theData =
-      [map (secToMilli . reportMean . cbenchResultCTime) unoptResults
-      ,map (secToMilli . reportMean . cbenchResultHaskellTime) unoptResults
-      ,map (secToMilli . reportMean . cbenchResultCTime) optResults
-      ,map (secToMilli . reportMean . cbenchResultHaskellTime) optResults
+    plot :: FilePath -> [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> String
+    plot fileName unopt opt = 
+      makePlot fileName (map cbenchResultName unopt) (theData unopt opt) ["C (-O0)", "Haskell (-O0)", "C (-O3)", "Haskell (-O2)"]
+
+    listBenchmarksUnopt :: [CBenchmarkResult Report]
+    listBenchmarksUnopt = filter ((== List) . cbenchResultKind) unoptResults0
+
+    listBenchmarksOpt :: [CBenchmarkResult Report]
+    listBenchmarksOpt = filter ((== List) . cbenchResultKind) optResults0
+
+    treeBenchmarksUnopt :: [CBenchmarkResult Report]
+    treeBenchmarksUnopt = filter ((== Tree) . cbenchResultKind) unoptResults0
+
+    treeBenchmarksOpt :: [CBenchmarkResult Report]
+    treeBenchmarksOpt = filter ((== Tree) . cbenchResultKind) optResults0
+
+    theData :: [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> [[Double]]
+    theData unopt opt =
+      [map (secToMilli . reportMean . cbenchResultCTime) unopt
+      ,map (secToMilli . reportMean . cbenchResultHaskellTime) unopt
+      ,map (secToMilli . reportMean . cbenchResultCTime) opt
+      ,map (secToMilli . reportMean . cbenchResultHaskellTime) opt
       ]
 
     secToMilli :: Double -> Double
     secToMilli = (*1000)
 
-    makePlot :: [String] -> [[Double]] -> [String] -> String
-    makePlot testCaseNames runTimes toolNames =
-      "makePlot(" ++ show testCaseNames ++ ", " ++ show runTimes ++ ", " ++ show toolNames ++ ")"
+    makePlot :: FilePath -> [String] -> [[Double]] -> [String] -> String
+    makePlot fileName testCaseNames runTimes toolNames =
+      "makePlot(" ++ show fileName ++ ", " ++ show testCaseNames ++ ", " ++ show runTimes ++ ", " ++ show toolNames ++ ")"
 
 cBenchmarkToLaTeX :: [CBenchmarkResult Report] -> String
 cBenchmarkToLaTeX results =
@@ -324,7 +354,8 @@ instance Ppr COpts where
 runCBenchmarks :: BenchCheck a -> COpts -> HaskellOpts -> [PikaCBenchmark] -> IO [CBenchmarkResult a]
 runCBenchmarks diff cOpts haskellOpts =
   mapM $ \bench -> do
-    benchC (benchName bench)
+    benchC (kind (runIdentity (cTest (snd (benchContents bench)))))
+           (benchName bench)
            diff
            (ppr' cOpts)
            (ppr' haskellOpts)
@@ -333,8 +364,8 @@ runCBenchmarks diff cOpts haskellOpts =
            (firstSynthed (fst (benchContents bench)))
            (haskellFile $ runIdentity $ cTest (snd (benchContents bench)))
 
-benchC :: String -> BenchCheck a -> String -> String -> [CType] -> CType -> C.CFunction -> FilePath -> IO (CBenchmarkResult a)
-benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile =
+benchC :: Kind -> String -> BenchCheck a -> String -> String -> [CType] -> CType -> C.CFunction -> FilePath -> IO (CBenchmarkResult a)
+benchC kind name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile =
   let params = zipWith const (map (("_x" ++) . show) [0..]) inputGenerators
       out = "_out"
       decls = ("  loc " ++ out ++ " = malloc(sizeof(loc));") : map (("  loc " <>) . (<> " = 0;")) (params)
@@ -402,6 +433,7 @@ benchC name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCodeFile 
               { cbenchResultName = name
               , cbenchResultCTime = cReport
               , cbenchResultHaskellTime = haskellReport
+              , cbenchResultKind = kind
               })
 
 data BenchCheck a where

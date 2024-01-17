@@ -4,10 +4,16 @@ let
 in
 
 let
+  BenchKind : Type =
+    < List | Tree >
+in
+
+let
   CTest : Type =
     { haskellFile : Text
     , inputGenerators : List CType
     , outputPrinter : CType
+    , kind : BenchKind
     }
 in
 [{fileName = "cons.pika"
@@ -43,6 +49,7 @@ in
             { haskellFile = "tests/haskell/Sum.hs"
             , inputGenerators = [CType.CNoPtr "_generateIntList"]
             , outputPrinter = CType.CNoPtr "_printInt"
+            , kind = BenchKind.List
             }
  }
 
@@ -51,6 +58,7 @@ in
             { haskellFile = "tests/haskell/FilterLt.hs"
             , inputGenerators = [CType.CInt, CType.CNoPtr "_generateIntList"]
             , outputPrinter = CType.CPtr "_printIntList"
+            , kind = BenchKind.List
             }
  }
 
@@ -59,6 +67,7 @@ in
             { haskellFile = "tests/haskell/MapAdd.hs"
             , inputGenerators = [CType.CInt, CType.CNoPtr "_generateIntList"]
             , outputPrinter = CType.CPtr "_printIntList"
+            , kind = BenchKind.List
             }
  }
 
@@ -67,6 +76,7 @@ in
             { haskellFile = "tests/haskell/LeftList.hs"
             , inputGenerators = [CType.CNoPtr "_generateBinaryTree"]
             , outputPrinter = CType.CPtr "_printIntList"
+            , kind = BenchKind.Tree
             }
  }
 
@@ -75,6 +85,7 @@ in
             { haskellFile = "tests/haskell/TreeSize.hs"
             , inputGenerators = [CType.CNoPtr "_generateBinaryTree"]
             , outputPrinter = CType.CNoPtr "_printInt"
+            , kind = BenchKind.Tree
             }
  }
 
@@ -83,6 +94,7 @@ in
             { haskellFile = "tests/haskell/Take.hs"
             , inputGenerators = [CType.CNoPtr "_generateNat", CType.CNoPtr "_generateIntList"]
             , outputPrinter = CType.CPtr "_printIntList"
+            , kind = BenchKind.List
             }
  }
 ]

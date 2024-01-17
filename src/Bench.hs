@@ -39,7 +39,9 @@ main = do
   cbenchResultsOptimized <- runCBenchmarks NoDiff CO3 HaskellO2 (catMaybes synthedBenchmarks)
 
   writeFile "benchmarkPlot.py"
-    $ genPythonPlot cbenchResultsUnoptimized cbenchResultsOptimized
+    $ genPythonCode cbenchResultsUnoptimized cbenchResultsOptimized
+
+  genPythonPlot "benchmarkPlot.py"
 
   putStrLn "...C benchmarks generated."
 
