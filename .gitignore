@@ -3,6 +3,7 @@ dist-newstyle
 dist
 PikaC.prof
 __pystore__
+__pycache__
 **/.DS_Store
 .stack-work
 .stack-work/*
