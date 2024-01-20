@@ -88,7 +88,8 @@ main :: IO ()
 main = do
   testTree <- goldenTestTree
   doneVar <- newEmptyMVar
-  let ingredients = composeReporters consoleTestReporter (summary doneVar (testsNames mempty testTree)) : defaultIngredients
+  -- let ingredients = composeReporters consoleTestReporter (summary doneVar (testsNames mempty testTree)) : defaultIngredients
+  let ingredients = defaultIngredients
   defaultMainWithIngredients ingredients testTree
   -- testRunner <- async $ defaultMainWithIngredients ingredients testTree
   -- wait testRunner
