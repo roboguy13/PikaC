@@ -406,7 +406,7 @@ benchC kind name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCode
                           removeFile execTempName
                           removeFile execHaskellTempName
 
-          putStrLn code
+          -- putStrLn code
 
           let sanityOpt =
                 case diff of
@@ -414,7 +414,7 @@ benchC kind name diff cOpts ghcOpts inputGenerators outputPrinter fn haskellCode
                   NoDiff -> mempty
  
           flip finally cleanUp $ do
-            system $ cCompiler ++ sanityOpt ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
+            system $ cCompiler ++ sanityOpt ++ " -w" ++ " " ++ cOpts ++ " -I" ++ includePath ++ " " ++ cCodeTempName ++ " -o " ++ execTempName
             system $ haskellCompiler ++ sanityOpt ++ " -no-keep-o-files -no-keep-hi-files" ++ " -package deepseq" ++ " -fforce-recomp -XCPP " ++ ghcOpts ++ " -I" ++ haskellIncludePath ++ " " ++ (haskellIncludePath </> "Common.hs") ++ " " ++ haskellCodeFile ++ " -o " ++ execHaskellTempName
 
             (cReport, haskellReport) <- diffBenchmarkResults name diff (execTempName, []) (execHaskellTempName, [])
