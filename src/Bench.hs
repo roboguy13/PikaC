@@ -23,9 +23,9 @@ main = do
   compiledBenchmarks0 `deepseq` putStrLn "...benchmarks compiled."
   putStrLn ""
 
-  putStrLn "synthing benchmarks..."
+  putStrLn "synthesizing benchmarks..."
   synthedBenchmarks <- traverse synthBenchmark compiledBenchmarks0
-  putStrLn "...benchmarks synthed."
+  putStrLn "...benchmarks synthesized."
   putStrLn ""
 
   when performSanityCheck $ do
