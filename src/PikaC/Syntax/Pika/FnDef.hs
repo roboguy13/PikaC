@@ -103,6 +103,13 @@ instance NFData Synth
 instance Alpha GuardedExpr
 instance Alpha FnDefBranch
 
+instance Subst Expr (f [FnDefBranch]) => Subst Expr (FnDef' f)
+instance Subst Expr FnDefBranch
+instance Subst Expr a => Subst Expr (Typed a)
+
+instance Alpha (f [FnDefBranch]) => Alpha (FnDef' f)
+instance Alpha a => Alpha (Typed a)
+
 instance Ppr Synth where
   ppr (Synth fnName purePart argTypes resultType) =
     text "synth" <+> text fnName <+> text ":" <+> ppr purePart <+> text ";;" <+> ppr (foldr FnType resultType argTypes)

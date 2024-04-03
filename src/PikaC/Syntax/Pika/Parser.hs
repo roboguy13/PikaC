@@ -19,6 +19,8 @@ import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import PikaC.Syntax.Type.Parser hiding (parseGhostArg)
 import PikaC.Syntax.Type
 
+import PikaC.Stage.Defunctionalize.Mangle
+
 import PikaC.TypeChecker.Mode
 
 import PikaC.Utils
@@ -208,7 +210,9 @@ parseFnDef = label "function definition" $ lexeme $ do
     symbol ";"
     some (parseFnDefBranch fnName)
 
-  pure $ FnDef fnName sig
+  pure 
+    $ mangleFnDef -- TODO: Separate this out from the parser
+    $ FnDef fnName sig
 
 parseSynth :: Parser Synth
 parseSynth = do

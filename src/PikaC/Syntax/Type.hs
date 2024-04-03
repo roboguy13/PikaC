@@ -132,6 +132,8 @@ data TypeSig' a =
 instance Size a => Size (TypeSig' a) where
   size (TypeSig x) = visibleNode $ size x
 
+instance Alpha a => Alpha (TypeSig' a)
+
 type TypeSig = TypeSig' ()
 
 data ConstrainedType =

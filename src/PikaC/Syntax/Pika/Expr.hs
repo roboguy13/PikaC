@@ -282,6 +282,10 @@ type ExprName = Name Expr
 
 instance Subst Type Expr where
 
+instance (Alpha a, Subst Expr a) => Subst Expr (TypeSig' a)
+instance Subst Expr ConstrainedType
+instance Subst Expr LayoutConstraint
+
 
 makePrisms ''Expr
 makeLenses ''Test
