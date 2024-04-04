@@ -66,7 +66,7 @@ codeGenFn fnDef = runGenC $ do
   bodyCmd <- flattenBranchCmds (zip outParams outParamsC) inParams outParams (zip branches0 body)
 
   pure $ C.CFunction
-    { C.cfunctionName = fnName
+    { C.cfunctionName = name2String fnName
     , C.cfunctionParams = inParams ++ outParamsC
     , C.cfunctionBody =
         map baseDecl outParams -- TODO: Only use base type parameters here
@@ -194,7 +194,7 @@ convertBranchBody outVars outSizes actualOutVars = go
             -- TODO: Handle nested calls here?
           codeGenAllocations allocs $
             concat argCmds ++
-            [C.Call f
+            [C.Call (name2String f)
               (map C.V argNames)
               (map C.V outVars)
             ]
@@ -224,7 +224,7 @@ convertBranchBody outVars outSizes actualOutVars = go
               allocs = zipWith Alloc unmodedVars szs
 
           codeGenAllocations allocs $
-            [C.Call f
+            [C.Call (name2String f)
               (getAppArgs args)
               outs
             ]
@@ -344,7 +344,7 @@ convertBaseInto outVar (PikaCore.V x) =
 convertBaseInto outVar (PikaCore.App (PikaCore.FnName f) _ xs) = do
     -- TODO: Handle nested calls here?
   (names, cmds) <- unzip <$> mapM convertBaseIntoFresh xs
-  pure $ concat cmds ++ [C.Call f (map C.V names) [C.V outVar]]
+  pure $ concat cmds ++ [C.Call (name2String f) (map C.V names) [C.V outVar]]
 -- convertBaseInto outVar (PikaCore.V x) = pure [assignValue outVar (C.V (convertName x))]
 convertBaseInto outVar (PikaCore.LayoutV [PikaCore.V x]) = pure [assignValue outVar (C.V (convertName x))]
 convertBaseInto outVar (PikaCore.IntLit i) = pure [assignValue outVar (C.IntLit i)]

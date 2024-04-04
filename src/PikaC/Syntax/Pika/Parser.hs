@@ -122,10 +122,10 @@ singleTest x = mempty { moduleTests = [x] }
 moduleLookupLayout :: PikaModule' a -> String -> Layout Expr
 moduleLookupLayout = lookupLayout . moduleLayouts
 
-moduleLookupFn :: PikaModule' a -> String -> FnDef' a
+moduleLookupFn :: (TypePair a, Ppr (TypePairType a)) => PikaModule' a -> String -> FnDef' a
 moduleLookupFn pikaModule name = go (moduleFnDefs pikaModule)
   where
-    go [] = error $ "moduleLookupFn: Cannot find function named " ++ show name
+    go [] = error $ "moduleLookupFn: Cannot find function named " ++ show name ++ " in module " ++ ppr' pikaModule
     go (x:xs)
       | fnDefName x == name = x
       | otherwise           = go xs
@@ -209,7 +209,7 @@ parseFnDef = label "function definition" $ lexeme $ do
   symbol ":"
   sig <- parseTypeSig $ do
     symbol ";"
-    some (parseFnDefBranch fnName)
+    lexeme $ some (parseFnDefBranch fnName)
 
   pure $ FnDef fnName sig
 
@@ -310,11 +310,11 @@ parseApplyLayout = label "layout application" $ lexeme $ do
   pure (ApplyLayout e ty)
 
 parseNullaryConstructorApp :: Parser Expr
-parseNullaryConstructorApp = lexeme $ App <$> parseConstructorName <*> pure []
+parseNullaryConstructorApp = lexeme $ App <$> (fmap string2Name parseConstructorName) <*> pure []
 
 parseApp :: Parser Expr
 parseApp = label "function application" $ lexeme $
-  App <$> parseFnName <*> some parseExpr'
+  App <$> (fmap string2Name parseFnName) <*> some parseExpr'
 
 parseBinOp :: String -> (Expr -> Expr -> Expr) -> Parser Expr
 parseBinOp op p = do

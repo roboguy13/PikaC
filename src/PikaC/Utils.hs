@@ -23,7 +23,7 @@ import Data.List
 
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
-import Unbound.Generics.LocallyNameless.Name
+import Unbound.Generics.LocallyNameless.Name as LN
 import Unbound.Generics.PermM
 
 import Unbound.Generics.LocallyNameless.Unsafe
@@ -338,8 +338,13 @@ useNItems n xs = do
 discardM :: Gen a
 discardM = discard --pure undefined `suchThat` const False
 
-isConstructor :: String -> Bool
-isConstructor = isUpper . head
+isConstructor :: Name a -> Bool
+isConstructor = isUpper . head . name2String
+
+convertName :: Name a -> Name b
+convertName (LN.Fn x i) = LN.Fn x i
+convertName (LN.Bn x y) = LN.Bn x y
+-- convertName = string2Name . show
 
 class Size a where
   size :: a -> Int

@@ -171,7 +171,7 @@ toPikaCore simplifyFuel layouts0 globalFns fn = runFreshMT . runPikaIntern' $ do
   piLift . lift . runSimplifyFn @m simplifyFuel simplifyFnDef $
   -- pure $
     PikaCore.FnDef
-      { PikaCore._fnDefName = PikaCore.FnName $ Pika.fnDefName fn
+      { PikaCore._fnDefName = PikaCore.FnName $ string2Name $ Pika.fnDefName fn
       , PikaCore._fnDefOutputSizes =
           mapMaybe (lookupAllocationMaybe outAllocs . modedNameName) outParams
       , PikaCore._fnDefType = ty
@@ -266,7 +266,7 @@ convertAppHere opened e@(Pika.App f args)
   | isConstructor f = error $ "convertAppHere: Found constructor that's not applied to a layout: " ++ ppr' e
   | otherwise = do
         -- TODO: Handle base types
-      resultTy <- lookupFnResultType f
+      resultTy <- lookupFnResultType (name2String f)
       let handleLayoutId layoutName = do
             layout <- lookupLayoutM layoutName
             let params0 = getLayoutParams layout
@@ -298,13 +298,13 @@ convertApp openedArgLayouts (Pika.ApplyLayout app@(Pika.App f args) layoutName) 
   --     lowerConstructor openedArgLayouts f args (name2String layoutName)
   -- | otherwise =
   | not (isConstructor f) =
-      lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z)
+      lowerApp openedArgLayouts (PikaCore.FnName (convertName f)) args (vs, z)
 convertApp openedArgLayouts e0@(Pika.App f args) (vs, z)
   | isConstructor f = error $ "convertApp: Found constructor that's not applied to a layout: " ++ ppr' e0
   | otherwise = do
         -- TODO: Handle base types
       -- TyVar layoutName <- lookupFnResultType f
-      lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z)
+      lowerApp openedArgLayouts (PikaCore.FnName (convertName f)) args (vs, z)
 convertApp openedArgLayouts e (vs, z) =
   PikaCore.WithIn
     <$> convertExpr openedArgLayouts e
@@ -316,7 +316,7 @@ lowerApp ::  Monad m =>
   PikaConvert m PikaCore.Expr
 lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z) = do
   args' <- mapM (convertExpr openedArgLayouts) args
-  fnSig <- lookupFnSig f
+  fnSig <- lookupFnSig (name2String f)
   layouts <- asks _origLayoutEnv
   let szs =
         case Pika.getResultAllocSizeInts layouts fnSig of
@@ -324,7 +324,7 @@ lowerApp openedArgLayouts (PikaCore.FnName f) args (vs, z) = do
           xs -> xs
   pure $
     PikaCore.WithIn
-      (PikaCore.App (PikaCore.FnName f) szs args')
+      (PikaCore.App (PikaCore.FnName (convertName f)) szs args')
       (bind vs z)
 
 lowerConstructor :: Monad m =>
@@ -332,7 +332,7 @@ lowerConstructor :: Monad m =>
   -- ([ModedName PikaCore.Expr], PikaCore.Expr) ->
   PikaConvert m PikaCore.Expr
 lowerConstructor openedArgLayouts f args layoutName
-  | not (isConstructor f) = error $ "lowerConstructor: Requires constructor, got " ++ f
+  | not (isConstructor (string2Name f)) = error $ "lowerConstructor: Requires constructor, got " ++ f
   | otherwise = do
       args' <- mapM (convertExpr openedArgLayouts) args
 
@@ -385,7 +385,7 @@ convertExpr openedArgLayouts = go
     go (Pika.ApplyLayout (Pika.V v) layoutName) = PikaCore.V <$> internExprName v -- TODO: Is this correct?
 
     go e@(Pika.ApplyLayout (Pika.App f args) (LayoutId layoutName))
-      | isConstructor f = lowerConstructor openedArgLayouts f args layoutName
+      | isConstructor f = lowerConstructor openedArgLayouts (name2String f) args layoutName
     go e@(Pika.ApplyLayout {}) = convertAppHere openedArgLayouts e
     go e@(Pika.App {}) = convertAppHere openedArgLayouts e
     go (Pika.Div x y) = PikaCore.Div <$> go x <*> go y

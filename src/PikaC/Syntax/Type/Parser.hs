@@ -19,7 +19,8 @@ import Control.Lens
 
 parseTypeSig :: Alpha a => Parser a -> Parser (TypeSig' a)
 parseTypeSig p = label "type signature" $ lexeme $ do
-  ctype <- parseConstrainedType
+  ty <- parseType --parseConstrainedType -- TODO: Fix parseConstrainedType and use it here
+  let ctype = ConstrainedType [] ty
   x <- p
 
   let typeFVs :: [TypeName]

@@ -19,6 +19,8 @@ import Unbound.Generics.LocallyNameless
 
 import Control.Lens
 
+import Debug.Trace
+
 defunctionalizeModule :: PikaModuleElaborated -> PikaModuleElaborated
 defunctionalizeModule mod = runFreshM $ do
   let fnDefs = moduleFnDefs mod
@@ -61,21 +63,21 @@ updateToUseSpecializations mod =
       where
         goExpr :: Expr -> Expr
         goExpr app@(App fn args) =
-          case lookupFnDef mod fn of
+          case lookupFnDef mod (name2String fn) of
             Nothing -> app
             Just fnDef ->
               let fnType = getFnDefType fnDef
               in
               case findSpecialization fnType args of
                 Nothing -> app
-                Just specialization -> useSpecialization fnType fn args specialization
+                Just specialization -> useSpecialization fnType (name2String fn) args specialization
         goExpr e = e
 
 useSpecialization :: Type -> String -> [Expr] -> Specialization -> Expr
 useSpecialization ty name origArgs specialization =
   let newArgs = dropFnTyped ty origArgs
   in
-  App (getDefunName name specialization) newArgs
+  App (string2Name (getDefunName name specialization)) newArgs
 
 -- | Get the function arguments that the given function name is called with
 -- in the module
@@ -91,8 +93,11 @@ getSpecializationsFromDef :: String -> FnDef -> FreshM [Specialization]
 getSpecializationsFromDef fnName fnDef = do
   exprs <- getFnDefExprs fnDef
   let apps = mapMaybe getCandidateApp $ concatMap universe exprs
+      ty = getFnDefType fnDef
+      specs = mapMaybe (findSpecialization (getFnDefType fnDef)) apps
 
-  pure $ mapMaybe (findSpecialization (getFnDefType fnDef)) apps
+  pure -- $ trace ("name = " ++ fnDefName fnDef ++ "; type = " ++ ppr' (getFnDefType fnDef) ++ "; specs = " ++ show specs ++ "; def = " ++ ppr' fnDef)
+    $ specs
   where
     getCandidateApp :: Expr -> Maybe [Expr]
     getCandidateApp (App f args) = Just args
@@ -140,16 +145,16 @@ generateBranchSpecialization ty spec branch = runFreshM $ do
     nameSubst :: [(ExprName, ExprName)]
     nameSubst = map (both %~ string2Name) stringSubst
 
-    -- TODO: Support for lambdas
-    go :: Expr -> Expr
-    go e@(App f args) =
-      case lookup f stringSubst of
-        Nothing -> e
-        Just f' -> App f args
-    go e@(V _) = rename nameSubst e
-    go e = e
+    -- -- TODO: Support for lambdas
+    -- go :: Expr -> Expr
+    -- go e@(App f args) =
+    --   case lookup f stringSubst of
+    --     Nothing -> e
+    --     Just f' -> App f args
+    -- go e@(V _) = rename nameSubst e
+    -- go e = e
 
-  onFnDefBranch (pure . transform go) branch
+  onFnDefBranch (pure . rename nameSubst) branch
 
 makeSpecializationSubst :: Type -> FnDefBranch -> Specialization -> FreshM [(String, String)]
 makeSpecializationSubst ty branch (Specialization fnArgs) = do

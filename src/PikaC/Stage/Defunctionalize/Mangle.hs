@@ -28,13 +28,17 @@ mangleFnDef def =
 
     fnNames = getFnNamesDef def
 
-    -- We use a Maybe here because otherwise we will go into an infinite
-    -- loop (since there would no longer be a non-bottom fixpoint)
-    renaming "" = Nothing
-    renaming x =
-      if x `elem` fnNames
-        then Just $ mangleString x
-        else Nothing
+    -- -- We use a Maybe here because otherwise we will go into an infinite
+    -- -- loop (since there would no longer be a non-bottom fixpoint)
+    -- renaming "" = Nothing
+    -- renaming x =
+    --   if x `elem` fnNames
+    --     then Just $ mangleString x
+    --     else Nothing
+
+    renaming = map rho1 fnNames
+      where
+        rho1 x = (x, mangleName x)
 
     go :: Typed [FnDefBranch] -> FreshM (Typed [FnDefBranch])
     go (Typed t xs) = Typed t <$> traverse goBranch xs
@@ -49,7 +53,7 @@ mangleFnDef def =
 
       let boundVars = concat $ map getNames pats
 
-      pure $ PatternMatches $ bind pats $ overGuardedExpr (renameFnName mangleString) body
+      pure $ PatternMatches $ bind pats $ overGuardedExpr (rename renaming) body
 
 mangleName :: ExprName -> ExprName
 mangleName = string2Name . mangleString . name2String
@@ -59,13 +63,13 @@ mangleString "" = ""
 mangleString ('_':cs) = "__" ++ mangleString cs
 mangleString (c  :cs) = c     : mangleString cs
 
-getFnNamesDef :: FnDef -> [String]
+getFnNamesDef :: FnDef -> [ExprName]
 getFnNamesDef = runFreshM . typedBranches . fnDefTypedBranches
   where
-    typedBranches :: Typed [FnDefBranch] -> FreshM [String]
+    typedBranches :: Typed [FnDefBranch] -> FreshM [ExprName]
     typedBranches (Typed _ xs) = concat <$> traverse branch xs
 
-    branch :: FnDefBranch -> FreshM [String]
+    branch :: FnDefBranch -> FreshM [ExprName]
     branch (FnDefBranch (PatternMatches bnd)) = do
       (_, GuardedExpr e1 e2) <- unbind bnd
       pure $ getFnNames e1 ++ getFnNames e2

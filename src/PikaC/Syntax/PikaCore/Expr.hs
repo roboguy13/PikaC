@@ -124,22 +124,24 @@ deriving instance (Show (XModed s)) => Show (Expr' s)
 
 type Expr = Expr' PC
 
-type FnName = FnName' String
+type FnName = FnName' ExprName
 newtype FnName' a = FnName { unFnName :: a }
   deriving (Show, Eq, Ord, Generic)
 
 instance NFData a => NFData (FnName' a)
 
 instance IsString FnName where
-  fromString = FnName
+  fromString = FnName . string2Name
 
 instance Subst a b => Subst a (FnName' b)
 
 instance Alpha FnName
-instance Ppr FnName where ppr (FnName f) = text f
+instance Ppr FnName where ppr (FnName f) = ppr f
 
 fnNameIsOk :: FnName -> Bool
-fnNameIsOk (FnName str) =
+fnNameIsOk (FnName f) =
+  let str = name2String f
+  in
   all (`elem` ['a'..'z']) str && not (null str)
 
 instance HasVar (Expr' s) where mkVar = V
@@ -584,7 +586,7 @@ instance Arbitrary Expr where
 
 instance WellScoped ExprName Expr
 instance WellScoped ExprName ()
-instance WellScoped ExprName (FnName' String)
+instance WellScoped ExprName (FnName' ExprName)
 
 instance Validity Expr where
   validate = exprIsOk
@@ -764,10 +766,10 @@ genValidExpr' bvs size =
           x <- halvedGen
           y <- halvedGen
           sz2 <- choose (1, 3)
-          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [sz, sz2] <*> pure [x, y]
+          App <$> fmap (FnName . string2Name) (replicateM 3 arbitraryAlpha) <*> pure [sz, sz2] <*> pure [x, y]
         else do
           x <- genValidExpr' bvs (size - 1)
-          App <$> fmap FnName (replicateM 3 arbitraryAlpha) <*> pure [sz] <*> pure [x]
+          App <$> fmap (FnName . string2Name) (replicateM 3 arbitraryAlpha) <*> pure [sz] <*> pure [x]
     ]
   where
     halvedGen = halvedGenWith bvs

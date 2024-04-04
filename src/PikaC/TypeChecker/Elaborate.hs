@@ -71,7 +71,7 @@ etaExpand = go
     go (App f xs)
       | isConstructor f = constructorToLayoutLambda f xs
       | otherwise = do
-          fmap (lookup f) (asks _fnEnv) >>= \case
+          fmap (lookup (name2String f)) (asks _fnEnv) >>= \case
             Just (TypeSig sigBnd) -> do
               (vs, (ConstrainedType cts ty, ())) <- unbind sigBnd
               toLayoutLambdas cts =<< (App f <$> traverse go xs)
@@ -90,14 +90,14 @@ toLayoutLambdas ((v :~ adt) : rest) e = do
 
 -- | Eta-expand the layout lambdas of data type constructors, applied to
 -- placeholder variables
-constructorToLayoutLambda :: String -> [Expr] -> Check s Expr
+constructorToLayoutLambda :: ExprName -> [Expr] -> Check s Expr
 constructorToLayoutLambda c args = do
   cts <- constructorConstraints c
   toLayoutLambdas cts (App c args)
 
-constructorConstraints :: String -> Check s [LayoutConstraint]
+constructorConstraints :: ExprName -> Check s [LayoutConstraint]
 constructorConstraints c = do
-  fmap (lookup c) (asks _constructorTypes) >>= \case
+  fmap (lookup (name2String c)) (asks _constructorTypes) >>= \case
     Just ty -> do
       forAllsToCts ty
   
@@ -132,7 +132,7 @@ ctxExtendType n adt = ctxDelta %~ ((n, adt) :)
 
 lookupFnType_maybe :: String -> Check s (Maybe Type)
 lookupFnType_maybe f
-  | isConstructor f =
+  | isConstructor (string2Name f) =
       fmap (lookup f) (asks _constructorTypes) >>= \case
         -- Nothing -> checkError $ text "Cannot find constructor" <+> text f
         Nothing -> pure Nothing
@@ -283,7 +283,7 @@ inferExpr = go
       pure BoolType
 
     go ctx e0@(App f args) = do
-      fType <- lookupFnType f
+      fType <- lookupFnType (name2String f)
 
       let (fArgTys, fResultTy) = splitFnType fType
       argTys <- traverse (go ctx) args
@@ -301,7 +301,7 @@ inferExpr = go
     -- TODO: Find a better way before it reaches here
     go ctx e0@(ApplyLayout (App f args) appTy)
       | isConstructor f = do
-          fType <- go ctx (ApplyLayout (V (string2Name f)) appTy)
+          fType <- go ctx (ApplyLayout (V f) appTy)
           let (fArgTys, fResultTy) = splitFnType fType
           argTys <- traverse (go ctx) args
 

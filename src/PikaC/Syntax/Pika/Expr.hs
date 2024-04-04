@@ -52,7 +52,7 @@ data Expr
   | BoolLit Bool
   | LayoutLambda AdtName (Bind TypeName Expr)
   | ApplyLayout Expr Type -- The type should either be a TyVar or a LayoutId
-  | App String [Expr]
+  | App ExprName [Expr]
   | Div Expr Expr
   | Mod Expr Expr
   | Add Expr Expr
@@ -384,14 +384,14 @@ instance Arbitrary Expr where
     ApplyLayout <$> shrink e <*> pure layoutName
   shrink e0 = genericShrink e0
 
--- | Only applies to @App@ constructors
-renameFnName :: (String -> String) -> Expr -> Expr
-renameFnName rho = transform go
-  where
-    go (App fnName args) = App (rho fnName) args
-    go e = e
+-- -- | Only applies to @App@ constructors
+-- renameFnName :: (ExprName -> ExprName) -> Expr -> Expr
+-- renameFnName rho = transform go
+--   where
+--     go (App fnName args) = App (rho fnName) args
+--     go e = e
 
-getFnNames :: Expr -> [String]
+getFnNames :: Expr -> [ExprName]
 getFnNames = toListOf (_App._1)
 
 -- isValidExpr :: Expr -> Validation
@@ -481,7 +481,7 @@ genCall ::
    Gen Expr
 genCall fnSigs layouts locals size (fn, inLayouts, outLayout) = do
   let newSize = size `div` length (inLayouts ++ [Just outLayout])
-  App fn <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) inLayouts
+  App (string2Name fn) <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) inLayouts
 
 genConstructorApp ::
    [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
@@ -495,7 +495,7 @@ genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
   (cName, arity) <- elements' constructorSigs
   let newSize = size `div` length arity
   ApplyLayout
-    <$> (App cName <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
+    <$> (App (string2Name cName) <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
     <*> pure (LayoutId layout)
 
 genSimpleExpr' :: [ExprName] -> Int -> Gen Expr

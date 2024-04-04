@@ -1,0 +1,23 @@
+%generate mapAdd
+%generate callMapAdd
+
+Sll : layout[-x](List);
+Sll Nil := emp;
+Sll (Cons head tail) :=
+  exists +nxt.
+  x :-> head **
+  (x+1) :-> nxt **
+  Sll tail [nxt];
+
+mapAdd : Int -> Sll -> Sll;
+mapAdd n Nil := Nil [Sll];
+mapAdd n (Cons a as) := Cons (a + n) (mapAdd n as) [Sll];
+
+call : (Int -> Sll -> Sll) -> Int -> Sll;
+call f n := f n (Nil [Sll]);
+
+callMapAdd : Int -> Sll;
+callMapAdd n := call mapAdd n;
+
+%test "mapAdd1" Sll:
+  mapAdd 1 (Cons 10 (Cons 20 (Cons 30 (Nil [Sll]) [Sll]) [Sll]) [Sll]);

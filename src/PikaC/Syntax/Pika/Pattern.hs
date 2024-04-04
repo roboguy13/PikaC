@@ -147,7 +147,7 @@ onPatternMatches varFn bodyFn (PatternMatches m) = do
 applyPatternMatch :: (Typeable a, Alpha a, HasApp a, Subst a b, Alpha b) => PatternMatch a b -> String -> [a] -> Either String b
 applyPatternMatch match@(PatternMatch (B pat body)) constructor xs =
   case pat of
-    PatternVar v -> Right $ substBind (B v body) (mkApp constructor xs)
+    PatternVar v -> Right $ substBind (B v body) (mkApp (string2Name constructor) xs)
     Pattern constructor2 vs
       | length vs /= length xs -> Left $ "applyPatternMatch: Wrong number of constructor arguments. Expected " ++ show (length vs) ++ ", got " ++ show (length xs) ++ "\n" ++ show match
       | constructor2 == constructor -> Right $ instantiate (B vs body) xs
@@ -189,7 +189,7 @@ instance (Typeable a, Alpha b, Arbitrary b) => Arbitrary (PatternMatch a b) wher
   shrink = genericShrink
 
 class HasApp a where
-  mkApp :: String -> [a] -> a
+  mkApp :: Name a -> [a] -> a
 
 getPatternNames :: Pattern a -> [Name a]
 getPatternNames (PatternVar n) = [n]
@@ -204,7 +204,7 @@ instance Ppr a => Ppr (Pattern a) where
 patternMatchSubst :: (Show b, HasApp b) =>
      Pattern a -> String -> [b] -> Either String [(Name a, b)]
 patternMatchSubst (PatternVar v) constructor xs =
-  Right [(v, mkApp constructor xs)]
+  Right [(v, mkApp (string2Name constructor) xs)]
 patternMatchSubst pat@(Pattern constructorP vars) constructor xs
   | length vars /= length xs = Left $ "patternMatch: Wrong number of constructor arguments. Expected " ++ show (length vars) ++ ", got " ++ show (length xs) ++ ":\nPattern: " ++ show pat ++ "\nConstructor application" ++ show (constructor, xs)
   | constructorP /= constructor =

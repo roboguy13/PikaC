@@ -59,7 +59,7 @@ runTestWithPrinter outs@(_, outVars) printer e = do
     ]
 
 call :: FnName -> [C.CExpr] -> C.Command
-call (FnName n) args = C.Call n args []
+call (FnName n) args = C.Call (name2String n) args []
 
 mkOutVars :: [Layout Expr] -> Type -> GenC ([Int], [C.CName])
 mkOutVars _ IntType = ([0],) . (:[]) <$> fresh (string2Name "i")

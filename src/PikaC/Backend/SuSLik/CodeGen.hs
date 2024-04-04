@@ -144,14 +144,14 @@ codeGenFnSig indirectLevel fnDef = runFreshM $ do
               { SuSLik._fnSpecPrecond = allocs ++ precondOuts
               , SuSLik._fnSpecPostcond =
                   (SuSLik.BoolLit True
-                  ,[RecApply fnName (map mkVar (inParams' ++ postCondOutVars))]
+                  ,[RecApply (name2String fnName) (map mkVar (inParams' ++ postCondOutVars))]
                     ++ postCondOuts
                   )
               }
   let (argTypes, resultType) = splitFnType $ PikaCore._fnDefType fnDef
 
   pure $ SuSLik.FnSig
-    { SuSLik._fnSigName = fnName
+    { SuSLik._fnSigName = name2String fnName
     , SuSLik._fnSigArgTypes = argTypes ++ replicate (length outParams) (LayoutId "Unused")--argTypes
     , SuSLik._fnSigResultType = resultType
     , SuSLik._fnSigConds = (params, spec)
@@ -189,8 +189,10 @@ codeGenLayoutBranch useGhosts allNames (LayoutBranch (PatternMatch bnd)) = do
     -- getZeroes outNames =<<
     -- toAssertion fnName outNames (PikaCore._fnDefBranchBody branch)
   let heaplets = asn
+
+      branchNames :: [Name SuSLik.Expr]
       branchNames =
-        map convertName $ toListOf fv asn
+        map convertName (toListOf fv asn :: [PikaCore.ExprName])
       -- allNames' = 
 
   let branchAllocs = map (overAllocName convertName) $ findAllocations (map convertName' (map modedNameName allNames)) $ getPointsTos body
@@ -289,7 +291,7 @@ codeGenIndPred fnDef0 = runFreshM $ do
 
   let outSizes = PikaCore._fnDefOutputSizes fnDef
 
-  branches' <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
+  branches' <- mapM (genBranch (name2String fnName) outSizes nonBaseParams unmodedOutParams) branches
 
   -- branches0 <- mapM (genBranch fnName outSizes nonBaseParams unmodedOutParams) branches
   --
@@ -308,7 +310,7 @@ codeGenIndPred fnDef0 = runFreshM $ do
   pure $ reduceEqualities $
     -- $ trace ("fnName = " ++ fnName ++ ", argTypes = " ++ show argTypes)
     SuSLik.InductivePredicate
-    { SuSLik._indPredName = fnName
+    { SuSLik._indPredName = name2String fnName
     , SuSLik._indPredArgTypes = argTypes ++ [resultType] --[LayoutId "Unused"] -- TODO: We need a way to deal with layouts that have multiple parameters
     , SuSLik._indPredResultType = resultType
     , SuSLik._indPredGhostTypes = []
@@ -498,11 +500,11 @@ collectAssertions appOutNames0 fnName outVars (PikaCore.WithIn e bnd) = do
 collectAssertions appOutNames fnName outVars (PikaCore.App (PikaCore.FnName f) _sizes args) =
     -- TODO: Implement a sanity check that checks the length of outVars
     -- against sizes?
-  let app = if f == fnName then RecApply else ApplyS
+  let app = if name2String f == fnName then RecApply else ApplyS
   in
   pure -- $ bind []
     $ mkSpatialPart
-      [app f (map convertBase args ++ map SuSLik.V outVars)
+      [app (name2String f) (map convertBase args ++ map SuSLik.V outVars)
       ]
 collectAssertions appOutNames fnName outVars (PikaCore.SslAssertion bnd) = do
   (vars, asn) <- unbind bnd
@@ -571,7 +573,7 @@ convertBaseAsn recName outVar (PikaCore.App (PikaCore.FnName f) [0] xs) = do
   vars <- mapM (fresh . string2Name . const "zz") xs
   xsAsns <- zipWithM (convertBaseAsn recName) vars xs
   -- let resultSpatial = [SuSLik.RecApply f (map SuSLik.V vars ++ [SuSLik.V outVar])]
-  let resultSpatial = [mkAppS recName f (map SuSLik.V vars ++ [SuSLik.V outVar])]
+  let resultSpatial = [mkAppS recName (name2String f) (map SuSLik.V vars ++ [SuSLik.V outVar])]
   pure $ mconcat xsAsns <> mkSpatialPart resultSpatial
 convertBaseAsn recName outVar (PikaCore.Mod x y) = convertBin recName SuSLik.Mod outVar x y
 convertBaseAsn recName outVar e =
@@ -728,8 +730,8 @@ convertName' :: Name a -> Name b
 convertName' n = --string2Name . name2String
   makeName (name2String n) (name2Integer n)
 
-convertName :: PikaCore.ExprName -> SuSLik.ExprName
-convertName = convertName'
+-- convertName :: PikaCore.ExprName -> SuSLik.ExprName
+-- convertName = convertName'
 
 convertModedName :: ModedName PikaCore.Expr -> SuSLik.ExprName
 convertModedName (Moded _ n) = convertName n

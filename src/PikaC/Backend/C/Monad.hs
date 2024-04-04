@@ -38,10 +38,10 @@ import Data.List
 
 import Debug.Trace
 
--- convertName :: Name (PikaCore.Expr' s) -> C.CName
-convertName :: Name a -> Name b
--- convertName = string2Name . name2String
-convertName = string2Name . show
+-- -- convertName :: Name (PikaCore.Expr' s) -> C.CName
+-- convertName :: Name a -> Name b
+-- -- convertName = string2Name . name2String
+-- convertName = string2Name . show
 
 -- newtype GenCEnv =
 --   GenCEnv

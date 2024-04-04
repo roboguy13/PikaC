@@ -16,8 +16,9 @@ import           PikaC.Syntax.Heaplet
 import           PikaC.Ppr
 
 import           PikaC.Backend.C.CodeGen
-import           PikaC.Backend.C.Monad (convertName, runGenC)
+import           PikaC.Backend.C.Monad (runGenC)
 import           PikaC.Backend.Utils
+import           PikaC.Utils
 
 import           Unbound.Generics.LocallyNameless
 import           Unbound.Generics.LocallyNameless.Unsafe
@@ -41,7 +42,7 @@ layoutPrinter layout =
       fnBody = go branches
   in
   C.CFunction
-  { C.cfunctionName = ourFnName
+  { C.cfunctionName = name2String ourFnName
   , C.cfunctionParams = params
   , C.cfunctionBody =
       [C.Printf "(" []]
@@ -91,14 +92,14 @@ layoutPrinter layout =
         -- TODO: Handle layouts that apply *other* layouts.
         goBody recVars (LayoutBody (LApply layoutName _ghosts patVar layoutVars : rest))
           | layoutName /= _layoutName layout =
-              C.Call (unFnName (getPrinter (LayoutId layoutName)))
+              C.Call (name2String (unFnName (getPrinter (LayoutId layoutName))))
                 (map (C.V . convertName . getV) layoutVars)
                 []
               : goBody recVars (LayoutBody rest)
               
               --error "layoutPrinter: Cannot create a layout printer for a layout that applies another layout"
           | otherwise =
-              C.Call ourFnName
+              C.Call (name2String ourFnName)
                 (map (C.V . convertName . getV) layoutVars)
                 []
               : goBody recVars (LayoutBody rest)
@@ -113,9 +114,9 @@ layoutParamNames layout =
 
 getPrinter :: Type -> Printer
 getPrinter ty@(FnType {}) = error $ "getPrinter: " ++ ppr' ty
-getPrinter IntType = FnName "_printInt"
-getPrinter BoolType = FnName "_printBool"
-getPrinter (LayoutId x) = FnName $ "_print_" ++ x
+getPrinter IntType = FnName (s2n "_printInt")
+getPrinter BoolType = FnName (s2n "_printBool")
+getPrinter (LayoutId x) = FnName $ s2n $ "_print_" ++ x
 
 -- | Is used as an argument to a layout application
 isRecVar :: LayoutBody Expr -> ExprName -> Bool
