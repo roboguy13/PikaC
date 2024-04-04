@@ -19,8 +19,6 @@ import qualified PikaC.Syntax.PikaCore.Expr as PikaCore
 import PikaC.Syntax.Type.Parser hiding (parseGhostArg)
 import PikaC.Syntax.Type
 
-import PikaC.Stage.Defunctionalize.Mangle
-
 import PikaC.TypeChecker.Mode
 
 import PikaC.Utils
@@ -78,10 +76,6 @@ instance Size (FnDef' f) => Size (PikaModule' f) where
 
 type PikaModule = PikaModule' TypeSig'
 type PikaModuleElaborated = PikaModule' Typed
-
-toPikaModuleElaborated_unsafe :: PikaModule -> PikaModuleElaborated
-toPikaModuleElaborated_unsafe pikaModule =
-  pikaModule { moduleFnDefs = map (mangleFnDef . overTypedBranches fromTypeSig_unsafe) (moduleFnDefs pikaModule) }
 
 instance NFData (f [FnDefBranch]) => NFData (PikaModule' f)
 

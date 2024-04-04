@@ -10,6 +10,7 @@ import PikaC.Syntax.Pika.Parser
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Type
 import PikaC.Ppr
+import PikaC.Utils
 
 import Data.Maybe
 import Data.List
@@ -68,6 +69,7 @@ updateToUseSpecializations mod =
               case findSpecialization fnType args of
                 Nothing -> app
                 Just specialization -> useSpecialization fnType fn args specialization
+        goExpr e = e
 
 useSpecialization :: Type -> String -> [Expr] -> Specialization -> Expr
 useSpecialization ty name origArgs specialization =
@@ -119,14 +121,49 @@ defunctionalizeFnDef fnDef xs = map (generateSpecialization fnDef) xs
 
 -- | This is where we actually do the main work of defunctionalization
 generateSpecialization :: FnDef -> Specialization -> FnDef
-generateSpecialization fnDef spec = runFreshM $ do
+generateSpecialization fnDef spec =
   let newName = getDefunName (fnDefName fnDef) spec
-  undefined
+  in
+  fnDef
+    { fnDefName = newName
+    , fnDefTypedBranches = go (fnDefTypedBranches fnDef)
+    }
+  where
+    go (Typed ty bs) =
+      Typed ty $ map (generateBranchSpecialization ty spec) bs
 
--- substSpecialization :: FnDef -> Specialization -> Fn
+generateBranchSpecialization :: Type -> Specialization -> FnDefBranch -> FnDefBranch
+generateBranchSpecialization ty spec branch = runFreshM $ do
+  stringSubst <- makeSpecializationSubst ty branch spec
 
--- getFnArgNames :: FnDef -> [ExprName]
--- getFnArgNames fnDef = undefined --getFnTyped (fnDef
+  let
+    nameSubst :: [(ExprName, ExprName)]
+    nameSubst = map (both %~ string2Name) stringSubst
+
+    -- TODO: Support for lambdas
+    go :: Expr -> Expr
+    go e@(App f args) =
+      case lookup f stringSubst of
+        Nothing -> e
+        Just f' -> App f args
+    go e@(V _) = rename nameSubst e
+    go e = e
+
+  onFnDefBranch (pure . transform go) branch
+
+makeSpecializationSubst :: Type -> FnDefBranch -> Specialization -> FreshM [(String, String)]
+makeSpecializationSubst ty branch (Specialization fnArgs) = do
+  params <- getFnTypedParams ty branch
+  pure $ zip (map name2String params)
+    $ map getFnArgName fnArgs -- TODO: Support for lambdas
+
+getFnTypedParams :: Type -> FnDefBranch -> FreshM [ExprName]
+getFnTypedParams ty (FnDefBranch (PatternMatches bnd)) = do
+  (pats0, _) <- unbind bnd
+  pure $ map getPatternVar (getFnTyped ty pats0)
+  where
+    getPatternVar (PatternVar x) = x
+    getPatternVar pat = error $ "getPatternVar: " ++ ppr' pat
 
 getFnArgsFromMatches :: Type -> PatternMatches Expr GuardedExpr -> FreshM [ExprName]
 getFnArgsFromMatches ty (PatternMatches bnd) = do
@@ -158,16 +195,16 @@ getFnTyped = onTyped go
     go (FnType {}) x = Just x
     go _          _x = Nothing
 
--- | Use elements of the first list on function types and elements of the
--- second list on non-function types
-conditionOnFnTyped :: Type -> [a] -> [a] -> [a]
-conditionOnFnTyped ty xs0 ys0 =
-  let (argTys, _) = splitFnType ty
-  in
-  go argTys xs0 ys0
-  where
-    go (FnType {} : argTys) (x:xs) ys     = x : go argTys xs ys
-    go (_         : argTys) xs     (y:ys) = y : go argTys xs ys
+-- -- | Use elements of the first list on function types and elements of the
+-- -- second list on non-function types
+-- conditionOnFnTyped :: Type -> [a] -> [a] -> [a]
+-- conditionOnFnTyped ty xs0 ys0 =
+--   let (argTys, _) = splitFnType ty
+--   in
+--   go argTys xs0 ys0
+--   where
+--     go (FnType {} : argTys) (x:xs) ys     = x : go argTys xs ys
+--     go (_         : argTys) xs     (y:ys) = y : go argTys xs ys
 
 -- | Apply to elements of the list along with corresponding argument types
 onTyped :: (Type -> a -> Maybe b) -> Type -> [a] -> [b]

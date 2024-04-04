@@ -10,6 +10,7 @@ module PikaC.TypeChecker.Elaborate
   ,elaborateFnDef
   ,inferExpr
   ,CheckEnv (..)
+  ,toPikaModuleElaborated_unsafe
   )
   where
 
@@ -18,6 +19,10 @@ import PikaC.Syntax.Pika.Expr
 import PikaC.Syntax.Pika.FnDef
 import PikaC.Syntax.Pika.Pattern
 import PikaC.Syntax.Pika.Layout (LayoutName)
+import PikaC.Syntax.Pika.Parser
+import PikaC.Stage.Defunctionalize.Mangle
+import PikaC.Stage.Defunctionalize.Defunctionalize
+
 
 import PikaC.TypeChecker.Monad
 import PikaC.TypeChecker.Unify
@@ -47,6 +52,11 @@ import Debug.Trace
 
 data TypedExpr = Expr ::: Type
   deriving (Show)
+
+toPikaModuleElaborated_unsafe :: PikaModule -> PikaModuleElaborated
+toPikaModuleElaborated_unsafe pikaModule =
+  defunctionalizeModule $
+  pikaModule { moduleFnDefs = map (mangleFnDef . overTypedBranches fromTypeSig_unsafe) (moduleFnDefs pikaModule) }
 
 -- | Eta-expand to layout lambdas applied to placeholder variables
 etaExpand :: Expr -> Check s Expr

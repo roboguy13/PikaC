@@ -75,13 +75,14 @@ newtype FnDefBranch =
 
 onFnDef :: Fresh m => (Expr -> m Expr) -> FnDef -> m FnDef
 onFnDef f (FnDef name (Typed t bs)) =
-  FnDef name . Typed t <$> traverse goBranch bs
-  where
-    goBranch (FnDefBranch (PatternMatches bnd)) = do
-      (pats, GuardedExpr e1 e2) <- unbind bnd
-      e1' <- f e1
-      e2' <- f e2
-      pure $ FnDefBranch $ PatternMatches $ bind pats $ GuardedExpr e1' e2'
+  FnDef name . Typed t <$> traverse (onFnDefBranch f) bs
+
+onFnDefBranch :: Fresh m => (Expr -> m Expr) -> FnDefBranch -> m FnDefBranch
+onFnDefBranch f (FnDefBranch (PatternMatches bnd)) = do
+  (pats, GuardedExpr e1 e2) <- unbind bnd
+  e1' <- f e1
+  e2' <- f e2
+  pure $ FnDefBranch $ PatternMatches $ bind pats $ GuardedExpr e1' e2'
 
 instance Size FnDefBranch where
   size (FnDefBranch x) = size x

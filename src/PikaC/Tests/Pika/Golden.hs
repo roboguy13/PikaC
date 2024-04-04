@@ -49,6 +49,7 @@ import PikaC.Stage.ToPikaCore
 import PikaC.Backend.SuSLik.CodeGen
 import PikaC.Backend.SuSLik.Invoke
 import PikaC.Backend.SuSLik.SuSLang.ToC
+import PikaC.TypeChecker.Elaborate
 import PikaC.Ppr
 
 testsPath :: FilePath
