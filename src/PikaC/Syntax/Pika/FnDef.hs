@@ -45,6 +45,9 @@ instance Size (f [FnDefBranch]) => Size (FnDef' f) where
 overTypedBranches :: (f [FnDefBranch] -> g [FnDefBranch]) -> FnDef' f -> FnDef' g
 overTypedBranches f (FnDef x y) = FnDef x (f y)
 
+overTypedBranchesM :: Functor m => (f [FnDefBranch] -> m (g [FnDefBranch])) -> FnDef' f -> m (FnDef' g)
+overTypedBranchesM f (FnDef x y) = FnDef x <$> (f y)
+
 deriving instance Show (f [FnDefBranch]) => Show (FnDef' f)
 
 type FnDef = FnDef' Typed
@@ -54,6 +57,9 @@ data GuardedExpr =
     Expr -- Boolean condition
     Expr -- Body
   deriving (Show, Generic)
+
+overGuardedExpr :: (Expr -> Expr) -> GuardedExpr -> GuardedExpr
+overGuardedExpr f (GuardedExpr a b) = GuardedExpr (f a) (f b)
 
 instance Size GuardedExpr where
   size (GuardedExpr x y) = visibleNode $ size x + size y
@@ -67,11 +73,29 @@ newtype FnDefBranch =
     -- }
   deriving (Show, Generic)
 
+onFnDef :: Fresh m => (Expr -> m Expr) -> FnDef -> m FnDef
+onFnDef f (FnDef name (Typed t bs)) =
+  FnDef name . Typed t <$> traverse goBranch bs
+  where
+    goBranch (FnDefBranch (PatternMatches bnd)) = do
+      (pats, GuardedExpr e1 e2) <- unbind bnd
+      e1' <- f e1
+      e2' <- f e2
+      pure $ FnDefBranch $ PatternMatches $ bind pats $ GuardedExpr e1' e2'
+
 instance Size FnDefBranch where
   size (FnDefBranch x) = size x
 
 getFnTypeSig :: FnDef -> (String, Type)
 getFnTypeSig fnDef = (fnDefName fnDef, typePairType $ fnDefTypedBranches fnDef)
+
+getFnDefExprs :: FnDef -> FreshM [Expr]
+getFnDefExprs (FnDef _ (Typed _ xs0)) = concat <$> traverse goBranches xs0
+  where
+    goBranches :: FnDefBranch -> FreshM [Expr]
+    goBranches (FnDefBranch (PatternMatches bnd)) = do
+      (_, GuardedExpr e1 e2) <- unbind bnd
+      pure [e1, e2]
 
 -- | 'synth' directive to use SuSLik to synthesize a function
 data Synth =

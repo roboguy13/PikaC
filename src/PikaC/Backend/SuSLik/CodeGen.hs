@@ -19,7 +19,7 @@ import PikaC.Syntax.Heaplet
 import PikaC.Syntax.Type as PikaCore
 import PikaC.Syntax.Pika.Layout
 import PikaC.Syntax.Pika.Pattern
-import PikaC.Syntax.Pika.FnDef
+import PikaC.Syntax.Pika.FnDef hiding (onFnDef)
 
 import qualified PikaC.Stage.ToPikaCore as ToPikaCore
 import PikaC.Stage.ToPikaCore.SimplifyM (runSimplifyQuiet, SimplifyFuel (..), fixedPoint)

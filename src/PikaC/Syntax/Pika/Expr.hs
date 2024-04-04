@@ -384,6 +384,16 @@ instance Arbitrary Expr where
     ApplyLayout <$> shrink e <*> pure layoutName
   shrink e0 = genericShrink e0
 
+-- | Only applies to @App@ constructors
+renameFnName :: (String -> String) -> Expr -> Expr
+renameFnName rho = transform go
+  where
+    go (App fnName args) = App (rho fnName) args
+    go e = e
+
+getFnNames :: Expr -> [String]
+getFnNames = toListOf (_App._1)
+
 -- isValidExpr :: Expr -> Validation
 -- isValidExpr = mconcat . map go . universe
 --   where

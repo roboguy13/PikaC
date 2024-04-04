@@ -112,6 +112,10 @@ isBaseType IntType = True
 isBaseType BoolType = True
 isBaseType _ = False
 
+isFnType :: Type -> Bool
+isFnType (FnType {}) = True
+isFnType _ = False
+
 instance Alpha Type
 
 splitFnType :: Type -> ([Type], Type)

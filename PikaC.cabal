@@ -58,6 +58,7 @@ executable PikaC
       PikaC.Syntax.Type
       PikaC.Syntax.Type.Parser
       PikaC.Stage.Defunctionalize.Mangle
+      PikaC.Stage.Defunctionalize.Defunctionalize
       PikaC.Stage.ToPikaCore
       PikaC.Stage.ToPikaCore.Simplify
       PikaC.Stage.ToPikaCore.SubstWithLayoutVar
@@ -160,6 +161,7 @@ test-suite PikaC-golden-tests
      PikaC.Syntax.Type
      PikaC.Syntax.Type.Parser
      PikaC.Stage.Defunctionalize.Mangle
+     PikaC.Stage.Defunctionalize.Defunctionalize
      PikaC.Stage.ToPikaCore
      PikaC.Stage.ToPikaCore.Simplify
      PikaC.Stage.ToPikaCore.SubstWithLayoutVar
@@ -261,6 +263,7 @@ benchmark PikaC-bench
       PikaC.Syntax.Type
       PikaC.Syntax.Type.Parser
       PikaC.Stage.Defunctionalize.Mangle
+      PikaC.Stage.Defunctionalize.Defunctionalize
       PikaC.Stage.ToPikaCore
       PikaC.Stage.ToPikaCore.Simplify
       PikaC.Stage.ToPikaCore.SubstWithLayoutVar

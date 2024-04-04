@@ -46,12 +46,15 @@ import Test.QuickCheck hiding (label)
 import Control.Monad
 import GHC.Generics hiding (Constructor)
 
+import Data.List
+
 import Debug.Trace
 
 import Control.DeepSeq
 
 import Data.Validity
 
+-- TODO: Move this out of the parsing module
 data PikaModule' f =
   PikaModule
   { moduleAdts :: [Adt]
@@ -62,6 +65,10 @@ data PikaModule' f =
   , moduleTests :: [Test Expr]
   }
   deriving (Generic)
+
+lookupFnDef :: PikaModule' f -> String -> Maybe (FnDef' f)
+lookupFnDef mod name =
+  find ((== name) . fnDefName) $ moduleFnDefs mod
 
 deriving instance Show (f [FnDefBranch]) => Show (PikaModule' f)
 
@@ -74,7 +81,7 @@ type PikaModuleElaborated = PikaModule' Typed
 
 toPikaModuleElaborated_unsafe :: PikaModule -> PikaModuleElaborated
 toPikaModuleElaborated_unsafe pikaModule =
-  pikaModule { moduleFnDefs = map (overTypedBranches fromTypeSig_unsafe) (moduleFnDefs pikaModule) }
+  pikaModule { moduleFnDefs = map (mangleFnDef . overTypedBranches fromTypeSig_unsafe) (moduleFnDefs pikaModule) }
 
 instance NFData (f [FnDefBranch]) => NFData (PikaModule' f)
 
@@ -210,9 +217,7 @@ parseFnDef = label "function definition" $ lexeme $ do
     symbol ";"
     some (parseFnDefBranch fnName)
 
-  pure 
-    $ mangleFnDef -- TODO: Separate this out from the parser
-    $ FnDef fnName sig
+  pure $ FnDef fnName sig
 
 parseSynth :: Parser Synth
 parseSynth = do
