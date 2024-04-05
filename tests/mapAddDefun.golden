@@ -1,0 +1,15 @@
+void map__lambda_(loc x, loc x1);
+void map__lambda_(loc x, loc x1) {
+ if (x == 0) {
+  WRITE_LOC(x1, 0, 0);
+ } else {
+  loc h = READ_LOC(x, 0);
+  loc n = READ_LOC(x, 1);
+  map__lambda_(n, x1);
+  loc x3 = READ_LOC(x1, 0);
+  loc x = (loc)malloc(2 * sizeof(loc));
+  WRITE_LOC(x1, 0, x);
+  WRITE_LOC(x, 1, x3);
+  WRITE_LOC(x, 0, (long)h + (long)1);
+ }
+}

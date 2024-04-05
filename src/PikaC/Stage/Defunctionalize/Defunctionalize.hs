@@ -38,11 +38,7 @@ defunctionalizeModule mod = runFreshM $ do
         deleteOldDefs specializations $
           mod { moduleFnDefs = map (updateWithSpecialization mod) (fnDefs ++ specializedDefs), moduleGenerates = extendGenerates specializations (moduleGenerates mod) }
 
-  pure -- $ trace ("higher order fns = " ++ show higherOrderFns)
-    -- $ trace ("specializations = " ++ show specializations)
-    $ trace ("higher order fn = " ++ show (head higherOrderFns))
-    $ trace (ppr' newMod)
-    $ newMod
+  pure newMod
 
 deleteOldDefs :: [Specialization] -> PikaModuleElaborated -> PikaModuleElaborated
 deleteOldDefs specs mod =
@@ -143,7 +139,7 @@ defunctionalizeFnDef spec@(Specialization fnDef0@(FnDef name (Typed ty branches)
       newName = getDefunName spec
       newFnDef = FnDef newName (Typed newTy newBranches)
   in
-  trace ("orig = " ++ ppr' fnDef0) $ trace ("newFnDef = " ++ show newFnDef) newFnDef
+  newFnDef
 
 -- renameFnArgs :: Type -> FnDefBranch -> [FnArg] -> [FnArg]
 -- renameFnArgs ty branch fnArgs =
@@ -160,15 +156,9 @@ defunctionalizeBranch ty fnArgs branch = do
 updatePatterns :: SpecSubst -> Type -> FnDefBranch -> FreshM FnDefBranch
 updatePatterns specSubst ty (FnDefBranch (PatternMatches bnd)) = do
   (pats, body) <- unbind bnd
-  -- let (pats, body) = unsafeUnbind bnd
   let newPats = dropFnTyped ty pats
       afterSubst = overGuardedExpr (rewrite betaReduce) $ substs specSubst body
-      -- patVars = map (map mkVar . getNames) newPats
-      -- new = concat (conditionOnFnTyped ty (map ((:[]) . snd) specSubst) patVars)
-  pure $ trace ("bnd = " ++ show bnd ++ "; body = " ++ ppr' body ++ "; afterSubst = " ++ show afterSubst)
-    $ trace ("specSubst = " ++ show specSubst)
-    $ FnDefBranch $ PatternMatches $ bind newPats afterSubst
-    -- $ FnDefBranch $ PatternMatches $ bind newPats $ substBvs initialCtx new body
+  pure $ FnDefBranch $ PatternMatches $ bind newPats afterSubst
 
 makeSpecialization :: FnDef -> [Expr] -> FreshM Specialization
 makeSpecialization fnDef =
