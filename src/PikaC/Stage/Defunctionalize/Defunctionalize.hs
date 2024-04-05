@@ -16,6 +16,8 @@ import Data.Maybe
 import Data.List
 
 import Unbound.Generics.LocallyNameless
+import Unbound.Generics.LocallyNameless.Unsafe
+import Unbound.Generics.LocallyNameless.Bind
 import Unbound.Generics.LocallyNameless.Name
 
 import Control.Lens
@@ -38,6 +40,7 @@ defunctionalizeModule mod = runFreshM $ do
 
   pure -- $ trace ("higher order fns = " ++ show higherOrderFns)
     -- $ trace ("specializations = " ++ show specializations)
+    $ trace ("higher order fn = " ++ show (head higherOrderFns))
     $ trace (ppr' newMod)
     $ newMod
 
@@ -53,20 +56,14 @@ deleteOldDefs specs mod =
     check x y = fnDefName x == fnDefName y
 
 extendGenerates :: [Specialization] -> [String] -> [String]
-extendGenerates specs gens = map (fnDefName . getSpecializationFnDef) specs <> gens
--- extendGenerates specs = concatMap go
---   where
---     go origGenerate =
---       case map getDefunName (filter ((== origGenerate) . fnDefName . getSpecializationFnDef) specs) of
---         [] -> [origGenerate]
---         xs -> xs
+extendGenerates specs gens = map getDefunName specs <> gens
 
 updateWithSpecialization :: PikaModuleElaborated -> FnDef -> FnDef
 updateWithSpecialization mod =
-    runFreshM . onFnDef (pure . goExpr)
+    runFreshM . onFnDef (pure . transform goExpr)
   where
     goExpr :: Expr -> Expr
-    goExpr e0@(App f args) = fromMaybe e0 $ do
+    goExpr e0@(App (V f) args) = fromMaybe e0 $ do
       fnDef <- lookupFnDef mod (name2String f)
       let ty = getFnDefType fnDef
       if isHigherOrder ty
@@ -75,7 +72,7 @@ updateWithSpecialization mod =
             spec = runFreshM $ makeSpecialization fnDef newArgs -- TODO: Is it correct to runFreshM here?
             newName = getDefunName spec
         in
-        Just $ App (string2Name newName) newArgs
+        Just $ App (V (string2Name newName)) newArgs
       else Nothing
     goExpr e0 = e0
 
@@ -110,6 +107,10 @@ getFnArgName :: FnArg -> String
 getFnArgName (FnArgName x) = x
 getFnArgName (FnArgLambda x _) = x
 
+setFnArgName :: FnArg -> String -> FnArg
+setFnArgName (FnArgName _) x = FnArgName x
+setFnArgName (FnArgLambda _ y) x = FnArgLambda x y
+
 getSpecializationFnDef :: Specialization -> FnDef
 getSpecializationFnDef (Specialization x _) = x
 
@@ -119,10 +120,10 @@ getSpecializations higherOrderFns currFnDef = do
   catMaybes <$> traverse (getSpecializationFromExpr higherOrderFns) exprs
 
 getSpecializationFromExpr :: [FnDef] -> Expr -> FreshM (Maybe Specialization)
-getSpecializationFromExpr higherOrderFns (App f args)
+getSpecializationFromExpr higherOrderFns (App (V f) args)
   | not (isFreeName f) = pure Nothing
 
-getSpecializationFromExpr higherOrderFns (App f args) = do
+getSpecializationFromExpr higherOrderFns (App (V f) args) = do
   case find ((== name2String f) . fnDefName) higherOrderFns of
     Nothing -> pure Nothing
     Just higherOrderFn ->
@@ -139,29 +140,34 @@ defunctionalizeFnDef spec@(Specialization fnDef0@(FnDef name (Typed ty branches)
 
       newBranches = runFreshM $ traverse (defunctionalizeBranch ty fnArgs) branches
       newName = getDefunName spec
+      newFnDef = FnDef newName (Typed newTy newBranches)
   in
-  FnDef newName (Typed newTy newBranches)
+  trace ("orig = " ++ ppr' fnDef0) $ trace ("newFnDef = " ++ show newFnDef) newFnDef
+
+-- renameFnArgs :: Type -> FnDefBranch -> [FnArg] -> [FnArg]
+-- renameFnArgs ty branch fnArgs =
+--   let fnTypedParams = runFreshM $ getFnTypedParams ty branch
+--   in
+--   zipWith setFnArgName fnArgs $ map name2String fnTypedParams
 
 defunctionalizeBranch :: Type -> [FnArg] -> FnDefBranch -> FreshM FnDefBranch
 defunctionalizeBranch ty fnArgs branch = do
+  -- TODO: Rename fnArgs based on the branch names
   specSubst <- makeSpecializationSubst ty branch fnArgs
   updatePatterns specSubst ty branch
 
 updatePatterns :: SpecSubst -> Type -> FnDefBranch -> FreshM FnDefBranch
 updatePatterns specSubst ty (FnDefBranch (PatternMatches bnd)) = do
   (pats, body) <- unbind bnd
+  -- let (pats, body) = unsafeUnbind bnd
   let newPats = dropFnTyped ty pats
-  pure $ FnDefBranch $ PatternMatches $ bind newPats (instantiate bnd (concat (conditionOnFnTyped ty (map ((:[]) . snd) specSubst) (map (map mkVar . getNames) newPats))))
-  -- let afterSubst = overGuardedExpr renameIt body
-  --     afterBind = bind (dropFnTyped ty pats) afterSubst
-  -- pure $ trace ("subst = " ++ show specSubst ++ "; beforeSubst = " ++ show body ++ ";;;; afterSubst = " ++ show afterSubst ++ "; afterBind = " ++ show afterBind) $ traceShow specSubst $ FnDefBranch $ PatternMatches afterBind
-  -- where
-  --   renameIt = transform go
-  --     where
-  --       go e0@(V x) = fromMaybe e0 $ do
-  --         y <- lookup (name2String x) specSubst
-  --         pure $ trace ("--- y = " ++ show y) $ V $ Fn y 0
-  --       go e = e
+      afterSubst = substs specSubst body
+      -- patVars = map (map mkVar . getNames) newPats
+      -- new = concat (conditionOnFnTyped ty (map ((:[]) . snd) specSubst) patVars)
+  pure $ trace ("bnd = " ++ show bnd ++ "; body = " ++ ppr' body ++ "; afterSubst = " ++ show afterSubst)
+    $ trace ("specSubst = " ++ show specSubst)
+    $ FnDefBranch $ PatternMatches $ bind newPats afterSubst
+    -- $ FnDefBranch $ PatternMatches $ bind newPats $ substBvs initialCtx new body
 
 makeSpecialization :: FnDef -> [Expr] -> FreshM Specialization
 makeSpecialization fnDef =
@@ -175,125 +181,11 @@ specializeArg (Lambda bnd) = do
   pure $ FnArgLambda lamName bnd
 specializeArg e = error $ "specializeArg: " ++ ppr' e
 
--- getSpecializations :: PikaModuleElaborated -> FnDef -> FreshM [Specialization]
--- getSpecializations = undefined
---
--- defunctionalizeFnDef = undefined
-
-
-
 -- NOTE: This compares the internal names of lambdas
 instance Eq FnArg where
   FnArgName x     == FnArgName y     = x == y
   FnArgLambda x _ == FnArgLambda y _ = x == y
   _ == _ = False
---
--- -- TODO: Use
--- updateToUseSpecializations :: PikaModuleElaborated -> PikaModuleElaborated
--- updateToUseSpecializations mod =
---   mod { moduleFnDefs = map go (moduleFnDefs mod) }
---   where
---     go fnDef = runFreshM . onFnDef (pure . goExpr fnDef) $ fnDef
---       where
---         goExpr :: FnDef -> Expr -> Expr
---         goExpr fnDef app@(App fn args) =
---           case lookupFnDef mod (name2String fn) of
---             Nothing -> app
---             Just fnDef ->
---               let fnType = getFnDefType fnDef
---               in
---               case findSpecialization fnDef fnType args of
---                 Nothing -> app
---                 Just specialization -> useSpecialization fnType (name2String fn) args specialization
---         goExpr fnDef e = e
---
--- useSpecialization :: Type -> String -> [Expr] -> Specialization -> Expr
--- useSpecialization ty name origArgs specialization =
---   let newArgs = dropFnTyped ty origArgs
---   in
---   App (string2Name (getDefunName name specialization)) newArgs
---
--- -- | Get the function arguments that the given function name is called with
--- -- in the module
--- getSpecializations :: PikaModuleElaborated -> String -> FreshM [Specialization]
--- getSpecializations mod fnName =
---   case lookupFnDef mod fnName of
---     Nothing -> pure []
---     Just fnDef
---       | isHigherOrder (getFnDefType fnDef) ->
---           concat <$> traverse (getSpecializationsFromDef mod fnName) (moduleFnDefs mod)
---     _ -> pure []
---
--- -- |
--- -- @fnName@: The function name we are searching for
--- --
--- -- @fnDef@: The function being searched
--- getSpecializationsFromDef :: PikaModuleElaborated -> String -> FnDef -> FreshM [Specialization]
--- getSpecializationsFromDef mod fnName fnDef = do
---   exprs <- getFnDefExprs fnDef
---   let typedApps = mapMaybe getCandidateApp $ concatMap universe exprs
---       specs = mapMaybe (uncurry (findSpecialization fnDef)) typedApps
---
---   pure $ trace ("name = " ++ fnDefName fnDef ++ "; specs = " ++ show specs ++ "; def = " ++ ppr' fnDef)
---     $ specs
---   where
---     getCandidateApp :: Expr -> Maybe (Type, [Expr])
---     getCandidateApp (App f args) = do
---       if isFreeName f
---       then do
---         ty <- getFnDefType <$> lookupFnDef mod (name2String f)
---         pure (ty, args)
---       else Nothing
---     getCandidateApp _ = Nothing
---
--- -- | We find an @App "fnName" [arg1, ..., argN]@
--- -- and we want to get the specialization that this represents.
--- findSpecialization :: FnDef -> Type -> [Expr] -> Maybe Specialization
--- findSpecialization currentLocation ty exprs =
---   case map (toFnArg currentLocation) $ getFnTyped ty exprs of
---     [] -> Nothing
---     fnArgs -> Just $ Specialization fnArgs
---
--- toFnArg :: FnDef -> Expr -> FnArg
--- toFnArg fnDef (V x) = FnArgName fnDef (name2String x)
--- toFnArg fnDef e = error $ "toFnArg: " ++ ppr' e
---
---
--- defunctionalizeFnDef :: FnDef -> [Specialization] -> [FnDef]
--- defunctionalizeFnDef fnDef [] = [fnDef]
--- defunctionalizeFnDef fnDef xs = map (generateSpecialization fnDef) xs
---
--- -- | This is where we actually do the main work of defunctionalization
--- generateSpecialization :: FnDef -> Specialization -> FnDef
--- generateSpecialization fnDef spec =
---   let newName = getDefunName (fnDefName fnDef) spec
---   in
---   fnDef
---     { fnDefName = newName
---     , fnDefTypedBranches = go (fnDefTypedBranches fnDef)
---     }
---   where
---     go (Typed ty bs) =
---       Typed ty $ map (generateBranchSpecialization ty spec) bs
---
--- generateBranchSpecialization :: Type -> Specialization -> FnDefBranch -> FnDefBranch
--- generateBranchSpecialization ty spec branch = runFreshM $ do
---   stringSubst <- makeSpecializationSubst ty branch spec
---
---   let
---     nameSubst :: [(ExprName, ExprName)]
---     nameSubst = map (both %~ string2Name) stringSubst
---
---     -- -- TODO: Support for lambdas
---     -- go :: Expr -> Expr
---     -- go e@(App f args) =
---     --   case lookup f stringSubst of
---     --     Nothing -> e
---     --     Just f' -> App f args
---     -- go e@(V _) = rename nameSubst e
---     -- go e = e
---
---   onFnDefBranch (pure . rename nameSubst) branch
 
 type SpecSubst = [(ExprName, Expr)]
 
@@ -305,10 +197,11 @@ makeSpecializationSubst ty branch fnArgs = do
 
 getFnTypedParams :: Type -> FnDefBranch -> FreshM [ExprName]
 getFnTypedParams ty (FnDefBranch (PatternMatches bnd)) = do
-  (pats0, _) <- unbind bnd
+  -- (pats0, _) <- unbind bnd
+  let B pats0 _ = bnd
   pure $ map getPatternVar (getFnTyped ty pats0)
   where
-    getPatternVar (PatternVar x) = x
+    getPatternVar (PatternVar x) = x --Fn (name2String x) 0
     getPatternVar pat = error $ "getPatternVar: " ++ ppr' pat
 
 getFnArgsFromMatches :: Type -> PatternMatches Expr GuardedExpr -> FreshM [ExprName]
@@ -319,13 +212,6 @@ getFnArgsFromMatches ty (PatternMatches bnd) = do
   where
     getPatternVar (PatternVar n) = n
     getPatternVar _ = error $ "getFnArgsFromMatches.getPatternVar: Not a PatternVar"
-
--- -- Remove the function parameters from the pattern matches
--- updateMatches :: Type -> PatternMatches Expr GuardedExpr -> FreshM (PatternMatches Expr GuardedExpr)
--- updateMatches ty (PatternMatches bnd) = do
---   (pats, rhs) <- unbind bnd
---
---   pure $ PatternMatches $ bind (dropFnTyped ty pats) rhs
 
 isHigherOrder :: Type -> Bool
 isHigherOrder ty = not . null . getFnTyped ty $ repeat ()

@@ -220,6 +220,7 @@ instance Arbitrary GuardedExpr where
 instance WellScoped (Pattern Expr) GuardedExpr
 
 instance Subst Expr GuardedExpr
+instance Subst (Pattern Expr) GuardedExpr
 
 instance Ppr GuardedExpr where
   ppr (GuardedExpr (BoolLit True) body) = text ":=" <+> ppr body

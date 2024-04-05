@@ -68,13 +68,13 @@ etaExpand = go
         App f args -> App f <$> traverse go args
         _ -> LayoutLambda adt <$> bind v <$> go body
 
-    go (App f xs)
+    go (App (V f) xs)
       | isConstructor f = constructorToLayoutLambda f xs
       | otherwise = do
           fmap (lookup (name2String f)) (asks _fnEnv) >>= \case
             Just (TypeSig sigBnd) -> do
               (vs, (ConstrainedType cts ty, ())) <- unbind sigBnd
-              toLayoutLambdas cts =<< (App f <$> traverse go xs)
+              toLayoutLambdas cts =<< (mkApp f <$> traverse go xs)
 
     go e = plate go e -- TODO: Does this work?
 
@@ -93,7 +93,7 @@ toLayoutLambdas ((v :~ adt) : rest) e = do
 constructorToLayoutLambda :: ExprName -> [Expr] -> Check s Expr
 constructorToLayoutLambda c args = do
   cts <- constructorConstraints c
-  toLayoutLambdas cts (App c args)
+  toLayoutLambdas cts (mkApp c args)
 
 constructorConstraints :: ExprName -> Check s [LayoutConstraint]
 constructorConstraints c = do
@@ -282,7 +282,7 @@ inferExpr = go
     go ctx e@BoolLit{} = do
       pure BoolType
 
-    go ctx e0@(App f args) = do
+    go ctx e0@(App (V f) args) = do
       fType <- lookupFnType (name2String f)
 
       let (fArgTys, fResultTy) = splitFnType fType
@@ -299,7 +299,7 @@ inferExpr = go
       pure $ ForAll $ bind (tyVar, Embed adt) bodyTy
 
     -- TODO: Find a better way before it reaches here
-    go ctx e0@(ApplyLayout (App f args) appTy)
+    go ctx e0@(ApplyLayout (App (V f) args) appTy)
       | isConstructor f = do
           fType <- go ctx (ApplyLayout (V f) appTy)
           let (fArgTys, fResultTy) = splitFnType fType

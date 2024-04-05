@@ -332,11 +332,11 @@ parseApplyLayout = label "layout application" $ lexeme $ do
   pure (ApplyLayout e ty)
 
 parseNullaryConstructorApp :: Parser Expr
-parseNullaryConstructorApp = lexeme $ App <$> (fmap string2Name parseConstructorName) <*> pure []
+parseNullaryConstructorApp = lexeme $ App <$> (fmap (V . string2Name) parseConstructorName) <*> pure []
 
 parseApp :: Parser Expr
 parseApp = label "function application" $ lexeme $
-  App <$> (fmap string2Name parseFnName) <*> some parseExpr'
+  App <$> (fmap (V . string2Name) parseFnName) <*> some parseExpr'
 
 parseBinOp :: String -> (Expr -> Expr -> Expr) -> Parser Expr
 parseBinOp op p = do

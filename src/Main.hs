@@ -220,7 +220,8 @@ main = do
             pikaModule = toPikaModuleElaborated_unsafe pikaModule'
             layouts = moduleLayouts pikaModule
 
-        -- mapM_ (putStrLn . ppr') (moduleLayouts pikaModule)
+        mapM_ (putStrLn . ppr') (moduleFnDefs pikaModule')
+        putStrLn "----"
 
         let checkEnv = mkCheckEnv pikaModule'
         print pikaModule'

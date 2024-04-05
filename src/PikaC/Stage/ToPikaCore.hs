@@ -262,7 +262,7 @@ convertAppHere opened e@(Pika.ApplyLayout _ (LayoutId layoutName)) = do
   params <- mapM (fresh . modedNameName) params0
   let modedParams = zipWith Moded (map getMode params0) params
   convertAppHereUsing opened e modedParams
-convertAppHere opened e@(Pika.App f args)
+convertAppHere opened e@(Pika.App (Pika.V f) args)
   | isConstructor f = error $ "convertAppHere: Found constructor that's not applied to a layout: " ++ ppr' e
   | otherwise = do
         -- TODO: Handle base types
@@ -293,13 +293,13 @@ convertApp :: (Monad m, HasCallStack) =>
   [OpenedArgBody] -> Pika.Expr ->
   ([ModedName PikaCore.Expr], PikaCore.Expr) ->
   PikaConvert m PikaCore.Expr
-convertApp openedArgLayouts (Pika.ApplyLayout app@(Pika.App f args) layoutName) (vs, z)
+convertApp openedArgLayouts (Pika.ApplyLayout app@(Pika.App (Pika.V f) args) layoutName) (vs, z)
   -- | isConstructor f =
   --     lowerConstructor openedArgLayouts f args (name2String layoutName)
   -- | otherwise =
   | not (isConstructor f) =
       lowerApp openedArgLayouts (PikaCore.FnName (convertName f)) args (vs, z)
-convertApp openedArgLayouts e0@(Pika.App f args) (vs, z)
+convertApp openedArgLayouts e0@(Pika.App (Pika.V f) args) (vs, z)
   | isConstructor f = error $ "convertApp: Found constructor that's not applied to a layout: " ++ ppr' e0
   | otherwise = do
         -- TODO: Handle base types
@@ -384,7 +384,7 @@ convertExpr openedArgLayouts = go
     go e0@(Pika.LayoutLambda {}) = error $ "convertExpr: " ++ ppr' e0
     go (Pika.ApplyLayout (Pika.V v) layoutName) = PikaCore.V <$> internExprName v -- TODO: Is this correct?
 
-    go e@(Pika.ApplyLayout (Pika.App f args) (LayoutId layoutName))
+    go e@(Pika.ApplyLayout (Pika.App (Pika.V f) args) (LayoutId layoutName))
       | isConstructor f = lowerConstructor openedArgLayouts (name2String f) args layoutName
     go e@(Pika.ApplyLayout {}) = convertAppHere openedArgLayouts e
     go e@(Pika.App {}) = convertAppHere openedArgLayouts e

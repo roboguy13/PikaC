@@ -53,7 +53,7 @@ data Expr
   | BoolLit Bool
   | LayoutLambda AdtName (Bind TypeName Expr)
   | ApplyLayout Expr Type -- The type should either be a TyVar or a LayoutId
-  | App ExprName [Expr]
+  | App Expr [Expr]
   | Div Expr Expr
   | Mod Expr Expr
   | Add Expr Expr
@@ -113,7 +113,7 @@ instance NFData Expr
 instance NFData a => NFData (Test a)
 
 instance HasApp Expr where
-  mkApp = App
+  mkApp f = App (V f)
 
 instance Ppr a => Ppr (Test a) where
   ppr test =
@@ -122,7 +122,7 @@ instance Ppr a => Ppr (Test a) where
       <+> ppr (_testExpr test)
 
 instance Ppr Expr where
-  ppr (V x) = ppr x
+  ppr (V x) = text $ name2String x
   ppr (IntLit i) = ppr i
   ppr (BoolLit b) = ppr b
   ppr (LayoutLambda a (B v p)) = hsep [text "/\\(" <> ppr v <> text " :~ " <> ppr a <> text ").", ppr p]
@@ -413,7 +413,9 @@ instance Arbitrary Expr where
 --     go e = e
 
 getFnNames :: Expr -> [ExprName]
-getFnNames = toListOf (_App._1)
+getFnNames = map getV . toListOf (_App._1)
+  where
+    getV (V x) = x
 
 -- isValidExpr :: Expr -> Validation
 -- isValidExpr = mconcat . map go . universe
@@ -502,7 +504,7 @@ genCall ::
    Gen Expr
 genCall fnSigs layouts locals size (fn, inLayouts, outLayout) = do
   let newSize = size `div` length (inLayouts ++ [Just outLayout])
-  App (string2Name fn) <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) inLayouts
+  mkApp (string2Name fn) <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) inLayouts
 
 genConstructorApp ::
    [(String, [Maybe LayoutName], LayoutName)] -> -- Function signatures
@@ -516,7 +518,7 @@ genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
   (cName, arity) <- elements' constructorSigs
   let newSize = size `div` length arity
   ApplyLayout
-    <$> (App (string2Name cName) <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
+    <$> (mkApp (string2Name cName) <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
     <*> pure (LayoutId layout)
 
 genSimpleExpr' :: [ExprName] -> Int -> Gen Expr
