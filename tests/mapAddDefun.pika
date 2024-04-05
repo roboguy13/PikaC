@@ -12,8 +12,5 @@ map : (Int -> Int) -> Sll -> Sll;
 map f Nil := Nil [Sll];
 map f (Cons a as) := Cons (f a) (map f as) [Sll];
 
--- mapAdd1 : Sll -> Sll;
--- mapAdd1 xs := map (\x. x + 1) xs;
+-- TODO: Add some %test-style tests
 
--- %test "mapAdd1" Sll:
---   mapAdd 1 (Cons 10 (Cons 20 (Cons 30 (Nil [Sll]) [Sll]) [Sll]) [Sll]);
