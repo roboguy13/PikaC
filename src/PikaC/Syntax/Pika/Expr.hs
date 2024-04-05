@@ -18,6 +18,7 @@ import PikaC.Utils
 -- import Bound
 import Unbound.Generics.LocallyNameless
 import Unbound.Generics.LocallyNameless.Bind
+import Unbound.Generics.LocallyNameless.Unsafe
 import Text.Show.Deriving
 
 import Control.Monad
@@ -65,6 +66,8 @@ data Expr
   | Le Expr Expr
   | Not Expr
 
+  | Lambda (Bind [ExprName] Expr)
+
   -- For the ghost language:
   | EmptySet
   | SingletonSet Expr
@@ -89,6 +92,7 @@ instance Size Expr where
   size (Lt x y) = visibleNode $ size x + size y
   size (Le x y) = visibleNode $ size x + size y
   size (Not x) = visibleNode $ size x
+  size (Lambda bnd) = visibleNode $ size bnd
   size EmptySet = 1
   size (SingletonSet x) = visibleNode $ size x
   size (SetUnion x y) = visibleNode $ size x + size y
@@ -122,6 +126,10 @@ instance Ppr Expr where
   ppr (IntLit i) = ppr i
   ppr (BoolLit b) = ppr b
   ppr (LayoutLambda a (B v p)) = hsep [text "/\\(" <> ppr v <> text " :~ " <> ppr a <> text ").", ppr p]
+  ppr (Lambda bnd) =
+    let (vs, body) = unsafeUnbind bnd
+    in
+    hsep (text "\\" : map ppr vs) <+> text "." <+> ppr body
   ppr (ApplyLayout e ty) = hsep [pprP e, text "[" <> ppr ty <> text "]"]
   ppr (App f xs) = hsep (ppr f : map pprP xs)
   ppr (Mul x y) = hsep [pprP x, text "*", pprP y]
@@ -144,6 +152,7 @@ instance IsNested Expr where
   isNested (IntLit _) = False
   isNested (BoolLit _) = False
   isNested (LayoutLambda {}) = True
+  isNested (Lambda {}) = True
   isNested (ApplyLayout {}) = True
   isNested (App {}) = True
   isNested (Div {}) = True
@@ -166,33 +175,37 @@ instance Plated Expr where
   plate f (IntLit i) = pure $ IntLit i
   plate f (BoolLit b) = pure $ BoolLit b
   plate f (ApplyLayout e a) =
-    ApplyLayout <$> plate f e <*> pure a
+    ApplyLayout <$> f e <*> pure a
+  plate f (Lambda bnd) =
+    let (vs, body) = unsafeUnbind bnd
+    in
+    Lambda . bind vs <$> f body
   plate f (App k xs) =
-    App k <$> traverse (plate f) xs
+    App k <$> traverse f xs
   plate f (Mod x y) =
-    Mod <$> plate f x <*> plate f y
+    Mod <$> f x <*> f y
   plate f (Div x y) =
-    Div <$> plate f x <*> plate f y
+    Div <$> f x <*> f y
   plate f (And x y) =
-    And <$> plate f x <*> plate f y
+    And <$> f x <*> f y
   plate f (IfThenElse x y z) =
-    IfThenElse <$> plate f x <*> plate f y <*> plate f z
+    IfThenElse <$> f x <*> f y <*> f z
   plate f (Add x y) =
-    Add <$> plate f x <*> plate f y
+    Add <$> f x <*> f y
   plate f (Mul x y) =
-    Mul <$> plate f x <*> plate f y
+    Mul <$> f x <*> f y
   plate f (Sub x y) =
-    Sub <$> plate f x <*> plate f y
+    Sub <$> f x <*> f y
   plate f (Equal x y) =
-    Equal <$> plate f x <*> plate f y
+    Equal <$> f x <*> f y
   plate f (Lt x y) =
-    Lt <$> plate f x <*> plate f y
+    Lt <$> f x <*> f y
   plate f (Le x y) =
-    Le <$> plate f x <*> plate f y
+    Le <$> f x <*> f y
   plate f (Not x) = Not <$> f x
   plate f (SingletonSet x) = SingletonSet <$> f x
   plate f EmptySet = pure EmptySet
-  plate f (SetUnion x y) = SetUnion <$> plate f x <*> plate f y
+  plate f (SetUnion x y) = SetUnion <$> f x <*> f y
 
 -- example :: Expr
 -- example =
@@ -302,6 +315,10 @@ isConcrete (IntLit {}) = True
 isConcrete (BoolLit {}) = True
 isConcrete (LayoutLambda {}) = False
 isConcrete (ApplyLayout e _) = isConcrete e
+isConcrete (Lambda bnd) =
+  let (_, e) = unsafeUnbind bnd
+  in
+  isConcrete e
 isConcrete (App f xs) = all isConcrete xs
 
 reduceLayouts :: Expr -> Expr
@@ -319,6 +336,10 @@ reduceLayouts = go
           rename [(p, string2Name arg)] e
           -- substBind bnd arg
         e' -> ApplyLayout e' (LayoutId arg)
+    go (Lambda bnd) =
+      let (vs, body) = unsafeUnbind bnd
+      in
+      Lambda $ bind vs $ go body
     go (App f args) =
       App f (map go args)
     go (Mod x y) = Mod (go x) (go y)

@@ -61,6 +61,7 @@ data PikaModule' f =
   , moduleSynths :: [Synth]
   , moduleGenerates :: [String]
   , moduleTests :: [Test Expr]
+  , moduleSpecializes :: [(String, [Expr])]
   }
   deriving (Generic)
 
@@ -80,8 +81,10 @@ type PikaModuleElaborated = PikaModule' Typed
 instance NFData (f [FnDefBranch]) => NFData (PikaModule' f)
 
 instance (TypePair f, Ppr (TypePairType f)) => Ppr (PikaModule' f) where
-  ppr (PikaModule adts layouts fns synths generates tests) =
-    text "-- Layouts:"
+  ppr (PikaModule adts layouts fns synths generates tests specs) =
+    text "-- Generates:"
+    $$ vcat (map ppr generates)
+    $$ text "-- Layouts:"
     $$ vcat (map ppr layouts)
     $$ text "-- Synths:"
     $$ vcat (map ppr synths)
@@ -91,15 +94,15 @@ instance (TypePair f, Ppr (TypePairType f)) => Ppr (PikaModule' f) where
     $$ vcat (map ppr tests)
 
 isTrivialModule :: PikaModule -> Bool
-isTrivialModule (PikaModule x y z w a b) =
-  null x || null y || null z || null w || null a || null b
+isTrivialModule (PikaModule x y z w a b c) =
+  null x || null y || null z || null w || null a || null b || null c
 
 instance Semigroup PikaModule where
-  PikaModule xs1 ys1 zs1 ws1 as1 bs1 <> PikaModule xs2 ys2 zs2 ws2 as2 bs2 =
-    PikaModule (xs1 <> xs2) (ys1 <> ys2) (zs1 <> zs2) (ws1 <> ws2) (as1 <> as2) (bs1 <> bs2)
+  PikaModule xs1 ys1 zs1 ws1 as1 bs1 cs1 <> PikaModule xs2 ys2 zs2 ws2 as2 bs2 cs2 =
+    PikaModule (xs1 <> xs2) (ys1 <> ys2) (zs1 <> zs2) (ws1 <> ws2) (as1 <> as2) (bs1 <> bs2) (cs1 <> cs2)
 
 instance Monoid PikaModule where
-  mempty = PikaModule mempty mempty mempty mempty mempty mempty
+  mempty = PikaModule mempty mempty mempty mempty mempty mempty mempty
 
 singleAdt :: Adt -> PikaModule
 singleAdt x = mempty { moduleAdts = [x] }
@@ -119,6 +122,9 @@ singleGenerate x = mempty { moduleGenerates = [x] }
 singleTest :: Test Expr -> PikaModule
 singleTest x = mempty { moduleTests = [x] }
 
+singleSpecialize :: (String, [Expr]) -> PikaModule
+singleSpecialize x = mempty { moduleSpecializes = [x] }
+
 moduleLookupLayout :: PikaModule' a -> String -> Layout Expr
 moduleLookupLayout = lookupLayout . moduleLayouts
 
@@ -132,14 +138,15 @@ moduleLookupFn pikaModule name = go (moduleFnDefs pikaModule)
 
 parsePikaModule :: Parser PikaModule
 parsePikaModule = do
-  generates <- mconcat . map singleGenerate <$> some parseGenerate
+  generates <- mconcat . map singleGenerate <$> many parseGenerate
+  specializes <- mconcat . map singleSpecialize <$> many parseSpecialize
   adts <- mconcat . map singleAdt <$> many parseAdt
   layouts <- mconcat . map singleLayout <$> many parseLayout
   synths <- mconcat . map singleSynth <$> many parseSynth
   fnDefs <- mconcat . map singleFnDef <$> some parseFnDef
   tests <- mconcat . map singleTest <$> many parseTest
 
-  pure (generates <> adts <> layouts <> fnDefs <> tests <> synths)
+  pure (generates <> adts <> layouts <> fnDefs <> tests <> synths <> specializes)
 
   -- fmap mconcat $ some $
   --   try (singleGenerate <$> parseGenerate) <|>
@@ -197,6 +204,12 @@ parseConstructor adt = do
   --     | x == unAdtName adt = TyVar recTypeVar
   --   go x = x
 
+parseSpecialize :: Parser (String, [Expr])
+parseSpecialize = label "specialize directive" $ lexeme $ do
+  keyword "%specialize"
+  name <- parseFnName
+  args <- some parseExpr
+  pure $ (name, args)
 
 parseGenerate :: Parser String
 parseGenerate = label "generate directive" $ lexeme $ do
@@ -265,6 +278,7 @@ parsePattern = label "pattern" $ lexeme $
 
 parseExpr :: Parser Expr
 parseExpr = label "expression" $ lexeme $
+  try parseLambda <|>
   try (parseBinOp "%" Mod) <|>
   try (parseBinOp "&&" And) <|>
   try (parseBinOp "/" Div) <|>
@@ -292,6 +306,14 @@ parseExpr' = label "expression" $ lexeme $
   try (V <$> parseLowercaseExprName) <|>
   try (lexeme (symbol "{" *> symbol "}" *> pure EmptySet)) <|>
   try (lexeme (fmap SingletonSet (symbol "{" *> parseExpr <* symbol "}")))
+
+parseLambda :: Parser Expr
+parseLambda = label "lambda" $ lexeme $ do
+  symbol "\\"
+  vs <- some parseLowercaseExprName
+  symbol "."
+  e <- parseExpr
+  pure $ Lambda $ bind vs e
 
 parseLayoutLambda :: Parser Expr
 parseLayoutLambda = label "layout lambda" $ lexeme $ do
@@ -498,15 +520,15 @@ parsePatternVar = label "pattern variable" $ string2Name <$> lexeme parseLowerca
 
 instance (TypePair f) => Arbitrary (PikaModule' f) where
   arbitrary = error "Arbitrary PikaModule"
-  shrink mod0@(PikaModule x y z w a b) = do
+  shrink mod0@(PikaModule x y z w a b c) = do
     let y' = map shrink y
         z' = map shrink z
-    mod <- PikaModule x <$> sequenceA y' <*> sequenceA z' <*> pure w <*> pure a <*> pure b
+    mod <- PikaModule x <$> sequenceA y' <*> sequenceA z' <*> pure w <*> pure a <*> pure b <*> pure c
     pure mod
   -- shrink = filter (not . isTrivialModule) . genericShrink
 
 instance Validity PikaModule where
-  validate (PikaModule x y z w _ _) =
+  validate (PikaModule x y z w _ _ _) =
     validate y <> validate z
 
 instance Validity (TypeSig' [FnDefBranch]) where
@@ -562,6 +584,7 @@ genModule' size = do
     , moduleGenerates = map fnDefName fns
     , moduleSynths = []
     , moduleTests = []
+    , moduleSpecializes = []
     }
   where
     convertSig ::
