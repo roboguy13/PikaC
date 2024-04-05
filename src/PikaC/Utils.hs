@@ -109,6 +109,12 @@ renameMaybe (Just rho) = rename rho
 rename' :: forall a b. (HasVar a, Subst a b, Typeable a, Alpha b) => [(Name a, Name a)] -> b -> b
 rename' pairs = substs (map (\(x, y) -> (x, mkVar y)) pairs)
 
+applyMaybe :: (a -> Maybe a) -> a -> a
+applyMaybe f x =
+  case f x of
+    Nothing -> x
+    Just r -> r
+
 fastNub :: Ord a => [a] -> [a]
 fastNub = Set.toList . Set.fromList
 

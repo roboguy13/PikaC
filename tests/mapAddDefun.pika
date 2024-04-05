@@ -1,4 +1,4 @@
-%specialize map plus
+%specialize map (\x. x + 1)
 
 Sll : layout[-x](List);
 Sll Nil := emp;

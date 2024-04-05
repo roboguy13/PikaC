@@ -68,8 +68,9 @@ updateWithSpecialization mod =
       let ty = getFnDefType fnDef
       if isHigherOrder ty
       then
-        let newArgs = getFnTyped ty args
-            spec = runFreshM $ makeSpecialization fnDef newArgs -- TODO: Is it correct to runFreshM here?
+        let newArgs = dropFnTyped ty args
+            fnTypedArgs = getFnTyped ty args
+            spec = runFreshM $ makeSpecialization fnDef fnTypedArgs -- TODO: Is it correct to runFreshM here?
             newName = getDefunName spec
         in
         Just $ App (V (string2Name newName)) newArgs
@@ -161,7 +162,7 @@ updatePatterns specSubst ty (FnDefBranch (PatternMatches bnd)) = do
   (pats, body) <- unbind bnd
   -- let (pats, body) = unsafeUnbind bnd
   let newPats = dropFnTyped ty pats
-      afterSubst = substs specSubst body
+      afterSubst = overGuardedExpr (rewrite betaReduce) $ substs specSubst body
       -- patVars = map (map mkVar . getNames) newPats
       -- new = concat (conditionOnFnTyped ty (map ((:[]) . snd) specSubst) patVars)
   pure $ trace ("bnd = " ++ show bnd ++ "; body = " ++ ppr' body ++ "; afterSubst = " ++ show afterSubst)
@@ -193,7 +194,11 @@ makeSpecializationSubst :: Type -> FnDefBranch -> [FnArg] -> FreshM SpecSubst
 makeSpecializationSubst ty branch fnArgs = do
   params <- getFnTypedParams ty branch
   pure $ zip params
-    $ map (V . string2Name . getFnArgName) fnArgs -- TODO: Support for lambdas
+    $ map fnArgToExpr fnArgs
+
+fnArgToExpr :: FnArg -> Expr
+fnArgToExpr (FnArgName x) = V $ string2Name $ x
+fnArgToExpr (FnArgLambda _ bnd) = Lambda bnd
 
 getFnTypedParams :: Type -> FnDefBranch -> FreshM [ExprName]
 getFnTypedParams ty (FnDefBranch (PatternMatches bnd)) = do

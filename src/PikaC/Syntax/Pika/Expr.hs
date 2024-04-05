@@ -521,6 +521,12 @@ genConstructorApp fnSigs layouts locals size (layout, constructorSigs) = do
     <$> (mkApp (string2Name cName) <$> mapM (genForMaybeLayout fnSigs layouts locals newSize) arity)
     <*> pure (LayoutId layout)
 
+-- TODO: Right now assumes the lambda is fully applied
+betaReduce :: Expr -> Maybe Expr
+betaReduce (App (Lambda bnd) args) =
+  Just $ instantiate bnd args
+betaReduce _ = Nothing
+
 genSimpleExpr' :: [ExprName] -> Int -> Gen Expr
 genSimpleExpr' [] _ =
   oneof
