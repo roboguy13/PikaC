@@ -12,6 +12,7 @@ __pycache__
 **/*~
 **/*.agdai
 **/*.png
+**/*.eps
 
 temp/*
 !temp/

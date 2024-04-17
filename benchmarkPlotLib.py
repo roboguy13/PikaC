@@ -26,7 +26,7 @@ def makePlot(file_name, test_case_names, running_times, tool_names):
     ax.legend()
 
 # Displaying the plot
-    plt.savefig(file_name, dpi=500)
+    plt.savefig(file_name + 'eps', format='eps')
 
     if '--no-show' not in sys.argv:
         plt.show()

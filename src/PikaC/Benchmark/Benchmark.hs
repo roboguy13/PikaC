@@ -23,6 +23,7 @@ import PikaC.Syntax.ParserUtils
 import PikaC.Stage.ToPikaCore.Monad
 import PikaC.Stage.ToPikaCore.SimplifyM
 import PikaC.Stage.ToPikaCore
+import PikaC.TypeChecker.Elaborate
 import PikaC.Utils
 import PikaC.Ppr
 
@@ -246,19 +247,40 @@ genPythonPlot pyFile = do
   system $ "python3 " ++ pyFile ++ " --no-show"
   pure ()
 
+data OptLevel = Unopt | Opt
+  deriving (Show)
+
+data Language = C | Haskell
+
+printOptLevel :: Language -> OptLevel -> String
+printOptLevel _ Unopt = "-O0"
+printOptLevel C Opt = "-O3"
+printOptLevel Haskell Opt = "-O2"
+
 genPythonCode :: [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> String
 genPythonCode unoptResults0 optResults0 =
   unlines $
     ["from benchmarkPlotLib import *"
     ,""
     ,"if __name__ == '__main__':"
-    ,"  " ++ plot "c-benchmarks-list." listBenchmarksUnopt listBenchmarksOpt
-    ,"  " ++ plot "c-benchmarks-tree." treeBenchmarksUnopt treeBenchmarksOpt
+    ,"  " ++ plot Unopt "c-benchmarks-unopt." unopt
+    ,"  " ++ plot Opt "c-benchmarks-opt." opt
+    -- ,"  " ++ plot "c-benchmarks-list." listBenchmarksUnopt listBenchmarksOpt
+    -- ,"  " ++ plot "c-benchmarks-tree." treeBenchmarksUnopt treeBenchmarksOpt
     ]
   where
-    plot :: FilePath -> [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> String
-    plot fileName unopt opt = 
-      makePlot fileName (map cbenchResultName unopt) (theData unopt opt) ["C (-O0)", "Haskell (-O0)", "C (-O3)", "Haskell (-O2)"]
+    plot :: OptLevel -> FilePath -> [CBenchmarkResult Report] -> String
+    plot optLevel fileName results =
+      makePlot fileName (map cbenchResultName results) [theDataC results, theDataHaskell results] ["C " ++ printOptLevel C optLevel, "Haskell " ++ printOptLevel Haskell optLevel] --["C (-O0)", "Haskell (-O0)", "C (-O3)", "Haskell (-O2)"]
+    -- plot :: FilePath -> [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> String
+    -- plot fileName unopt opt = 
+    --   makePlot fileName (map cbenchResultName unopt) (theData unopt opt) ["C (-O0)", "Haskell (-O0)", "C (-O3)", "Haskell (-O2)"]
+
+    unopt :: [CBenchmarkResult Report]
+    unopt = listBenchmarksUnopt ++ treeBenchmarksUnopt
+
+    opt :: [CBenchmarkResult Report]
+    opt = listBenchmarksOpt ++ treeBenchmarksOpt
 
     listBenchmarksUnopt :: [CBenchmarkResult Report]
     listBenchmarksUnopt = filter ((== List) . cbenchResultKind) unoptResults0
@@ -272,13 +294,22 @@ genPythonCode unoptResults0 optResults0 =
     treeBenchmarksOpt :: [CBenchmarkResult Report]
     treeBenchmarksOpt = filter ((== Tree) . cbenchResultKind) optResults0
 
-    theData :: [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> [[Double]]
-    theData unopt opt =
-      [map (secToMilli . reportMean . cbenchResultCTime) unopt
-      ,map (secToMilli . reportMean . cbenchResultHaskellTime) unopt
-      ,map (secToMilli . reportMean . cbenchResultCTime) opt
-      ,map (secToMilli . reportMean . cbenchResultHaskellTime) opt
-      ]
+    theData :: (CBenchmarkResult Report -> Report) -> [CBenchmarkResult Report] -> [Double]
+    theData f = map (secToMilli . reportMean . f)
+
+    theDataC :: [CBenchmarkResult Report] -> [Double]
+    theDataC = theData cbenchResultCTime
+
+    theDataHaskell :: [CBenchmarkResult Report] -> [Double]
+    theDataHaskell = theData cbenchResultHaskellTime
+
+    -- theData :: [CBenchmarkResult Report] -> [CBenchmarkResult Report] -> [[Double]]
+    -- theData unopt opt =
+    --   [map (secToMilli . reportMean . cbenchResultCTime) unopt
+    --   ,map (secToMilli . reportMean . cbenchResultHaskellTime) unopt
+    --   ,map (secToMilli . reportMean . cbenchResultCTime) opt
+    --   ,map (secToMilli . reportMean . cbenchResultHaskellTime) opt
+    --   ]
 
     secToMilli :: Double -> Double
     secToMilli = (*1000)
